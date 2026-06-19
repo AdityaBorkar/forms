@@ -1,0 +1,23 @@
+{
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-hook-form": "^7.79.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.0",
+    "@types/bun": "latest",
+    "taze": "^19.14.1"
+  },
+  "module": "src/index.ts",
+  "name": "@adityab/forms",
+  "peerDependencies": {
+    "typescript": "^7.0.1-rc"
+  },
+  "scripts": {
+    "check:lint": "bun biome check --fix .",
+    "check:types": "bun tsc --noEmit",
+    "update:deps": "bun taze -w --maturity-period 3 && bun install"
+  },
+  "type": "module"
+}
