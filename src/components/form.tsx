@@ -4,8 +4,8 @@ import type { FieldErrors } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
 import type { z } from "zod";
 
-import { FormContext } from "./context";
-import { buildDefaults, buildFieldMap } from "./use-form";
+import { FormContext } from "../context";
+import { buildDefaults, buildFieldMap } from "../hooks/use-form";
 
 export type ValidationMode = "onBlur" | "onChange" | "onSubmit" | "all";
 

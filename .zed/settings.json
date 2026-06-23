@@ -1,23 +1,25 @@
 {
+  "code_actions_on_format": {
+    "source.fixAll.biome": true,
+    "source.organizeImports.biome": true
+  },
   "file_scan_exclusions": [
     "**/.git",
     "**/.output",
-    "**/.tanstack",
-    "**/.wrangler",
-    "**/node_modules"
+    "**/node_modules",
+    "codedb.snapshot"
   ],
   "format_on_save": "on",
   "formatter": {
-    "external": {
-      "arguments": ["format", "--stdin-file-path", "{buffer_path}"],
-      "command": "biome"
+    "language_server": {
+      "name": "biome"
     }
   },
   "language_servers": [
     "!eslint",
     "!typescript-language-server",
     "!vtsls",
+    "!markdownlint",
     "..."
-  ],
-  "read_only_files": ["**/routeTree.gen.ts"]
+  ]
 }

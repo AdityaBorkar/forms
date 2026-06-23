@@ -1,0 +1,39 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - beta
+      - stable
+
+concurrency:
+  group: publish-${{ github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run check:lint
+      - run: bun run check:types
+
+      - run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
+      - name: Publish prerelease (beta)
+        if: github.ref_name == 'beta'
+        run: npm publish --tag beta --access public
+
+      - name: Publish release (stable)
+        if: github.ref_name == 'stable'
+        run: npm publish --tag latest --access public

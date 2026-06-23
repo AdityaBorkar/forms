@@ -80,7 +80,10 @@
           }
         }
       },
-      "preset": "recommended"
+      "preset": "recommended",
+      "style": {
+        "useComponentExportOnlyModules": "off"
+      }
     }
   },
   "overrides": [

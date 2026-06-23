@@ -1,11 +1,8 @@
-import { IconPlus, IconTrash } from "@tabler/icons-react";
+import type { UseFieldArrayReturn } from "react-hook-form";
 import { useFieldArray, useFormContext } from "react-hook-form";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-
-import type { FieldMap, FieldMeta } from "../use-form";
-import { deriveDefault } from "../use-form";
+import type { FieldMap, FieldMeta } from "../hooks/use-form";
+import { deriveDefault } from "../hooks/use-form";
 
 type FieldArrayConfig = {
   addLabel?: string;
@@ -17,6 +14,19 @@ type FieldArrayConfig = {
   }) => React.ReactNode;
 };
 
+type FieldArrayRenderProps = {
+  fields: UseFieldArrayReturn["fields"];
+  append: (defaults: Record<string, unknown>) => void;
+  remove: (index: number) => void;
+  addLabel: string;
+  maxItems: number | undefined;
+  disabled: boolean | undefined;
+  canAdd: boolean;
+  elementFields: FieldMap | undefined;
+  register: ReturnType<typeof useFormContext>["register"];
+  name: string;
+};
+
 type FieldArrayProps = {
   meta: FieldMeta | undefined;
   disabled: boolean | undefined;
@@ -24,6 +34,7 @@ type FieldArrayProps = {
   config: FieldArrayConfig | undefined;
   control: any;
   name: string;
+  children: (props: FieldArrayRenderProps) => React.ReactNode;
 };
 
 function FieldArray({
@@ -33,6 +44,7 @@ function FieldArray({
   config,
   control,
   name,
+  children,
 }: FieldArrayProps) {
   const { register } = useFormContext();
 
@@ -43,10 +55,10 @@ function FieldArray({
 
   const addLabel = config?.addLabel ?? `Add ${meta?.label ?? "item"}`;
   const maxItems = config?.maxItems;
+  const canAdd = !disabled && (!maxItems || fields.length < maxItems);
 
-  function handleAdd() {
-    if (disabled) return;
-    if (maxItems && fields.length >= maxItems) return;
+  function handleAppend() {
+    if (!canAdd) return;
     const defaults: Record<string, unknown> = {};
     if (elementFields) {
       for (const [key, def] of Object.entries(elementFields)) {
@@ -56,82 +68,19 @@ function FieldArray({
     append(defaults);
   }
 
-  if (config?.renderRow) {
-    return (
-      <div className="space-y-3">
-        {fields.map((item, index) => (
-          <div key={item.id}>
-            {config.renderRow?.({
-              fields: item as Record<string, any>,
-              index,
-              remove: () => remove(index),
-            })}
-          </div>
-        ))}
-        <Button
-          disabled={disabled}
-          onClick={handleAdd}
-          size="xs"
-          type="button"
-          variant="outline"
-        >
-          <IconPlus className="h-3 w-3" />
-          {addLabel}
-        </Button>
-      </div>
-    );
-  }
-
-  if (!elementFields) return null;
-
-  const fieldEntries = Object.entries(elementFields);
-
-  return (
-    <div className="space-y-3">
-      {fields.length === 0 && (
-        <p className="text-muted-foreground text-sm">
-          No {meta?.label?.toLowerCase() ?? "items"} added yet
-        </p>
-      )}
-      {fields.map((item, index) => (
-        <div className="flex items-start gap-2" key={item.id}>
-          {fieldEntries.map(([key, def]) => (
-            <div className="flex-1" key={key}>
-              <Input
-                disabled={disabled}
-                placeholder={def.meta?.placeholder ?? key}
-                type={def.kind === "number" ? "number" : "text"}
-                {...register(`${name}.${index}.${key}`)}
-              />
-            </div>
-          ))}
-          <Button
-            className="mt-0"
-            disabled={disabled}
-            onClick={() => remove(index)}
-            size="icon-sm"
-            type="button"
-            variant="ghost"
-          >
-            <IconTrash className="h-3.5 w-3.5 text-destructive" />
-          </Button>
-        </div>
-      ))}
-      <Button
-        disabled={
-          disabled || (maxItems !== undefined && fields.length >= maxItems)
-        }
-        onClick={handleAdd}
-        size="xs"
-        type="button"
-        variant="outline"
-      >
-        <IconPlus className="h-3 w-3" />
-        {addLabel}
-      </Button>
-    </div>
-  );
+  return children({
+    addLabel,
+    append: handleAppend,
+    canAdd,
+    disabled,
+    elementFields,
+    fields,
+    maxItems,
+    name,
+    register,
+    remove,
+  });
 }
 
-export type { FieldArrayConfig };
+export type { FieldArrayConfig, FieldArrayRenderProps };
 export { FieldArray };

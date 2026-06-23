@@ -1,61 +1,193 @@
-import type { ControllerRenderProps } from "react-hook-form";
+import type { ControllerRenderProps, UseFormReturn } from "react-hook-form";
 import { Controller, useFormContext as useRhfContext } from "react-hook-form";
 
-import { Label } from "@/components/ui/label";
-
-import { useFormContext } from "./context";
-import { BooleanField } from "./field-components/boolean-field";
+import { useFormContext } from "../context";
+import type { FieldDef } from "../hooks/use-form";
+import { unwrapOptional } from "../hooks/use-form";
+import type { BooleanFieldRenderProps } from "./boolean-field";
+import { BooleanField } from "./boolean-field";
 import type {
   ComboboxConfig,
+  ComboboxFieldRenderProps,
   ComboboxOption,
-} from "./field-components/combobox-field";
-import { ComboboxField } from "./field-components/combobox-field";
-import { EnumField } from "./field-components/enum-field";
-import type { FieldArrayConfig } from "./field-components/field-array";
-import { FieldArray } from "./field-components/field-array";
-import { NumberField } from "./field-components/number-field";
-import { StringField } from "./field-components/string-field";
-import type { FieldDef } from "./use-form";
-import { unwrapOptional } from "./use-form";
+} from "./combobox-field";
+import { ComboboxField } from "./combobox-field";
+import type { EnumFieldRenderProps } from "./enum-field";
+import { EnumField } from "./enum-field";
+import type { FieldArrayConfig, FieldArrayRenderProps } from "./field-array";
+import { FieldArray } from "./field-array";
+import type { NumberFieldRenderProps } from "./number-field";
+import { NumberField } from "./number-field";
+import type { StringFieldRenderProps } from "./string-field";
+import { StringField } from "./string-field";
 
 type FieldConfig = ComboboxConfig<ComboboxOption> | FieldArrayConfig;
+
+type FieldRenderProps =
+  | {
+      kind: "string";
+      render: (
+        fn: (props: StringFieldRenderProps) => React.ReactNode,
+      ) => React.ReactNode;
+    }
+  | {
+      kind: "number";
+      render: (
+        fn: (props: NumberFieldRenderProps) => React.ReactNode,
+      ) => React.ReactNode;
+    }
+  | {
+      kind: "boolean";
+      render: (
+        fn: (props: BooleanFieldRenderProps) => React.ReactNode,
+      ) => React.ReactNode;
+    }
+  | {
+      kind: "enum";
+      render: (
+        fn: (props: EnumFieldRenderProps) => React.ReactNode,
+      ) => React.ReactNode;
+    }
+  | {
+      kind: "combobox";
+      render: (
+        fn: (props: ComboboxFieldRenderProps) => React.ReactNode,
+      ) => React.ReactNode;
+    }
+  | {
+      kind: "array";
+      render: (
+        fn: (props: FieldArrayRenderProps) => React.ReactNode,
+      ) => React.ReactNode;
+    };
+
+type FieldShellProps = {
+  label: string;
+  error?: string;
+  description?: string;
+  children: React.ReactNode;
+};
 
 type FieldProps = {
   name: string;
   disabled?: boolean;
   config?: FieldConfig;
-  overrides?: (props: {
-    field: ControllerRenderProps;
-    config: FieldConfig | undefined;
+  children: (props: {
+    label: string;
     error?: string;
-    disabled?: boolean;
+    description?: string;
+    fieldProps: FieldRenderProps;
   }) => React.ReactNode;
 };
 
-function FieldShell({
-  label,
-  error,
-  description,
-  children,
-}: {
-  label: string;
-  error?: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
+function FieldShell({ label, error, description, children }: FieldShellProps) {
   return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
+    <div>
+      <label>{label}</label>
       {children}
-      {error && <p className="text-destructive text-xs">{error}</p>}
-      {description && !error && (
-        <p className="text-muted-foreground text-xs">{description}</p>
-      )}
+      {error && <span role="alert">{error}</span>}
+      {description && !error && <small>{description}</small>}
     </div>
   );
 }
 
-function Field({ name, disabled, config, overrides }: FieldProps) {
+function buildFieldProps(
+  def: FieldDef,
+  field: ControllerRenderProps,
+  disabled: boolean | undefined,
+  config: FieldConfig | undefined,
+  control: UseFormReturn["control"],
+): FieldRenderProps {
+  if (def.meta?.component === "combobox") {
+    return {
+      kind: "combobox",
+      render: (children) => (
+        <ComboboxField
+          config={config as ComboboxConfig<ComboboxOption> | undefined}
+          disabled={disabled}
+          field={field}
+          meta={def.meta}
+        >
+          {children}
+        </ComboboxField>
+      ),
+    };
+  }
+
+  switch (def.kind) {
+    case "string":
+      return {
+        kind: "string",
+        render: (children) => (
+          <StringField
+            checks={def.checks}
+            disabled={disabled}
+            field={field}
+            meta={def.meta}
+          >
+            {children}
+          </StringField>
+        ),
+      };
+    case "number":
+      return {
+        kind: "number",
+        render: (children) => (
+          <NumberField disabled={disabled} field={field} meta={def.meta}>
+            {children}
+          </NumberField>
+        ),
+      };
+    case "boolean":
+      return {
+        kind: "boolean",
+        render: (children) => (
+          <BooleanField
+            disabled={disabled}
+            field={field}
+            label={def.meta?.label ?? ""}
+            meta={def.meta}
+          >
+            {children}
+          </BooleanField>
+        ),
+      };
+    case "enum":
+      return {
+        kind: "enum",
+        render: (children) => (
+          <EnumField
+            disabled={disabled}
+            entries={def.entries}
+            field={field}
+            meta={def.meta}
+          >
+            {children}
+          </EnumField>
+        ),
+      };
+    case "array":
+      return {
+        kind: "array",
+        render: (children) => (
+          <FieldArray
+            config={config as FieldArrayConfig | undefined}
+            control={control}
+            disabled={disabled}
+            elementFields={def.element}
+            meta={def.meta}
+            name={field.name}
+          >
+            {children}
+          </FieldArray>
+        ),
+      };
+    default:
+      return { kind: "string", render: () => null };
+  }
+}
+
+function Field({ name, disabled, config, children }: FieldProps) {
   const { fieldMap } = useFormContext();
   const { control } = useRhfContext();
 
@@ -67,102 +199,32 @@ function Field({ name, disabled, config, overrides }: FieldProps) {
 
   return (
     <Controller
+      control={control}
       name={name}
       render={({ field, fieldState }) => {
         const error = fieldState.error?.message;
-
-        if (overrides) {
-          return (
-            <FieldShell
-              description={resolved.meta?.description}
-              error={error}
-              label={label}
-            >
-              {overrides({ config, disabled, error, field })}
-            </FieldShell>
-          );
-        }
-
-        if (resolved.kind === "array") {
-          return (
-            <FieldShell error={error} label={label}>
-              <FieldArray
-                config={config as FieldArrayConfig | undefined}
-                control={control}
-                disabled={disabled}
-                elementFields={resolved.element}
-                meta={resolved.meta}
-                name={name}
-              />
-            </FieldShell>
-          );
-        }
+        const fieldProps = buildFieldProps(
+          resolved,
+          field,
+          disabled,
+          config,
+          control,
+        );
 
         return (
-          <FieldShell
-            description={resolved.meta?.description}
-            error={error}
-            label={label}
-          >
-            {renderField(resolved, field, disabled, config)}
-          </FieldShell>
+          <>
+            {children({
+              description: resolved.meta?.description,
+              error,
+              fieldProps,
+              label,
+            })}
+          </>
         );
       }}
     />
   );
 }
 
-function renderField(
-  def: FieldDef,
-  field: ControllerRenderProps,
-  disabled: boolean | undefined,
-  config: FieldConfig | undefined,
-): React.ReactNode {
-  if (def.meta?.component === "combobox") {
-    return (
-      <ComboboxField
-        config={config as ComboboxConfig<ComboboxOption> | undefined}
-        disabled={disabled}
-        field={field}
-        meta={def.meta}
-      />
-    );
-  }
-
-  switch (def.kind) {
-    case "string":
-      return (
-        <StringField
-          checks={def.checks}
-          disabled={disabled}
-          field={field}
-          meta={def.meta}
-        />
-      );
-    case "number":
-      return <NumberField disabled={disabled} field={field} meta={def.meta} />;
-    case "boolean":
-      return (
-        <BooleanField
-          disabled={disabled}
-          field={field}
-          label={def.meta?.label ?? ""}
-          meta={def.meta}
-        />
-      );
-    case "enum":
-      return (
-        <EnumField
-          disabled={disabled}
-          entries={def.entries}
-          field={field}
-          meta={def.meta}
-        />
-      );
-    default:
-      return null;
-  }
-}
-
-export type { FieldConfig, FieldProps };
-export { Field };
+export type { FieldConfig, FieldProps, FieldRenderProps, FieldShellProps };
+export { Field, FieldShell };

@@ -1,47 +1,25 @@
 import type { ControllerRenderProps } from "react-hook-form";
 
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import type { FieldMeta } from "../hooks/use-form";
 
-import type { FieldMeta } from "../use-form";
+type StringFieldRenderProps = {
+  value: string;
+  onChange: (value: string) => void;
+  onBlur: () => void;
+  disabled: boolean | undefined;
+  placeholder: string | undefined;
+  type: React.HTMLInputTypeAttribute;
+  isTextarea: boolean;
+  ref: ControllerRenderProps["ref"];
+};
 
 type StringFieldProps = {
   field: ControllerRenderProps;
   meta: FieldMeta | undefined;
   disabled: boolean | undefined;
   checks?: string[];
+  children: (props: StringFieldRenderProps) => React.ReactNode;
 };
-
-function StringField({ field, meta, disabled, checks }: StringFieldProps) {
-  const component = meta?.component;
-
-  if (component === "textarea") {
-    return (
-      <Textarea
-        disabled={disabled}
-        onBlur={field.onBlur}
-        onChange={(e) => field.onChange(e.target.value)}
-        placeholder={meta?.placeholder}
-        ref={field.ref}
-        value={field.value ?? ""}
-      />
-    );
-  }
-
-  const inputType = resolveInputType(component, checks);
-
-  return (
-    <Input
-      disabled={disabled}
-      onBlur={field.onBlur}
-      onChange={(e) => field.onChange(e.target.value)}
-      placeholder={meta?.placeholder}
-      ref={field.ref}
-      type={inputType}
-      value={field.value ?? ""}
-    />
-  );
-}
 
 function resolveInputType(
   component: string | undefined,
@@ -53,4 +31,28 @@ function resolveInputType(
   return "text";
 }
 
+function StringField({
+  field,
+  meta,
+  disabled,
+  checks,
+  children,
+}: StringFieldProps) {
+  const component = meta?.component;
+  const isTextarea = component === "textarea";
+  const inputType = resolveInputType(component, checks);
+
+  return children({
+    disabled,
+    isTextarea,
+    onBlur: field.onBlur,
+    onChange: (value: string) => field.onChange(value),
+    placeholder: meta?.placeholder,
+    ref: field.ref,
+    type: isTextarea ? "text" : inputType,
+    value: field.value ?? "",
+  });
+}
+
+export type { StringFieldProps, StringFieldRenderProps };
 export { StringField };
