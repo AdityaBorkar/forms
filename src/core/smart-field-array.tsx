@@ -21,9 +21,6 @@ export type SmartFieldArrayProps = {
 
 export function SmartFieldArray({ name, children }: SmartFieldArrayProps) {
   const rhf = useRhfContext();
-  if (!rhf) {
-    throw new Error("SmartFieldArray must be used within a Form");
-  }
   const { fields, append, remove, update, move } = useFieldArray({
     control: rhf.control,
     name,

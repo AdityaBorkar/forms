@@ -25,6 +25,7 @@ export function createForm(FormContext: Context<FormContextValue | null>) {
     return (
       <FormContext value={{ fieldMap: form.fieldMap }}>
         <FormProvider {...(form as unknown as UseFormReturn<TValues>)}>
+          {/* biome-ignore lint/performance/noJsxPropsBind: handleSubmit is a stable reference from the closure */}
           <form className={className} onSubmit={handleSubmit}>
             {children}
           </form>

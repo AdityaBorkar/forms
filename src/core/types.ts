@@ -32,6 +32,7 @@ export type FieldRenderProps = {
   value: unknown;
   onChange: (value: unknown) => void;
   onBlur: () => void;
+  // biome-ignore lint/suspicious/noExplicitAny: mirrors react-hook-form's Ref type
   ref: React.Ref<any>;
   error?: string;
   disabled?: boolean;

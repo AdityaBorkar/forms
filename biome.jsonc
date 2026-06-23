@@ -19,9 +19,8 @@
             ]
           }
         },
-        "useSortedAttributes": "on",
-        "useSortedKeys": "on",
-        "useSortedProperties": "on"
+        "preset": "all",
+        "useSortedPackageJson": "off"
       }
     }
   },
@@ -80,19 +79,19 @@
           }
         }
       },
-      "preset": "recommended",
-      "style": {
-        "useComponentExportOnlyModules": "off"
-      }
+      "preset": "recommended"
     }
   },
   "overrides": [
     {
-      "includes": ["./src/components/**/*"],
+      "includes": ["**/*.test.*"],
       "linter": {
         "rules": {
-          "a11y": {
-            "noLabelWithoutControl": "off"
+          "style": {
+            "noNonNullAssertion": "off"
+          },
+          "suspicious": {
+            "noUnnecessaryConditions": "off"
           }
         }
       }

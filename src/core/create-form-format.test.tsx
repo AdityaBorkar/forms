@@ -28,7 +28,8 @@ function makeStub(kind: string) {
           data-testid={`field-${kind}`}
           id={name}
           name={name}
-          onChange={(e) => onChange(e.target.value)}
+          // biome-ignore lint/performance/noJsxPropsBind: test stub — render perf is irrelevant
+          onChange={(e) => onChange((e.target as HTMLInputElement).value)}
           value={(value as string) ?? ""}
         />
         {error ? <span data-testid="field-error">{error}</span> : null}
@@ -108,6 +109,7 @@ describe("createFormFormat — nested paths", () => {
               {fields.map((f, i) => (
                 <SmartField key={f.id} name={`locations.${i}.city`} />
               ))}
+              {/* biome-ignore lint/performance/noJsxPropsBind: test — render perf is irrelevant */}
               <button onClick={() => append({ city: "" })} type="button">
                 add
               </button>
@@ -172,11 +174,13 @@ describe("createFormFormat — SmartFieldArray", () => {
               {fields.map((f, i) => (
                 <div key={f.id}>
                   <SmartField name={`items.${i}.name`} />
+                  {/* biome-ignore lint/performance/noJsxPropsBind: test — render perf is irrelevant */}
                   <button onClick={() => remove(i)} type="button">
                     remove-{i}
                   </button>
                 </div>
               ))}
+              {/* biome-ignore lint/performance/noJsxPropsBind: test — render perf is irrelevant */}
               <button onClick={() => append({ name: "" })} type="button">
                 add
               </button>
