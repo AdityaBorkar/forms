@@ -8,6 +8,7 @@
     "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^21.0.2",
     "@hookform/resolvers": "^5.4.0",
+    "@testing-library/react": "^16.3.2",
     "@types/bun": "latest",
     "@types/react": "^19.2.17",
     "husky": "^9.1.7",
@@ -15,13 +16,12 @@
     "react-hook-form": "^7.79.0",
     "taze": "^19.14.1",
     "typescript": "^7.0.1-rc",
+    "vitest": "^4.1.9",
     "zod": "^4.4.3"
   },
   "exports": {
-    ".": {
-      "default": "./src/index.ts",
-      "types": "./src/index.ts"
-    }
+    "./adapters/zod": "./src/adapters/zod/index.ts",
+    "./core": "./src/core/index.ts"
   },
   "files": ["src"],
   "homepage": "https://github.com/AdityaBorkar/forms#readme",
@@ -41,6 +41,14 @@
     "react": ">=18",
     "react-hook-form": ">=7",
     "zod": ">=4"
+  },
+  "peerDependenciesMeta": {
+    "@hookform/resolvers": {
+      "optional": true
+    },
+    "zod": {
+      "optional": true
+    }
   },
   "publishConfig": {
     "access": "public",
