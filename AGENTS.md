@@ -44,8 +44,10 @@ Run `check:lint` then `check:types` after changes. CI enforces the same order. C
 
 Two entrypoints declared in `package.json` exports:
 
-- `@adityab/forms/core` → `src/core/index.ts` — framework-agnostic core: `createFormFormat`, `SmartField`, `SmartFieldArray`, types, `useForm`/`useFormContext` factories.
+- `@adityab/forms/core` → `src/core/index.ts` — framework-agnostic core: `createFormFormat`, types, `useForm`/`useFormContext` factories. Re-exports `SmartField`/`SmartFieldArray` from `src/ui/`.
 - `@adityab/forms/adapters/zod` → `src/adapters/zod/index.ts` — Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `createResolver`.
+
+`src/ui/` contains `SmartField` and `SmartFieldArray` — they live separately from `src/core/` but are re-exported through the core entrypoint.
 
 ### Core flow
 
@@ -65,4 +67,6 @@ Two entrypoints declared in `package.json` exports:
 
 ## Gotchas
 
-- `docs/` and `examples/` directories exist but are empty stubs — don't add content there expecting it to be published.
+- `docs/CONTEXT.md` uses **planned** names (`createFormSystem`, `SchemaTree`, `FieldComponentProps`) that differ from the actual code (`createFormFormat`, `FieldMap`, `FieldRenderProps`). If you read CONTEXT.md, cross-reference with the actual source.
+- `examples/` is an empty stub — don't add content there expecting it to be published.
+- Cast chain: `use-form.ts` uses `resolver as never`, `form.tsx` and `use-form-context.ts` also have `as unknown as` / `as object` casts. Root cause is `SchemaAdapter<TSchema = unknown>` — the `unknown` default loses type info at the boundary.
