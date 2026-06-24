@@ -1,4 +1,4 @@
-import type { FieldCheck, FieldDef, FieldMap, FieldMeta } from "@/core/types";
+import type { FieldCheck, FieldDef, FieldMap, FieldMeta } from "@/types";
 
 type ZodCheckDef = {
   check?: string;

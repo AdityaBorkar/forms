@@ -1,18 +1,19 @@
 # TODO
 
+## Phase 1
+
+- Smart Component Support
+- thermonuclear
+- grill-with-docs
+  - Write instructions for AI -> CONTEXT.md GLOSSARY.md- 
+
+## Phase 2
+
+- Write Tests
 - Write a README
-- DOCS
-- AGENTS.md
-- CONTEXT.md
-- 
-- Strict TS
-- Strict Biome
-- 
-- .gitignore
-- scripts
-- .npmrc
-- 
 - GitHub Actions
+- conform
 
+## Features not supported / planned:
 
-conform
+- Nested Forms

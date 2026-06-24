@@ -1,12 +1,3 @@
-export { createFormFormat } from "./create-form-format";
-export type { FormProps } from "./form";
-export type { SmartFieldProps } from "./smart-field";
-export { resolveFieldDef } from "./smart-field";
-export type {
-  SmartFieldArrayProps,
-  SmartFieldArrayRenderProps,
-} from "./smart-field-array";
-export { SmartFieldArray } from "./smart-field-array";
 export type {
   FieldCheck,
   FieldComponentMap,
@@ -19,7 +10,17 @@ export type {
   SchemaAdapter,
   UseFormOptions,
   ValidationMode,
-} from "./types";
+} from "@/types";
+export type { SmartFieldProps } from "@/ui/smart-field";
+export { resolveFieldDef } from "@/ui/smart-field";
+export type {
+  SmartFieldArrayProps,
+  SmartFieldArrayRenderProps,
+} from "@/ui/smart-field-array";
+export { SmartFieldArray } from "@/ui/smart-field-array";
+
+export { createFormFormat } from "./create-form-format";
+export type { FormProps } from "./form";
 export type {
   FormContextInstance,
   FormInstance,

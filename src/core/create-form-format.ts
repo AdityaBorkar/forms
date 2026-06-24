@@ -1,13 +1,14 @@
 import { createContext } from "react";
 
-import { createForm } from "./form";
-import { createSmartField } from "./smart-field";
-import { SmartFieldArray } from "./smart-field-array";
 import type {
   FieldComponentMap,
   FormContextValue,
   SchemaAdapter,
-} from "./types";
+} from "@/types";
+import { createSmartField } from "@/ui/smart-field";
+import { SmartFieldArray } from "@/ui/smart-field-array";
+
+import { createForm } from "./form";
 import { createUseForm } from "./use-form";
 import { createUseFormContext } from "./use-form-context";
 

@@ -1,4 +1,4 @@
-import type { FieldDef, FieldMap } from "@/core/types";
+import type { FieldDef, FieldMap } from "@/types";
 
 import { buildFieldMap } from "./build-field-map";
 

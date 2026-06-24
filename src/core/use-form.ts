@@ -6,7 +6,7 @@ import type {
 } from "react-hook-form";
 import { useForm as useRhfForm } from "react-hook-form";
 
-import type { FieldMap, SchemaAdapter, UseFormOptions } from "./types";
+import type { FieldMap, SchemaAdapter, UseFormOptions } from "@/types";
 
 export type FormContextInstance<TValues extends FieldValues = FieldValues> =
   UseFormReturn<TValues> & {

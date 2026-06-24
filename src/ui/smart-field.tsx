@@ -8,7 +8,7 @@ import type {
   FieldMap,
   FieldRenderProps,
   FormContextValue,
-} from "./types";
+} from "@/types";
 
 export type SmartFieldProps = {
   name: string;

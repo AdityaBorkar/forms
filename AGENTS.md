@@ -7,10 +7,14 @@
 ## Runtime & Toolchain
 
 - **Bun** is the package manager and runtime (not Node). Use `bun` for install/run/script commands.
-- **Biome** for linting and formatting (not ESLint/Prettier). Config in `biome.jsonc` — has substantial rules including import sorting, sorted Tailwind classes, and an a11y override for components.
-- **TypeScript** strict with `verbatimModuleSyntax`, `noUncheckedIndexedAccess`, `allowImportingTsExtensions`. Path alias: `@/*` → `./src/*`. Note: `noUnusedLocals` and `noUnusedParameters` are explicitly off.
+- **Biome** for linting and formatting (not ESLint/Prettier). Config in `biome.jsonc`.
+  - Linter domains set to `"all"`: `react`, `tailwind`, `types` — enables every rule in those domains.
+  - `useSortedClasses` (nursery) enforces Tailwind class order — write sorted or let Biome fix.
+  - Import sorting with custom groups (Bun/Node, packages, alias `@/*`, relative paths).
+- **TypeScript** strict with `verbatimModuleSyntax`, `noUncheckedIndexedAccess`, `allowImportingTsExtensions`. Path alias: `@/*` → `./src/*`. `noUnusedLocals` and `noUnusedParameters` are explicitly off.
 - **Vitest** for tests (not Jest). No vitest.config — environment is set per-file via `@vitest-environment` doc pragmas (component tests use `jsdom`).
 - No build step — library is consumed as source TypeScript.
+- `"type": "module"` — all `.ts` files are ESM.
 
 ## Commands
 
@@ -22,11 +26,11 @@ bun test src/adapters/zod/build-field-map.test.ts  # run a single test file
 bun run update:deps   # taze -w --maturity-period 3 && bun install
 ```
 
-Run `check:lint` then `check:types` after changes. CI enforces the same order.
+Run `check:lint` then `check:types` after changes. CI enforces the same order. CI does **not** run tests — only lint + typecheck.
 
 ## Testing
 
-- Tests are **colocated** next to source (`*.test.tsx`, `*.test.ts`). The `tests/` directory at root is unused/empty — don't put tests there.
+- Tests are **colocated** next to source (`*.test.tsx`, `*.test.ts`). The `tests/` directory at root is empty — don't put tests there.
 - Component tests require `// @vitest-environment jsdom` as the first line.
 - Test files have relaxed Biome rules: `noNonNullAssertion` and `noUnnecessaryConditions` are off (see `biome.jsonc` overrides).
 
@@ -46,7 +50,7 @@ Two entrypoints declared in `package.json` exports:
 ### Core flow
 
 1. `createFormFormat({ fieldMap, schemaResolver })` wires everything together — creates a React context, returns `{ Form, SmartField, SmartFieldArray, useForm, useFormContext }`.
-2. `createUseForm(adapter)` returns a `useForm` hook that builds `FieldMap`, defaults, and resolver from the schema via the adapter, then delegates to `react-hook-form`.
+2. `createUseForm(adapter)` returns a `useForm` hook that builds `FieldMap`, defaults, and resolver from the schema via the adapter, then delegates to `react-hook-form`. Uses `resolver as never` cast to bridge resolver typing — be aware if editing resolver integration.
 3. `<Form>` wraps `FormProvider` + the context that provides `fieldMap` to nested fields.
 4. `<SmartField>` reads `FieldMap` from context, dispatches to the caller-provided `FieldComponentMap`.
 
@@ -61,7 +65,4 @@ Two entrypoints declared in `package.json` exports:
 
 ## Gotchas
 
-- The Zod adapter relies on `_zod.def` internals, not Zod's public API. Treat it as fragile.
-- `biome.jsonc` enables `useSortedClasses` (Tailwind class sorting) — write Tailwind classes in sorted order or let Biome fix them.
-- `src/components/**` has `noLabelWithoutControl` disabled in Biome (a11y override), but that directory doesn't exist yet — the override is forward-looking.
-- `package.json` declares `"type": "module"` — all `.ts` files are ESM.
+- `docs/` and `examples/` directories exist but are empty stubs — don't add content there expecting it to be published.

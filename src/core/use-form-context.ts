@@ -3,7 +3,8 @@ import { useContext } from "react";
 import type { FieldValues } from "react-hook-form";
 import { useFormContext as useRhfContext } from "react-hook-form";
 
-import type { FormContextValue } from "./types";
+import type { FormContextValue } from "@/types";
+
 import type { FormContextInstance } from "./use-form";
 
 export function createUseFormContext(

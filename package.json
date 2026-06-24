@@ -21,7 +21,8 @@
   },
   "exports": {
     "./adapters/zod": "./src/adapters/zod/index.ts",
-    "./core": "./src/core/index.ts"
+    "./core": "./src/core/index.ts",
+    "./ui": "./src/ui/index.ts"
   },
   "files": ["src"],
   "homepage": "https://github.com/AdityaBorkar/forms#readme",

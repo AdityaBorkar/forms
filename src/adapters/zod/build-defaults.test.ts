@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import z from "zod";
 
-import type { FieldDef } from "@/core/types";
+import type { FieldDef } from "@/types";
 
 import { buildDefaults, deriveDefault } from "./build-defaults";
 

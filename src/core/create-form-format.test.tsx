@@ -11,7 +11,7 @@ import z from "zod";
 
 import { zodAdapter } from "@/adapters/zod/index";
 import { createFormFormat } from "@/core/create-form-format";
-import type { FieldRenderProps } from "@/core/types";
+import type { FieldRenderProps } from "@/types";
 
 afterEach(cleanup);
 

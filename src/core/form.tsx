@@ -2,7 +2,8 @@ import type { Context, FormEventHandler, ReactNode } from "react";
 import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { FormProvider } from "react-hook-form";
 
-import type { FormContextValue } from "./types";
+import type { FormContextValue } from "@/types";
+
 import type { FormInstance } from "./use-form";
 
 export type FormProps<TValues extends FieldValues = FieldValues> = {
