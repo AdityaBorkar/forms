@@ -4,17 +4,13 @@
   },
   "description": "Schema-driven React form library. Pass a Zod schema, get auto-rendered form fields via react-hook-form.",
   "devDependencies": {
-    "@biomejs/biome": "^2.5.0",
-    "@commitlint/cli": "^21.0.2",
-    "@commitlint/config-conventional": "^21.0.2",
     "@hookform/resolvers": "^5.4.0",
     "@testing-library/react": "^16.3.2",
     "@types/bun": "latest",
     "@types/react": "^19.2.17",
-    "husky": "^9.1.7",
     "react": "^19.2.7",
-    "react-hook-form": "^7.79.0",
-    "taze": "^19.14.1",
+    "react-dom": "^19.2.7",
+    "react-hook-form": "^7.80.0",
     "typescript": "^7.0.1-rc",
     "vitest": "^4.1.9",
     "zod": "^4.4.3"
@@ -59,13 +55,9 @@
     "url": "git+https://github.com/AdityaBorkar/forms.git"
   },
   "scripts": {
-    "check:lint": "bun biome check --fix .",
-    "check:types": "bun tsc --noEmit",
-    "prepare": "husky",
-    "update:deps": "bun taze -w --maturity-period 3 && bun install"
+    "check:types": "bun tsc --noEmit"
   },
   "type": "module",
   "types": "src/index.ts",
-  "version": "0.0.1-alpha.0",
-  "workspaces": ["./examples", "./www"]
+  "version": "0.0.1-alpha.0"
 }
