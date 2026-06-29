@@ -1,5 +1,10 @@
 # TODO
 
+- Publish to NPM
+  - alpha
+  - latest
+- Write a README file
+
 ## Phase 1
 
 Write examples of the form with schemas in @examples :
@@ -20,7 +25,6 @@ Write examples of the form with schemas in @examples :
   - thermo-nuclear
   - grill-with-docs
   - security-audit
-- Publish to NPM
 
 ## Phase 2
 
