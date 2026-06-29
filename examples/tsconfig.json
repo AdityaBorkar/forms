@@ -8,5 +8,6 @@
     "target": "ES2022"
   },
   "extends": "../tsconfig.json",
-  "include": ["**/*.ts", "**/*.tsx"]
+  "include": ["**/*.ts", "**/*.tsx"],
+  "references": [{ "path": "../package" }]
 }

@@ -3,6 +3,7 @@
     "allowJs": true,
     "composite": true,
     "declaration": true,
+    "declarationDir": "./.local/types/root",
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "jsx": "react-jsx",

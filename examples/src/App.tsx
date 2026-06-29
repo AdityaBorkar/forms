@@ -1,47 +1,58 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useState } from "react";
 
-import { APITester } from "./APITester";
+import { ArrayForm } from "@/examples/ArrayForm";
+import { CustomFieldComponentForm } from "@/examples/CustomFieldComponentForm";
+import { CustomFieldTypesForm } from "@/examples/CustomFieldTypesForm";
+import { NestedForm } from "@/examples/NestedForm";
+import { SimpleForm } from "@/examples/SimpleForm";
+import { cn } from "@/lib/utils";
+
 import "./index.css";
 
-import logo from "./logo.svg";
-import reactLogo from "./react.svg";
+const EXAMPLES = [
+  { Component: SimpleForm, id: "simple", label: "Simple" },
+  { Component: NestedForm, id: "nested", label: "Nested" },
+  { Component: ArrayForm, id: "array", label: "Array" },
+  { Component: CustomFieldTypesForm, id: "types", label: "Field types" },
+  {
+    Component: CustomFieldComponentForm,
+    id: "custom",
+    label: "Custom component",
+  },
+] as const;
 
 export function App() {
+  const [active, setActive] = useState<string>(EXAMPLES[0]?.id ?? "simple");
+  const Current =
+    EXAMPLES.find((example) => example.id === active)?.Component ?? SimpleForm;
   return (
-    <div className="container relative z-10 mx-auto p-8 text-center">
-      <div className="mb-8 flex items-center justify-center gap-8">
-        <img
-          alt="Bun Logo"
-          className="h-36 scale-120 p-6 transition-all duration-300 hover:drop-shadow-[0_0_2em_#646cffaa]"
-          src={logo}
-        />
-        <img
-          alt="React Logo"
-          className="h-36 p-6 transition-all duration-300 [animation:spin_20s_linear_infinite] hover:drop-shadow-[0_0_2em_#61dafbaa]"
-          src={reactLogo}
-        />
-      </div>
-      <Card>
-        <CardHeader className="gap-4">
-          <CardTitle className="font-bold text-3xl">Bun + React</CardTitle>
-          <CardDescription>
-            Edit{" "}
-            <code className="rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono">
-              src/App.tsx
-            </code>{" "}
-            and save to test HMR
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <APITester />
-        </CardContent>
-      </Card>
+    <div className="container mx-auto max-w-3xl p-8">
+      <header className="mb-8">
+        <h1 className="font-bold text-2xl">@adityab/forms</h1>
+        <p className="text-muted-foreground text-sm">
+          Schema-driven React forms — Zod schema in, auto-rendered fields out.
+        </p>
+        <nav className="mt-4 flex flex-wrap gap-2">
+          {EXAMPLES.map((example) => (
+            <button
+              className={cn(
+                "rounded-md border px-3 py-1.5 text-sm",
+                active === example.id
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-accent",
+              )}
+              key={example.id}
+              onClick={() => setActive(example.id)}
+              type="button"
+            >
+              {example.label}
+            </button>
+          ))}
+        </nav>
+      </header>
+      <main className="flex justify-center">
+        <Current />
+      </main>
     </div>
   );
 }

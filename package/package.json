@@ -55,7 +55,8 @@
     "url": "git+https://github.com/AdityaBorkar/forms.git"
   },
   "scripts": {
-    "check:types": "bun tsc --noEmit"
+    "check:lint": "biome check --fix .",
+    "check:types": "tsc --noEmit"
   },
   "type": "module",
   "types": "src/index.ts",

@@ -24,7 +24,7 @@ Root-level commands (lint, typecheck, deps) operate across the whole workspace.
   - Linter domains set to `"all"`: `react`, `tailwind`, `types` — enables every rule in those domains.
   - `useSortedClasses` (nursery) enforces Tailwind class order — write sorted or let Biome fix.
   - Import sorting with custom groups (Bun/Node, packages, alias `@/*`, relative paths).
-- **TypeScript** strict with `verbatimModuleSyntax`, `noUncheckedIndexedAccess`, `allowImportingTsExtensions`. Path alias: `@/*` → `./src/*`. `noUnusedLocals` and `noUnusedParameters` are explicitly off. Config at `package/tsconfig.json`.
+- **TypeScript** strict with `verbatimModuleSyntax`, `noUncheckedIndexedAccess`. Path alias: `@/*` → `./src/*`. Root tsconfig uses `composite: true` with project references (`package/`, `examples/`, `www/`) — `package/tsconfig.json` extends it.
 - **Vitest** for tests (not Jest). No vitest.config — environment is set per-file via `@vitest-environment` doc pragmas (component tests use `jsdom`).
 - No build step — library is consumed as source TypeScript.
 - `"type": "module"` — all `.ts` files are ESM.
@@ -33,7 +33,7 @@ Root-level commands (lint, typecheck, deps) operate across the whole workspace.
 
 ```
 bun run check:lint    # biome check --fix .
-bun run check:types   # tsc --noEmit
+bun run check:types   # tsc -b (build mode — needed for composite project references)
 bun test              # run all tests
 bun test package/src/adapters/zod/build-field-map.test.ts  # run a single test file
 bun run update:deps   # taze -rw --maturity-period 3 && bun install
@@ -57,7 +57,7 @@ Run `check:lint` then `check:types` after changes. No CI workflows exist yet —
 Two entrypoints declared in `package/package.json` exports:
 
 - `@adityab/forms/core` → `package/src/core/index.ts` — framework-agnostic core: `createFormFormat`, types, `useForm`/`useFormContext` factories. Re-exports `SmartField`/`SmartFieldArray` from `package/src/ui/`.
-- `@adityab/forms/adapters/zod` → `package/src/adapters/zod/index.ts` — Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `createResolver`.
+- `@adityab/forms/adapters/zod` → `package/src/adapters/zod/index.ts` — Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `deriveDefault`, `createResolver`.
 
 `package/src/ui/` contains `SmartField` and `SmartFieldArray` — they live separately from `package/src/core/` but are re-exported through the core entrypoint.
 
@@ -71,9 +71,11 @@ Two entrypoints declared in `package/package.json` exports:
 ### Zod adapter internals
 
 - `build-field-map.ts` — introspects Zod v4 schemas via `schema._zod.def` (private/fragile API). If Zod's internal shape changes, this will break.
+  - Optional unwrapping: recurses into `innerType` with `optional = true`, overlays `meta` from outer.
+  - Union handling: picks the first non-literal option (e.g. `z.string().optional()` → union of `string | literal(undefined)`).
   - `meta.component` on a Zod field overrides the resolved `kind` — this is how callers force a field to render as e.g. `textarea` or `password` instead of the default `string`.
   - `required` is derived as `!optional && min != null` — a field is only "required" when it's non-optional AND has a min constraint.
-- `build-defaults.ts` — derives default values from the schema.
+- `build-defaults.ts` — derives default values from the schema. Also exports `deriveDefault` (currently in adapter but is schema-agnostic — planned move to core).
 - `create-resolver.ts` — wraps `@hookform/resolvers/zod`.
 - `@hookform/resolvers` and `zod` are **optional peer dependencies** — consumers who don't use the Zod adapter don't need them.
 

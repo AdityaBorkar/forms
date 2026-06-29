@@ -1,0 +1,16 @@
+telemetry = false
+logLevel = "warn"
+
+[console]
+depth = 10
+
+[run]
+bun = true
+silent = false
+
+[install]
+minimumReleaseAge = 259200 # 3 days
+minimumReleaseAgeExcludes = ["@types/node", "typescript", "bun-types"]
+
+[install.lockfile]
+save = true
