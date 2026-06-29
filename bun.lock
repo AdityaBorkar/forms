@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@adityab-forms",
+      "name": "@adistack-forms",
       "devDependencies": {
         "@biomejs/biome": "^2.5.1",
         "@commitlint/cli": "^21.1.0",
@@ -18,7 +18,7 @@
       "name": "examples",
       "version": "0.1.0",
       "dependencies": {
-        "@adityab/forms": "workspace:*",
+        "@adistack/forms": "workspace:*",
         "@hookform/resolvers": "^5.4.0",
         "@radix-ui/react-label": "^2.1.7",
         "@radix-ui/react-select": "^2.2.6",
@@ -44,7 +44,7 @@
       },
     },
     "package": {
-      "name": "@adityab/forms",
+      "name": "@adistack/forms",
       "version": "0.0.1-alpha.0",
       "devDependencies": {
         "@hookform/resolvers": "^5.4.0",
@@ -93,7 +93,7 @@
     },
   },
   "packages": {
-    "@adityab/forms": ["@adityab/forms@workspace:package"],
+    "@adistack/forms": ["@adistack/forms@workspace:package"],
 
     "@antfu/ni": ["@antfu/ni@30.1.0", "", { "dependencies": { "fzf": "^0.5.2", "package-manager-detector": "^1.6.0", "tinyexec": "^1.0.4", "tinyglobby": "^0.2.15" }, "bin": { "ni": "bin/ni.mjs", "nci": "bin/nci.mjs", "nr": "bin/nr.mjs", "nup": "bin/nup.mjs", "nd": "bin/nd.mjs", "nlx": "bin/nlx.mjs", "na": "bin/na.mjs", "nun": "bin/nun.mjs" } }, "sha512-3VuAbPjgY52rQNn4wABaXMhBU2Oq91uy6L8nX49eJ35OLI68CyckGU+HZxcaHix4ymuGM2nFL1D6sLpgODK5xw=="],
 

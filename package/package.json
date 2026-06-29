@@ -30,7 +30,7 @@
   ],
   "license": "MIT",
   "module": "src/index.ts",
-  "name": "@adityab/forms",
+  "name": "@adistack/forms",
   "peerDependencies": {
     "@hookform/resolvers": ">=5",
     "react": ">=18",
@@ -46,8 +46,7 @@
     }
   },
   "publishConfig": {
-    "access": "public",
-    "tag": "latest"
+    "access": "public"
   },
   "repository": {
     "type": "git",

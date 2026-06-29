@@ -9,10 +9,10 @@
     "typescript": "^7.0.1-rc"
   },
   "scripts": {
+    "analyze:packages": "bun audit",
     "check:lint": "bun biome check --fix .",
     "check:types": "bun tsc -b",
     "prepare": "husky",
-    "release": "bun publish --filter @adityab/forms",
     "update:deps": "bun taze -rw --maturity-period 3 && bun install"
   },
   "workspaces": ["./package", "./examples", "./www"]

@@ -1,6 +1,6 @@
 # Glossary
 
-Domain vocabulary for `@adityab/forms`. Terms are ordered by dependency — earlier terms are used in later definitions.
+Domain vocabulary for `@adistack/forms`. Terms are ordered by dependency — earlier terms are used in later definitions.
 
 ---
 

@@ -10,7 +10,5 @@ silent = false
 
 [install]
 minimumReleaseAge = 259200 # 3 days
-minimumReleaseAgeExcludes = ["@types/node", "typescript", "bun-types"]
-
-[install.lockfile]
-save = true
+saveTextLockfile = false
+ignore-scripts=true

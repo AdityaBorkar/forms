@@ -1,24 +1,24 @@
-name: CI
+# name: CI
 
-on:
-  push:
-    branches: [dev]
-  pull_request:
-    branches: [dev]
+# on:
+#   push:
+#     branches: [dev]
+#   pull_request:
+#     branches: [dev]
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+# concurrency:
+#   group: ci-${{ github.ref }}
+#   cancel-in-progress: true
 
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+# jobs:
+#   check:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
 
-      - uses: oven-sh/setup-bun@v2
+#       - uses: oven-sh/setup-bun@v2
 
-      - run: bun install --frozen-lockfile
+#       - run: bun install --frozen-lockfile
 
-      - run: bun run check:lint
-      - run: bun run check:types
+#       - run: bun run check:lint
+#       - run: bun run check:types

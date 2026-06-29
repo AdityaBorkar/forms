@@ -1,12 +1,12 @@
 # Context
 
-Architectural context for `@adityab/forms` — how the system works, why it's structured this way, and what constraints shape it.
+Architectural context for `@adistack/forms` — how the system works, why it's structured this way, and what constraints shape it.
 
 ---
 
 ## Purpose
 
-`@adityab/forms` is a schema-driven React form library. You provide a validation schema and a set of UI components, and the library auto-renders form fields via `react-hook-form`. The core insight: **the schema knows what fields exist, their types, and their constraints — the form should derive itself from that knowledge.**
+`@adistack/forms` is a schema-driven React form library. You provide a validation schema and a set of UI components, and the library auto-renders form fields via `react-hook-form`. The core insight: **the schema knows what fields exist, their types, and their constraints — the form should derive itself from that knowledge.**
 
 ---
 
@@ -96,8 +96,8 @@ Once the adapter produces the `SchemaTree`, the rest of the system never touches
 
 | Entrypoint | Path | Purpose |
 |---|---|---|
-| `@adityab/forms/core` | `src/core/index.ts` | Framework-agnostic core: `createFormSystem`, `SmartField`, `SmartFieldArray`, types, `useForm`/`useFormContext` factories |
-| `@adityab/forms/adapters/zod` | `src/adapters/zod/index.ts` | Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `createResolver` |
+| `@adistack/forms/core` | `src/core/index.ts` | Framework-agnostic core: `createFormSystem`, `SmartField`, `SmartFieldArray`, types, `useForm`/`useFormContext` factories |
+| `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `createResolver` |
 
 `@hookform/resolvers` and `zod` are **optional peer dependencies** — consumers who don't use the Zod adapter don't need them.
 

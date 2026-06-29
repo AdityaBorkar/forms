@@ -1,5 +1,5 @@
-import { zodAdapter } from "@adityab/forms/adapters/zod";
-import { createFormFormat, type FieldComponentMap } from "@adityab/forms/core";
+import { zodAdapter } from "@adistack/forms/adapters/zod";
+import { createFormFormat, type FieldComponentMap } from "@adistack/forms/core";
 
 import {
   CheckboxField,

@@ -1,4 +1,4 @@
-import type { FieldRenderProps } from "@adityab/forms/core";
+import type { FieldRenderProps } from "@adistack/forms/core";
 import { type ChangeEvent, type ReactNode, useCallback } from "react";
 
 import { Input } from "@/components/ui/input";

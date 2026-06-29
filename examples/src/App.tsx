@@ -28,7 +28,7 @@ export function App() {
   return (
     <div className="container mx-auto max-w-3xl p-8">
       <header className="mb-8">
-        <h1 className="font-bold text-2xl">@adityab/forms</h1>
+        <h1 className="font-bold text-2xl">@adistack/forms</h1>
         <p className="text-muted-foreground text-sm">
           Schema-driven React forms — Zod schema in, auto-rendered fields out.
         </p>

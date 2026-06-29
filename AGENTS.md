@@ -2,7 +2,7 @@
 
 ## Project
 
-`@adityab/forms` — schema-driven React form library. Pass a schema + adapter, get auto-rendered form fields via `react-hook-form`. Uses a `createFormFormat()` factory pattern: callers bring their own `SchemaAdapter` and `FieldComponentMap`.
+`@adistack/forms` — schema-driven React form library. Pass a schema + adapter, get auto-rendered form fields via `react-hook-form`. Uses a `createFormFormat()` factory pattern: callers bring their own `SchemaAdapter` and `FieldComponentMap`.
 
 ## Repo Structure
 
@@ -56,8 +56,8 @@ Run `check:lint` then `check:types` after changes. No CI workflows exist yet —
 
 Two entrypoints declared in `package/package.json` exports:
 
-- `@adityab/forms/core` → `package/src/core/index.ts` — framework-agnostic core: `createFormFormat`, types, `useForm`/`useFormContext` factories. Re-exports `SmartField`/`SmartFieldArray` from `package/src/ui/`.
-- `@adityab/forms/adapters/zod` → `package/src/adapters/zod/index.ts` — Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `deriveDefault`, `createResolver`.
+- `@adistack/forms/core` → `package/src/core/index.ts` — framework-agnostic core: `createFormFormat`, types, `useForm`/`useFormContext` factories. Re-exports `SmartField`/`SmartFieldArray` from `package/src/ui/`.
+- `@adistack/forms/adapters/zod` → `package/src/adapters/zod/index.ts` — Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `deriveDefault`, `createResolver`.
 
 `package/src/ui/` contains `SmartField` and `SmartFieldArray` — they live separately from `package/src/core/` but are re-exported through the core entrypoint.
 
