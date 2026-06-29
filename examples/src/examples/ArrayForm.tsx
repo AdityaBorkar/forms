@@ -38,8 +38,8 @@ export function ArrayForm() {
                 <div className="w-24">
                   <SmartField name={`tasks.${index}.hours`} />
                 </div>
-                {/* biome-ignore lint/performance/noJsxPropsBind: demo — render perf is irrelevant */}
                 <Button
+                  // biome-ignore lint/performance/noJsxPropsBind: demo — render perf is irrelevant
                   onClick={() => remove(index)}
                   type="button"
                   variant="destructive"
@@ -48,8 +48,8 @@ export function ArrayForm() {
                 </Button>
               </div>
             ))}
-            {/* biome-ignore lint/performance/noJsxPropsBind: demo — render perf is irrelevant */}
             <Button
+              // biome-ignore lint/performance/noJsxPropsBind: demo — render perf is irrelevant
               onClick={() => append({ hours: 0, title: "" })}
               type="button"
               variant="outline"

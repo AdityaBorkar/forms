@@ -6,7 +6,9 @@
   "file_scan_exclusions": [
     "**/.git",
     "**/.output",
+    "**/.tanstack",
     "**/node_modules",
+    "**/.coverage",
     "codedb.snapshot"
   ],
   "format_on_save": "on",
@@ -20,6 +22,7 @@
     "!typescript-language-server",
     "!vtsls",
     "!markdownlint",
+    "!docker-language-server",
     "..."
   ]
 }

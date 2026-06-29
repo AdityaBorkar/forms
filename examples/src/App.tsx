@@ -22,7 +22,7 @@ const EXAMPLES = [
 ] as const;
 
 export function App() {
-  const [active, setActive] = useState<string>(EXAMPLES[0]?.id ?? "simple");
+  const [active, setActive] = useState<string>(EXAMPLES[0].id);
   const Current =
     EXAMPLES.find((example) => example.id === active)?.Component ?? SimpleForm;
   return (
@@ -42,6 +42,7 @@ export function App() {
                   : "hover:bg-accent",
               )}
               key={example.id}
+              // biome-ignore lint/performance/noJsxPropsBind: demo — render perf is irrelevant
               onClick={() => setActive(example.id)}
               type="button"
             >

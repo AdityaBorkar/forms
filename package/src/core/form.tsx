@@ -1,4 +1,4 @@
-import type { Context, FormEventHandler, ReactNode } from "react";
+import type { Context, ReactNode, SubmitEventHandler } from "react";
 import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { FormProvider } from "react-hook-form";
 
@@ -18,7 +18,7 @@ export function createForm(FormContext: Context<FormContextValue | null>) {
     className,
     children,
   }: FormProps<TValues>) {
-    const handleSubmit: FormEventHandler = (event) => {
+    const handleSubmit: SubmitEventHandler = (event) => {
       event.preventDefault();
       form.handleSubmit(form.onSubmit as never, form.onInvalid as never)(event);
     };

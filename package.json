@@ -15,9 +15,5 @@
     "release": "bun publish --filter @adityab/forms",
     "update:deps": "bun taze -rw --maturity-period 3 && bun install"
   },
-  "workspaces": [
-    "./package",
-    "./examples",
-    "./www"
-  ]
+  "workspaces": ["./package", "./examples", "./www"]
 }
