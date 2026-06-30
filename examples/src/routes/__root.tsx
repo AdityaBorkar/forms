@@ -7,7 +7,7 @@ import {
 import { ExternalLink } from "lucide-react";
 import { useState } from "react";
 
-import { exampleSources } from "@/lib/example-sources.gen.ts";
+import { exampleSources } from "@/lib/example-sources.gen";
 import { GITHUB_EXAMPLES_PREFIX } from "@/lib/utils";
 
 const EXAMPLE_FILES = {
@@ -121,7 +121,7 @@ function SourcePanel() {
           </button>
         ))}
       </div>
-      <pre className="grow  overflow-auto p-4 text-xs leading-relaxed">
+      <pre className="grow overflow-auto p-4 text-xs leading-relaxed">
         <code>{current.content}</code>
       </pre>
     </aside>

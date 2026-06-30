@@ -95,6 +95,12 @@
           }
         }
       }
+    },
+    {
+      "includes": ["examples/src/components/ui/**"],
+      "linter": {
+        "enabled": false
+      }
     }
   ],
   "vcs": {
