@@ -1,8 +1,13 @@
+import { createFileRoute } from "@tanstack/react-router";
 import z from "zod";
 
 import { SmartField } from "@/lib/form";
 
-import { ExampleForm } from "./shared";
+import { ExampleForm } from "@/components/form-wrapper";
+
+export const Route = createFileRoute("/custom-field-component")({
+  component: CustomFieldComponentForm,
+});
 
 const schema = z.object({
   notifications: z
@@ -16,7 +21,7 @@ const schema = z.object({
   title: z.string().min(1).meta({ label: "Title" }),
 });
 
-export function CustomFieldComponentForm() {
+function CustomFieldComponentForm() {
   return (
     <ExampleForm
       defaultValues={{ notifications: false, rating: 0 }}

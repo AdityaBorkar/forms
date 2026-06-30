@@ -1,8 +1,13 @@
+import { createFileRoute } from "@tanstack/react-router";
 import z from "zod";
 
 import { SmartField } from "@/lib/form";
 
-import { ExampleForm } from "./shared";
+import { ExampleForm } from "@/components/form-wrapper";
+
+export const Route = createFileRoute("/custom-field-types")({
+  component: CustomFieldTypesForm,
+});
 
 const schema = z.object({
   bio: z.string().max(200).meta({
@@ -23,7 +28,7 @@ const schema = z.object({
     .meta({ label: "Username", placeholder: "pick a handle" }),
 });
 
-export function CustomFieldTypesForm() {
+function CustomFieldTypesForm() {
   return (
     <ExampleForm
       description="meta.component overrides the widget (password, textarea), while enum and boolean map automatically."

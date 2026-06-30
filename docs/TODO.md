@@ -1,5 +1,11 @@
 # TODO
 
+Accordingly edit the server.ts file and build.ts file to support Bun Server for builds.
+
+Create a API endpoint that receives the form data and returns a OK response. Use this endpoint for form submissions.
+
+grid place-items-center min-w-[320px] min-h-screen relative m-0 bg-background text-foreground
+
 ## Phase 1
 
 - Smart Component Support

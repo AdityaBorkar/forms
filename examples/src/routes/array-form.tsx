@@ -1,9 +1,14 @@
+import { createFileRoute } from "@tanstack/react-router";
 import z from "zod";
 
 import { Button } from "@/components/ui/button";
 import { SmartField, SmartFieldArray } from "@/lib/form";
 
-import { ExampleForm } from "./shared";
+import { ExampleForm } from "@/components/form-wrapper";
+
+export const Route = createFileRoute("/array-form")({
+  component: ArrayForm,
+});
 
 const schema = z.object({
   project: z.string().min(1).meta({ label: "Project name" }),
@@ -18,7 +23,7 @@ const schema = z.object({
     .meta({ description: "Add at least one task." }),
 });
 
-export function ArrayForm() {
+function ArrayForm() {
   return (
     <ExampleForm
       defaultValues={{ tasks: [{ hours: 0, title: "" }] }}
