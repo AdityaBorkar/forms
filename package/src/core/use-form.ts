@@ -41,7 +41,7 @@ export function createUseForm<TSchema>(adapter: SchemaAdapter<TSchema>) {
     const methods = useRhfForm<TValues>({
       defaultValues: defaults as DefaultValues<TValues>,
       mode: validationMode,
-      resolver: resolver as never,
+      resolver,
       reValidateMode: "onChange",
     }) as unknown as UseFormReturn<TValues>;
 

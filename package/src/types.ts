@@ -1,4 +1,5 @@
 import type React from "react";
+import type { Resolver } from "react-hook-form";
 
 export type FieldMeta = {
   label?: string;
@@ -51,7 +52,8 @@ export type SchemaAdapter<TSchema = unknown> = {
     fieldMap: FieldMap,
     overrides?: Record<string, unknown>,
   ): Record<string, unknown>;
-  createResolver(schema: TSchema): unknown;
+  // biome-ignore lint/suspicious/noExplicitAny: adapter cannot know TValues — produces a generic RHF resolver
+  createResolver(schema: TSchema): Resolver<any>;
 };
 
 export type ValidationMode = "onBlur" | "onChange" | "onSubmit" | "all";

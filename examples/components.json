@@ -9,11 +9,11 @@
   },
   "iconLibrary": "lucide",
   "rsc": false,
-  "style": "new-york",
+  "style": "base-mira",
   "tailwind": {
     "baseColor": "neutral",
     "config": "",
-    "css": "styles/globals.css",
+    "css": "src/index.css",
     "cssVariables": true,
     "prefix": ""
   },
