@@ -1,10 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import z from "zod";
 
+import { ExampleForm } from "@/components/form-wrapper";
 import { Button } from "@/components/ui/button";
 import { SmartField, SmartFieldArray } from "@/lib/form";
-
-import { ExampleForm } from "@/components/form-wrapper";
 
 export const Route = createFileRoute("/array-form")({
   component: ArrayForm,

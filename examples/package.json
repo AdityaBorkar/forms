@@ -2,6 +2,7 @@
   "dependencies": {
     "@adistack/forms": "workspace:*",
     "@base-ui/react": "^1.6.0",
+    "@fontsource-variable/google-sans": "^5.2.1",
     "@hookform/resolvers": "^5.4.0",
     "@tanstack/react-router": "^1.170.16",
     "bun-plugin-tailwind": "^0.1.2",
@@ -25,8 +26,9 @@
   "name": "examples",
   "private": true,
   "scripts": {
-    "build": "bun run tsr:generate && bun run build.ts",
-    "dev": "bun run tsr:generate && bun --hot src/server.ts",
+    "build": "bun run generate:sources && bun run tsr:generate && bun run build.ts",
+    "dev": "bun run generate:sources && bun run tsr:generate && bun --hot src/server.ts",
+    "generate:sources": "bun run scripts/generate-sources.ts",
     "start": "NODE_ENV=production bun src/server.ts",
     "tsr:generate": "tsr generate"
   },

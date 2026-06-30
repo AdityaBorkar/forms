@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "@fontsource-variable/google-sans";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -42,6 +43,8 @@
 }
 
 :root {
+  --font-sans: "Google Sans Variable", sans-serif;
+
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -111,15 +114,11 @@
 }
 
 @layer base {
-  :root {
-    @apply font-sans;
-  }
-
   * {
     @apply border-border outline-ring/50;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply font-sans bg-background text-foreground;
   }
 }

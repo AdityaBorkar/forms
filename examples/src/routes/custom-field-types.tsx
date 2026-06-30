@@ -1,9 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import z from "zod";
 
-import { SmartField } from "@/lib/form";
-
 import { ExampleForm } from "@/components/form-wrapper";
+import { SmartField } from "@/lib/form";
 
 export const Route = createFileRoute("/custom-field-types")({
   component: CustomFieldTypesForm,
