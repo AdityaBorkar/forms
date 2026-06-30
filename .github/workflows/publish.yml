@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -27,13 +27,73 @@ jobs:
       - run: bun run check:lint
       - run: bun run check:types
 
-      - run: |
-          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+      - name: Configure git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Publish prerelease (beta)
-        if: github.ref_name == 'beta'
-        run: npm publish --tag beta --access public
+      - name: Configure npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
-      - name: Publish release (stable)
-        if: github.ref_name == 'stable'
-        run: npm publish --tag latest --access public
+      - name: Version packages
+        id: version
+        run: |
+          # Enter prerelease mode on beta; exit it on stable (if active).
+          if [ "${{ github.ref_name }}" = "beta" ] && [ ! -f .changeset/pre.json ]; then
+            bunx changeset pre enter beta
+          fi
+          if [ "${{ github.ref_name }}" = "stable" ] && [ -f .changeset/pre.json ]; then
+            bunx changeset pre exit
+          fi
+
+          # Consume pending changesets — bumps versions + updates CHANGELOG.md.
+          bunx changeset version
+
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "chore: version packages [skip ci]"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to npm
+        id: publish
+        if: steps.version.outputs.changed == 'true'
+        working-directory: package
+        run: |
+          VERSION=$(jq -r .version package.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.ref_name }}" = "beta" ]; then
+            npm publish --tag beta --access public
+          else
+            npm publish --tag latest --access public
+          fi
+
+      - name: Create GitHub release
+        if: steps.version.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.publish.outputs.version }}"
+
+          # Skip if a release for this version already exists.
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "Release v$VERSION already exists — skipping"
+            exit 0
+          fi
+
+          # Extract the latest changelog section (first "## <version>" block).
+          BODY=$(awk '/^## /{n++} n==1{print} n==2{exit}' package/CHANGELOG.md 2>/dev/null || true)
+          if [ -z "$BODY" ]; then
+            BODY="Release v$VERSION"
+          fi
+
+          SHA="${{ steps.version.outputs.sha }}"
+          if [ "${{ github.ref_name }}" = "beta" ]; then
+            gh release create "v$VERSION" --target "$SHA" --title "v$VERSION" --notes "$BODY" --prerelease
+          else
+            gh release create "v$VERSION" --target "$SHA" --title "v$VERSION" --notes "$BODY"
+          fi

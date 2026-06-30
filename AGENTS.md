@@ -6,7 +6,7 @@
 
 ## Repo Structure
 
-**Bun workspace.** Root `package.json` declares `workspaces: ["./examples", "./www"]`. The actual library lives in `package/` — that's where `src/`, `tsconfig.json`, and the library `package.json` are.
+**Bun workspace.** Root `package.json` declares `workspaces: ["./package", "./examples", "./www"]`. The actual library lives in `package/` — that's where `src/`, `tsconfig.json`, and the library `package.json` are.
 
 ```
 package/           ← library source and tests (the thing that gets published)
@@ -39,7 +39,7 @@ bun test package/src/adapters/zod/build-field-map.test.ts  # run a single test f
 bun run update:deps   # taze -rw --maturity-period 3 && bun install
 ```
 
-Run `check:lint` then `check:types` after changes. No CI workflows exist yet — the Husky hooks are the only enforcement.
+Run `check:lint` then `check:types` after changes. CI is commented out (`ci.yml`); Husky hooks are the local enforcement. The active `publish.yml` runs on push to `beta`/`stable` branches — it versions via changesets, publishes to npm, and creates GitHub releases.
 
 ## Testing
 
@@ -56,7 +56,7 @@ Run `check:lint` then `check:types` after changes. No CI workflows exist yet —
 
 Two entrypoints declared in `package/package.json` exports:
 
-- `@adistack/forms/core` → `package/src/core/index.ts` — framework-agnostic core: `createFormFormat`, types, `useForm`/`useFormContext` factories. Re-exports `SmartField`/`SmartFieldArray` from `package/src/ui/`.
+- `@adistack/forms/core` → `package/src/core/index.ts` — exports `createFormFormat` + types, and re-exports `SmartField`/`SmartFieldArray`/`resolveFieldDef` from `package/src/ui/`. `useForm`/`useFormContext` are **not** direct imports — `createFormFormat()` returns them (the `createUseForm`/`createUseFormContext` factories in `core/` are internal).
 - `@adistack/forms/adapters/zod` → `package/src/adapters/zod/index.ts` — Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `deriveDefault`, `createResolver`.
 
 `package/src/ui/` contains `SmartField` and `SmartFieldArray` — they live separately from `package/src/core/` but are re-exported through the core entrypoint.
@@ -79,7 +79,13 @@ Two entrypoints declared in `package/package.json` exports:
 - `create-resolver.ts` — wraps `@hookform/resolvers/zod`.
 - `@hookform/resolvers` and `zod` are **optional peer dependencies** — consumers who don't use the Zod adapter don't need them.
 
+## Versioning & Publishing
+
+- **Changesets** for version management. `examples/` and `www/` are ignored (see `.changeset/config.json`); only `package/` gets published. Changeset `baseBranch` is `main` — that's the working branch; releases are cut from `beta`/`stable`.
+- `bunfig.toml` sets `ignore-scripts=true` (lifecycle scripts skipped on install) and `minimumReleaseAge` of 3 days.
+- Publish branches: `beta` (prerelease) and `stable` (latest). `publish.yml` enters/exits changeset prerelease mode automatically and creates GitHub releases.
+
 ## Gotchas
 
-- `docs/CONTEXT.md` uses **planned** names (`createFormSystem`, `SchemaTree`, `FieldComponentProps`) that differ from the actual code (`createFormFormat`, `FieldMap`, `FieldRenderProps`). If you read CONTEXT.md, cross-reference with the actual source.
+- `docs/CONTEXT.md` now matches actual code (see ADR 0001). Aspirational renames live in `docs/TODO.md`. The `fieldMap` naming collision (`FieldComponentMap` option vs `FieldMap` context value) is documented in CONTEXT.md's Design Tradeoffs section.
 - Cast chain: `use-form.ts` uses `resolver as never`, `form.tsx` and `use-form-context.ts` also have `as unknown as` / `as object` casts. Root cause is `SchemaAdapter<TSchema = unknown>` — the `unknown` default loses type info at the boundary.
