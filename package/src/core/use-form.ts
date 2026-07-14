@@ -2,15 +2,16 @@ import { useMemo } from "react";
 import type {
   DefaultValues,
   FieldValues,
+  Resolver,
   UseFormReturn,
 } from "react-hook-form";
 import { useForm as useRhfForm } from "react-hook-form";
 
-import type { FieldMap, SchemaAdapter, UseFormOptions } from "@/types";
+import type { SchemaAdapter, SchemaTree, UseFormOptions } from "@/types";
 
 export type FormContextInstance<TValues extends FieldValues = FieldValues> =
   UseFormReturn<TValues> & {
-    fieldMap: FieldMap;
+    fieldMap: SchemaTree;
   };
 
 export type FormInstance<TValues extends FieldValues = FieldValues> =
@@ -41,7 +42,7 @@ export function createUseForm<TSchema>(adapter: SchemaAdapter<TSchema>) {
     const methods = useRhfForm<TValues>({
       defaultValues: defaults as DefaultValues<TValues>,
       mode: validationMode,
-      resolver,
+      resolver: resolver as Resolver<TValues>,
       reValidateMode: "onChange",
     }) as unknown as UseFormReturn<TValues>;
 

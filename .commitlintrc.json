@@ -1,6 +1,6 @@
-export default {
-  extends: ["@commitlint/config-conventional"],
-  rules: {
+{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
     "type-enum": [
       2,
       "always",
@@ -16,8 +16,8 @@ export default {
         "revert",
         "style",
         "test",
-        "wip",
-      ],
-    ],
-  },
-};
+        "wip"
+      ]
+    ]
+  }
+}

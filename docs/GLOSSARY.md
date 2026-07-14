@@ -64,7 +64,7 @@ after adapter introspection. Key properties:
 | `kind` | `string` | The resolved field kind — used as the dispatch key into [FieldComponentMap](#fieldcomponentmap). See [Kind](#kind). |
 | `optional` | `boolean` | Whether the schema marks this field as optional. |
 | `required` | `boolean?` | **Leaky** — derived as `!optional && min != null`, which conflates "has a min constraint" with "must be provided". See [Design Tradeoffs](./CONTEXT.md#required-is-a-leaky-derivation). |
-| `meta` | `FieldMeta?` | User-supplied annotations from the schema (label, placeholder, description, component, etc.). |
+| `meta` | `FieldMeta?` | User-supplied annotations from the schema (label, placeholder, description, etc.). |
 | `checks` | `FieldCheck[]?` | Adapter-normalized validation constraints. See [FieldCheck](#fieldcheck). |
 | `entries` | `Record<string, string>?` | For enum kinds — the value-label pairs. |
 | `fields` | `FieldMap?` | Nested fields. For objects, these are the child properties. For arrays, these are the **element's** child properties. |
@@ -86,20 +86,12 @@ Possible kinds include:
 - **Primitive types:** `"string"`, `"number"`, `"boolean"`, `"date"`
 - **Format variants:** `"email"`, `"url"`
 - **Structural types:** `"object"`, `"array"`, `"enum"`
-- **UI overrides:** `"password"`, `"textarea"`, `"combobox"`, `"checkbox"`
-- **Fallback:** `"unknown"` — used for `record` types and any unrecognized type.
-  Does **not** throw; a field with `kind: "unknown"` and no registered component
-  renders nothing.
+- **Unsupported types:** `record` and unrecognized Zod types throw an error
+  rather than falling through to `"unknown"`.
 
 The `kind` is intentionally flat — the adapter is responsible for collapsing
-type/format/component into a single string. This keeps the
-[FieldComponentMap](#fieldcomponentmap) lookup simple at the cost of coupling in
-the derivation path.
-
-**Known coupling:** `meta.component` on Zod schemas allows schema authors to force
-a specific `kind` (e.g., `.meta({ component: 'password' })`). This couples the
-data contract to the UI layer. See
-[Design Tradeoffs](./CONTEXT.md#kind-conflates-type-format-and-component-override).
+type/format into a single string. This keeps the
+[FieldComponentMap](#fieldcomponentmap) lookup simple.
 
 ---
 
@@ -120,14 +112,11 @@ check types.
 
 ## FieldMeta
 
-**Type:** `{ label?: string; placeholder?: string; description?: string; component?: string; [key: string]: unknown }`
+**Type:** `{ label?: string; placeholder?: string; description?: string; [key: string]: unknown }`
 
-User-supplied annotations attached to a schema field. The `component` property is
-the UI override for [Kind](#kind) — this is the coupling point documented under
-[Design Tradeoffs](./CONTEXT.md#kind-conflates-type-format-and-component-override).
-
-The `[key: string]: unknown` index signature allows adapters to carry custom
-metadata without changing the core type.
+User-supplied annotations attached to a schema field. The `[key: string]: unknown`
+index signature allows adapters to carry custom metadata without changing the
+core type.
 
 ---
 
@@ -252,14 +241,14 @@ Props for [SmartField](#smartfield).
 
 ## createFormFormat
 
-**Type:** `<TSchema = unknown>(options: { fieldMap: FieldComponentMap, schemaResolver: SchemaAdapter<TSchema> }) => { Form, SmartField, SmartFieldArray, useForm, useFormContext }`
+**Type:** `<TSchema = unknown>(options: { fieldComponents: FieldComponentMap, schemaResolver: SchemaAdapter<TSchema> }) => { Form, SmartField, SmartFieldArray, useForm, useFormContext }`
 
 The factory entry point. Creates a React context and wires together all five
 exports via closure. Called once per form system configuration:
 
 ```ts
 const { Form, SmartField, SmartFieldArray, useForm, useFormContext } =
-  createFormFormat({ fieldMap: myComponents, schemaResolver: zodAdapter });
+  createFormFormat({ fieldComponents: myComponents, schemaResolver: zodAdapter });
 ```
 
 The closure captures:
@@ -268,9 +257,7 @@ The closure captures:
 - The `FieldComponentMap` (rebound internally as `fieldComponents`, for
   SmartField → component dispatch)
 
-> **Naming collision:** the option is named `fieldMap` but holds a
-> `FieldComponentMap`, not a [FieldMap](#fieldmap). See
-> [Design Tradeoffs](./CONTEXT.md#fieldmap-is-an-overloaded-name).
+
 
 ---
 
@@ -285,9 +272,9 @@ an RHF `Controller`.
 
 Props: [SmartFieldProps](#smartfieldprops) — `{ name, disabled?, config? }`.
 
-Behavior on miss: returns `null` (no throw) if the field definition is not found,
-or if no component is registered for the resolved `kind`. See
-[Design Tradeoffs](./CONTEXT.md#silent-null-on-missing-field-or-component).
+Behavior on miss: `resolveFieldDef` throws if the field definition is not found
+or if the kind is `"unknown"`. If no component is registered for the resolved
+`kind`, SmartField returns `null`.
 
 Throws if used outside a `<Form>` (no context).
 
@@ -344,15 +331,15 @@ array path; `children` is a render function receiving the array operations.
 
 ## resolveFieldDef
 
-**Type:** `(fieldMap: FieldMap, name: string) => FieldDef | undefined`
+**Type:** `(fieldMap: FieldMap, name: string) => FieldDef`
 
 Walks the [FieldMap](#fieldmap) by splitting the `name` on `.` and traversing
 nested `FieldDef.fields`. Skips numeric segments (for RHF array paths like
-`"items.0.name"`). Returns `undefined` if the path doesn't resolve —
-[SmartField](#smartfield) turns that into `null`.
+`"items.0.name"`). Throws `"No field definition found for \"<name>\""` if the
+path doesn't resolve, or `"Unsupported field type for \"<name>\""` if the
+resolved kind is `"unknown"`.
 
-Currently lives in `smart-field.tsx` but is exported from core — it is a
-FieldMap operation, not strictly a UI operation.
+Lives in `core/field-map.ts` and is exported from core.
 
 ---
 
@@ -381,26 +368,11 @@ context. Throws `"useFormContext must be used within a Form"` if no context.
 
 ## deriveDefault
 
-**Type:** `(def: FieldDef) => unknown`
+**Type:** `(def: FieldDef) => unknown` (private helper in `build-defaults.ts`)
 
 Derives a default value from a [FieldDef](#fielddef) by switching on
-[Kind](#kind):
-
-- `optional` → `undefined`
-- `string`/`email`/`url`/`password`/`textarea`/`combobox` → `""`
-- `number` → `0`
-- `boolean`/`checkbox` → `false`
-- `enum` → first entry value (or `undefined`)
-- `array` → `[]`
-- `object` → recursively derived
-- default → `undefined`
-
-Currently lives in the Zod adapter but is **schema-agnostic** — it only branches
-on `kind`, never touches the schema. Should be moved to core. The switch also
-handles UI override kinds (`password`, `textarea`, `combobox`, `checkbox`) that
-are not primitive types — adding a new component override requires updating this
-function. See
-[Design Tradeoffs](./CONTEXT.md#derivedefault-lives-in-the-zod-adapter-but-is-schema-agnostic).
+[Kind](#kind). Called recursively for nested objects. Used internally by
+[buildDefaults](#builddefaults).
 
 ---
 
@@ -414,8 +386,7 @@ The Zod adapter (`@adistack/forms/adapters/zod`) exports:
   [Zod Adapter Internals](./CONTEXT.md#zod-adapter-internals).
 - **`buildDefaults(schema, fieldMap, overrides?)`** — [FieldMap](#fieldmap) →
   default values. Ignores `schema` (prefixed `_schema`); iterates `fieldMap`
-  calling [deriveDefault](#derivedefault) per field, then overlays `overrides`.
-- **`deriveDefault(def)`** — see [deriveDefault](#derivedefault).
+  calling `deriveDefault` (private helper) per field, then overlays `overrides`.
 - **`createResolver(schema)`** — returns `zodResolver(schema as never)` typed as
   `unknown`.
 

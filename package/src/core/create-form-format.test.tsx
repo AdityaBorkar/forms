@@ -39,7 +39,7 @@ function makeStub(kind: string) {
 }
 
 const { Form, SmartField, SmartFieldArray, useForm } = createFormFormat({
-  fieldMap: {
+  fieldComponents: {
     array: makeStub("array"),
     combobox: makeStub("combobox"),
     email: makeStub("email"),

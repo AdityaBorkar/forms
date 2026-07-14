@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import z from "zod";
 
-import type { FieldDef } from "@/types";
+import type { FieldDef, FieldMap } from "@/types";
 
-import { buildDefaults, deriveDefault } from "./build-defaults";
+import { buildDefaults } from "./build-defaults";
 import { buildFieldMap } from "./build-field-map";
 
-describe("deriveDefault", () => {
+function fieldMap(...entries: Array<[string, FieldDef]>): FieldMap {
+  return Object.fromEntries(entries);
+}
+
+describe("buildDefaults — per-kind derivation", () => {
   const cases: Array<[FieldDef, unknown]> = [
     [{ kind: "string", optional: false }, ""],
     [{ kind: "email", optional: false }, ""],
@@ -24,28 +28,38 @@ describe("deriveDefault", () => {
   ];
   for (const [def, expected] of cases) {
     it(`derives ${JSON.stringify(expected)} for kind=${def.kind} optional=${def.optional}`, () => {
-      expect(deriveDefault(def)).toEqual(expected);
+      expect(buildDefaults(undefined, fieldMap(["x", def]))).toEqual({
+        x: expected,
+      });
     });
   }
 
   it("derives first enum entry as default", () => {
     expect(
-      deriveDefault({
-        entries: { a: "A", b: "B" },
-        kind: "enum",
-        optional: false,
-      }),
-    ).toBe("A");
+      buildDefaults(
+        undefined,
+        fieldMap([
+          "status",
+          { entries: { a: "A", b: "B" }, kind: "enum", optional: false },
+        ]),
+      ),
+    ).toEqual({ status: "A" });
   });
 
   it("recurses into nested object fields", () => {
     expect(
-      deriveDefault({
-        fields: { city: { kind: "string", optional: false } },
-        kind: "object",
-        optional: false,
-      }),
-    ).toEqual({ city: "" });
+      buildDefaults(
+        undefined,
+        fieldMap([
+          "addr",
+          {
+            fields: { city: { kind: "string", optional: false } },
+            kind: "object",
+            optional: false,
+          },
+        ]),
+      ),
+    ).toEqual({ addr: { city: "" } });
   });
 });
 
@@ -77,7 +91,7 @@ describe("buildDefaults", () => {
 
   it("handles combobox (string-derived) default as empty string", () => {
     const schema = z.object({
-      assigneeId: z.string().min(1).meta({ component: "combobox" }),
+      assigneeId: z.string().min(1).meta({ label: "Assignee" }),
     });
     expect(buildDefaults(schema, buildFieldMap(schema))).toEqual({
       assigneeId: "",

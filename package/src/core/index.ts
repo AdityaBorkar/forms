@@ -1,12 +1,12 @@
 export type {
   FieldCheck,
   FieldComponentMap,
+  FieldComponentProps,
   FieldDef,
-  FieldMap,
   FieldMeta,
-  FieldRenderProps,
   FormContextValue,
   SchemaAdapter,
+  SchemaTree,
   UseFormOptions,
   ValidationMode,
 } from "@/types";
@@ -17,7 +17,7 @@ export type {
 } from "@/ui/smart-field-array";
 export { SmartFieldArray } from "@/ui/smart-field-array";
 
-export { createFormFormat } from "./create-form-format";
+export { createFormSystem } from "./create-form-format";
 export { resolveFieldDef } from "./field-map";
 export type { FormProps } from "./form";
 export type {

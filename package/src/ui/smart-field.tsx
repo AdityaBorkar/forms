@@ -5,7 +5,7 @@ import { Controller, useFormContext as useRhfContext } from "react-hook-form";
 import { resolveFieldDef } from "@/core/field-map";
 import type {
   FieldComponentMap,
-  FieldRenderProps,
+  FieldComponentProps,
   FormContextValue,
 } from "@/types";
 
@@ -28,7 +28,6 @@ export function createSmartField(
     }
 
     const def = resolveFieldDef(ctx.fieldMap, name);
-    if (!def) return null;
 
     const Component = fieldComponents[def.kind];
     if (!Component) return null;

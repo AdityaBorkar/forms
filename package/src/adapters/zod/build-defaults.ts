@@ -1,6 +1,6 @@
 import type { FieldDef, FieldMap } from "@/types";
 
-export function deriveDefault(def: FieldDef): unknown {
+function deriveDefault(def: FieldDef): unknown {
   if (def.optional) return undefined;
   switch (def.kind) {
     case "string":

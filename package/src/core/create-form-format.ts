@@ -12,11 +12,11 @@ import { createForm } from "./form";
 import { createUseForm } from "./use-form";
 import { createUseFormContext } from "./use-form-context";
 
-export function createFormFormat<TSchema = unknown>(options: {
-  fieldMap: FieldComponentMap;
+export function createFormSystem<TSchema = unknown>(options: {
+  fieldComponents: FieldComponentMap;
   schemaResolver: SchemaAdapter<TSchema>;
 }) {
-  const { fieldMap: fieldComponents, schemaResolver } = options;
+  const { fieldComponents, schemaResolver } = options;
 
   const FormContext = createContext<FormContextValue | null>(null);
 

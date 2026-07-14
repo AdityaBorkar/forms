@@ -28,6 +28,6 @@ const fieldComponents: FieldComponentMap = {
 
 export const { SmartField, SmartFieldArray, Form, useForm, useFormContext } =
   createFormFormat({
-    fieldMap: fieldComponents,
+    fieldComponents,
     schemaResolver: zodAdapter,
   });

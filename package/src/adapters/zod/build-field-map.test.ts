@@ -26,24 +26,6 @@ describe("buildFieldMap — string kinds", () => {
     expect(map.note?.min).toBeUndefined();
   });
 
-  it("respects meta.component override to textarea/password/combobox/checkbox", () => {
-    const map = buildFieldMap(
-      z.object({
-        checkbox: z.string().meta({ component: "checkbox" }),
-        combobox: z.string().min(1).meta({ component: "combobox" }),
-        password: z.string().meta({ component: "password" }),
-        textarea: z.string().meta({ component: "textarea" }),
-      }),
-    );
-    expect(map.textarea?.kind).toBe("textarea");
-    expect(map.password?.kind).toBe("password");
-    expect(map.combobox?.kind).toBe("combobox");
-    expect(map.checkbox?.kind).toBe("checkbox");
-    // combobox retains string-derived min/required
-    expect(map.combobox?.min).toBe(1);
-    expect(map.combobox?.required).toBe(true);
-  });
-
   it("preserves meta passthrough fields", () => {
     const map = buildFieldMap(
       z.object({ name: z.string().meta({ label: "Name", placeholder: "x" }) }),
@@ -82,7 +64,7 @@ describe("buildFieldMap — number", () => {
   });
 });
 
-describe("buildFieldMap — boolean / enum / date / record", () => {
+describe("buildFieldMap — boolean / enum / date", () => {
   it("maps z.boolean()", () => {
     const map = buildFieldMap(z.object({ active: z.boolean() }));
     expect(map.active!).toEqual({
@@ -103,11 +85,12 @@ describe("buildFieldMap — boolean / enum / date / record", () => {
     expect(map.when?.kind).toBe("date");
   });
 
-  it("maps z.record() to unknown", () => {
-    const map = buildFieldMap(
-      z.object({ perms: z.record(z.string(), z.array(z.string())) }),
-    );
-    expect(map.perms?.kind).toBe("unknown");
+  it("throws for z.record()", () => {
+    expect(() =>
+      buildFieldMap(
+        z.object({ perms: z.record(z.string(), z.array(z.string())) }),
+      ),
+    ).toThrow("Unsupported Zod type: record");
   });
 });
 
@@ -139,7 +122,7 @@ describe("buildFieldMap — array / object", () => {
   });
 });
 
-describe("buildFieldMap — optional / union / literal", () => {
+describe("buildFieldMap — optional / union", () => {
   it("unwraps optional and sets optional: true on inner def", () => {
     const map = buildFieldMap(z.object({ name: z.string().min(1).optional() }));
     expect(map.name?.kind).toBe("string");
@@ -170,9 +153,10 @@ describe("buildFieldMap — optional / union / literal", () => {
     expect(map.email?.optional).toBe(true);
   });
 
-  it("maps a bare literal to unknown", () => {
-    const map = buildFieldMap(z.object({ flag: z.literal("yes") }));
-    expect(map.flag?.kind).toBe("unknown");
+  it("throws for a bare literal", () => {
+    expect(() => buildFieldMap(z.object({ flag: z.literal("yes") }))).toThrow(
+      "Unsupported Zod type: literal",
+    );
   });
 });
 

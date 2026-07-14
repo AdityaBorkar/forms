@@ -161,9 +161,9 @@ function resolveType(
     case "date":
       return { kind: "date" };
     case "record":
-      return { kind: "unknown" };
+      throw new Error("Unsupported Zod type: record");
     default:
-      return { kind: "unknown" };
+      throw new Error(`Unsupported Zod type: ${type}`);
   }
 }
 
@@ -175,7 +175,7 @@ function buildFieldDef(schema: ZodSchema, optional = false): FieldDef {
   if (type === "optional") {
     const inner = def?.innerType;
     if (!inner) {
-      return { kind: "unknown", optional: true, ...(meta ? { meta } : {}) };
+      throw new Error("Optional type has no inner type");
     }
     const result = buildFieldDef(inner, true);
     if (meta) result.meta = meta;
@@ -187,7 +187,7 @@ function buildFieldDef(schema: ZodSchema, optional = false): FieldDef {
     const picked =
       options.find((option) => getType(option) !== "literal") ?? options[0];
     if (!picked) {
-      return { kind: "unknown", optional, ...(meta ? { meta } : {}) };
+      throw new Error("Union type has no options");
     }
     const result = buildFieldDef(picked, optional);
     if (meta) result.meta = meta;
@@ -201,9 +201,6 @@ function buildFieldDef(schema: ZodSchema, optional = false): FieldDef {
     ...(meta ? { meta } : {}),
   };
 
-  if (meta?.component && typeof meta.component === "string") {
-    fieldDef.kind = meta.component;
-  }
   fieldDef.required = !optional && fieldDef.min != null;
 
   return fieldDef;

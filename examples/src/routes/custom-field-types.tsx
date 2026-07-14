@@ -10,12 +10,10 @@ export const Route = createFileRoute("/custom-field-types")({
 
 const schema = z.object({
   bio: z.string().max(200).meta({
-    component: "textarea",
     label: "Bio",
     placeholder: "Tell us about yourself",
   }),
   password: z.string().min(8).meta({
-    component: "password",
     description: "At least 8 characters.",
     label: "Password",
   }),
@@ -30,7 +28,7 @@ const schema = z.object({
 function CustomFieldTypesForm() {
   return (
     <ExampleForm
-      description="meta.component overrides the widget (password, textarea), while enum and boolean map automatically."
+      description="Enum and boolean map automatically. Custom widgets (textarea, password) are handled via the frontend component map."
       schema={schema}
       title="4 · Custom field types"
     >

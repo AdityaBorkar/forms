@@ -5,7 +5,6 @@ export type FieldMeta = {
   label?: string;
   placeholder?: string;
   description?: string;
-  component?: string;
   [key: string]: unknown;
 };
 
@@ -20,15 +19,15 @@ export type FieldDef = {
   meta?: FieldMeta;
   checks?: Array<FieldCheck>;
   entries?: Record<string, string>;
-  fields?: FieldMap;
+  elementFields?: SchemaTree;
   min?: number;
   max?: number;
   required?: boolean;
 };
 
-export type FieldMap = Record<string, FieldDef>;
+export type SchemaTree = Record<string, FieldDef>;
 
-export type FieldRenderProps = FieldDef & {
+export type FieldComponentProps = FieldDef & {
   name: string;
   value: unknown;
   onChange: (value: unknown) => void;
@@ -42,24 +41,23 @@ export type FieldRenderProps = FieldDef & {
 
 export type FieldComponentMap = Record<
   string,
-  React.ComponentType<FieldRenderProps>
+  React.ComponentType<FieldComponentProps>
 >;
 
 export type SchemaAdapter<TSchema = unknown> = {
-  buildFieldMap(schema: TSchema): FieldMap;
+  buildFieldMap(schema: TSchema): SchemaTree;
   buildDefaults(
     schema: TSchema,
-    fieldMap: FieldMap,
+    fieldMap: SchemaTree,
     overrides?: Record<string, unknown>,
   ): Record<string, unknown>;
-  // biome-ignore lint/suspicious/noExplicitAny: adapter cannot know TValues — produces a generic RHF resolver
-  createResolver(schema: TSchema): Resolver<any>;
+  createResolver(schema: TSchema): Resolver;
 };
 
 export type ValidationMode = "onBlur" | "onChange" | "onSubmit" | "all";
 
 export type FormContextValue = {
-  fieldMap: FieldMap;
+  fieldMap: SchemaTree;
 };
 
 export type UseFormOptions<

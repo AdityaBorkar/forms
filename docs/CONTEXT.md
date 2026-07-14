@@ -51,7 +51,7 @@ that knowledge.**
 
 ### Data flow
 
-1. Consumer calls `createFormFormat({ fieldMap, schemaResolver })` — gets
+1. Consumer calls `createFormFormat({ fieldComponents, schemaResolver })` — gets
    `{ Form, SmartField, SmartFieldArray, useForm, useFormContext }`. The factory
    creates a React context once and closes over the `FieldComponentMap`.
 2. Consumer calls `useForm({ schema, onSubmit, ... })` — the hook calls the
@@ -70,14 +70,14 @@ that knowledge.**
 ## Key Design Decisions
 
 ### 1. Factory pattern over provider pattern
-
-`createFormFormat` is a closure-based factory, not a React provider. This is
-intentional:
-
-- **No runtime provider nesting** — the context is created inside the factory,
-  not externally.
-- **Type safety** — the generic `TSchema` flows from the adapter through the
-  factory to the hooks.
+- `build-field-map.ts` — introspects Zod v4 schemas via `schema._zod.def` (private/fragile API). If Zod's internal shape changes, this will break.
+  - Optional unwrapping: recurses into `innerType` with `optional = true`, overlays `meta` from outer.
+  - Union handling: picks the first non-literal option (e.g. `z.string().optional()` → union of `string | literal(undefined)`).
+  - Unsupported types (`record`, `literal`, etc.) throw an error.
+  - `required` is derived as `!optional && min != null` — a field is only "required" when it's non-optional AND has a min constraint.
+- `build-defaults.ts` — derives default values from the schema. `deriveDefault` is a private helper.
+- `create-resolver.ts` — wraps `@hookform/resolvers/zod`.
+- `@hookform/resolvers` and `zod` are **optional peer dependencies** — consumers who don't use the Zod adapter don't need them.
 - **Encapsulation** — `FieldComponentMap` is closed over, not floating in
   context.
 
@@ -98,12 +98,8 @@ library. Everything downstream operates on the adapter's normalized output
 ### 3. Flat `kind` for component dispatch
 
 The `kind` field on `FieldDef` is a single string that the adapter resolves from
-all schema nuances (primitive type, format, UI override). This keeps the
-`FieldComponentMap` lookup trivial: `fieldComponents[def.kind]`.
-
-The cost: `kind` conflates three levels (type, format, component override),
-which causes coupling in `deriveDefault` and `meta.component`. See
-[Design Tradeoffs](#design-tradeoffs).
+schema type and format. This keeps the `FieldComponentMap` lookup trivial:
+`fieldComponents[def.kind]`.
 
 ### 4. FieldMap as the single source of truth
 
@@ -182,19 +178,11 @@ accepts a `FormInstance`; everything inside reads via `useFormContext` as a
 These describe the current design's costs honestly. Forward-looking fixes live
 in [TODO.md](./TODO.md), not here.
 
-### `fieldMap` is an overloaded name
+### ~~`fieldMap` is an overloaded name~~ — resolved
 
-`createFormFormat` accepts an option **named** `fieldMap` whose **type** is
-`FieldComponentMap` (the UI component registry). Meanwhile
-`FormContextValue.fieldMap` is a `FieldMap` (the schema-derived metadata tree).
-The same identifier denotes two unrelated things:
-
-- `createFormFormat({ fieldMap: FieldComponentMap, ... })` — UI components.
-- `FormContextValue.fieldMap: FieldMap` — schema metadata.
-
-Inside the factory the option is immediately rebound as `fieldComponents`, so
-the collision doesn't propagate — but at the call site it reads confusingly.
-Rename tracked in TODO.md.
+`createFormFormat`'s option was renamed from `fieldMap` to `fieldComponents`,
+eliminating the collision with `FormContextValue.fieldMap` (`FieldMap`). The
+option name now matches its type (`FieldComponentMap`).
 
 ### `required` is a leaky derivation
 
@@ -204,31 +192,6 @@ constraint" with "must be provided." A truly optional field with no min reads as
 `required: undefined` (falsy), and a required field without an explicit min also
 reads as not-required.
 
-### `kind` conflates type, format, and component override
-
-`meta.component` on a Zod field overrides the resolved `kind` (e.g.
-`.meta({ component: 'password' })` forces `kind: "password"`). This couples the
-schema (data contract) to the UI layer, and forces `deriveDefault` to know about
-UI-override kinds (`password`, `textarea`, `combobox`, `checkbox`) that are not
-primitive types. Adding a new component override requires updating both
-`buildFieldDef`'s override and `deriveDefault`'s `kind` switch.
-
-### `deriveDefault` lives in the Zod adapter but is schema-agnostic
-
-`deriveDefault(def)` only branches on `kind`, never touches the schema. It
-belongs in core, but currently ships from the Zod adapter entrypoint.
-
-### Silent `null` on missing field or component
-
-`SmartField` returns `null` when `resolveFieldDef` finds no definition, and
-again when no component is registered for the resolved `kind`. There is no throw
-— a typo in a field name or an unregistered `kind` silently renders nothing.
-
-### `resolveFieldDef` returns `undefined`, not a result type
-
-Callers can't distinguish "not found" from other states without a sentinel.
-`unknown` kind (e.g. `record` type, or any unrecognized type) falls through to
-`kind: "unknown"` rather than throwing.
 
 ### The cast chain
 
@@ -298,8 +261,11 @@ changes, `build-field-map.ts` will break.
   `string | literal(undefined)`).
 - **String kind resolution:** `resolveStringKind` checks `def.format` and
   `checks` for `"email"` / `"url"` before falling back to `"string"`.
-- **Meta override:** If `meta.component` is set, it overrides the resolved
-  `kind`. This is the coupling point documented under
-  [Design Tradeoffs](#design-tradeoffs).
 - **Required derivation:** `required = !optional && min != null`.
-- **`record` and unrecognized types:** fall through to `kind: "unknown"`.
+- **Unsupported types:** `record` and unrecognized Zod types throw an error.
+
+---
+
+## Features not supported / planned:
+
+- Nested Forms

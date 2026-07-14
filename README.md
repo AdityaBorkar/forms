@@ -41,7 +41,7 @@ import { zodAdapter } from "@adistack/forms/adapters/zod";
 
 export const { Form, SmartField, SmartFieldArray, useForm, useFormContext } =
   createFormFormat({
-    fieldMap: fieldComponents,
+    fieldComponents,
     schemaResolver: zodAdapter,
   });
 ```
@@ -77,7 +77,7 @@ function SimpleForm() {
 ## How it works
 
 ```
-createFormFormat({ fieldMap, schemaResolver })
+createFormFormat({ fieldComponents, schemaResolver })
         │
         ├── useForm(schema)      → builds FieldMap + defaults + resolver, delegates to react-hook-form
         ├── <Form>               → wraps FormProvider + the context that carries fieldMap

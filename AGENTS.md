@@ -6,13 +6,12 @@
 
 ## Repo Structure
 
-**Bun workspace.** Root `package.json` declares `workspaces: ["./package", "./examples", "./www"]`. The actual library lives in `package/` — that's where `src/`, `tsconfig.json`, and the library `package.json` are.
+**Bun workspace.** Root `package.json` declares `workspaces: ["./package", "./examples"]`. The actual library lives in `package/` — that's where `src/`, `tsconfig.json`, and the library `package.json` are.
 
 ```
 package/           ← library source and tests (the thing that gets published)
-examples/          ← Bun+React demo app (workspace member)
-www/               ← Bun+React site app (workspace member)
-docs/              ← architecture docs (CONTEXT.md, GLOSSARY.md, TODO.md)
+examples/          ← Bun+React demo app using TanStack Router (workspace member)
+docs/              ← architecture docs (CONTEXT.md, GLOSSARY.md, TODO.md, adr/)
 ```
 
 Root-level commands (lint, typecheck, deps) operate across the whole workspace.
@@ -20,11 +19,12 @@ Root-level commands (lint, typecheck, deps) operate across the whole workspace.
 ## Runtime & Toolchain
 
 - **Bun** is the package manager and runtime (not Node). Use `bun` for install/run/script commands.
-- **Biome** for linting and formatting (not ESLint/Prettier). Config in root `biome.jsonc`.
+- **Biome** for linting and formatting (not ESLint/Prettier). Config in root `biome.json`.
   - Linter domains set to `"all"`: `react`, `tailwind`, `types` — enables every rule in those domains.
   - `useSortedClasses` (nursery) enforces Tailwind class order — write sorted or let Biome fix.
   - Import sorting with custom groups (Bun/Node, packages, alias `@/*`, relative paths).
-- **TypeScript** strict with `verbatimModuleSyntax`, `noUncheckedIndexedAccess`. Path alias: `@/*` → `./src/*`. Root tsconfig uses `composite: true` with project references (`package/`, `examples/`, `www/`) — `package/tsconfig.json` extends it.
+  - Linting is disabled for `examples/src/components/ui/**` (shadcn-style generated components).
+- **TypeScript** strict with `verbatimModuleSyntax`, `noUncheckedIndexedAccess`. Path alias: `@/*` → `./src/*`. Root tsconfig uses `composite: true` with project references (`package/`, `examples/`) — `package/tsconfig.json` extends it.
 - **Vitest** for tests (not Jest). No vitest.config — environment is set per-file via `@vitest-environment` doc pragmas (component tests use `jsdom`).
 - No build step — library is consumed as source TypeScript.
 - `"type": "module"` — all `.ts` files are ESM.
@@ -39,32 +39,32 @@ bun test package/src/adapters/zod/build-field-map.test.ts  # run a single test f
 bun run update:deps   # taze -rw --maturity-period 3 && bun install
 ```
 
-Run `check:lint` then `check:types` after changes. CI is commented out (`ci.yml`); Husky hooks are the local enforcement. The active `publish.yml` runs on push to `beta`/`stable` branches — it versions via changesets, publishes to npm, and creates GitHub releases.
+Run `check:lint` then `check:types` after changes. CI is commented out (`ci.yml`); Husky hooks are the local enforcement. The `pre-commit` hook runs `bun biome format --fix .` (formatting only — `check:lint` also lints). The active `publish.yml` runs on push to `beta`/`stable` branches — it versions via changesets, publishes to npm, and creates GitHub releases.
 
 ## Testing
 
 - Tests are **colocated** next to source (`*.test.tsx`, `*.test.ts`). The `package/tests/` directory is empty — don't put tests there.
 - Component tests require `// @vitest-environment jsdom` as the first line.
-- Test files have relaxed Biome rules: `noNonNullAssertion` and `noUnnecessaryConditions` are off (see `biome.jsonc` overrides).
+- Test files have relaxed Biome rules: `noNonNullAssertion` and `noUnnecessaryConditions` are off (see `biome.json` overrides).
 
 ## Git Conventions
 
 - **Commit messages** must follow [Conventional Commits](https://www.conventionalcommits.org/). Enforced by `commitlint` via Husky `commit-msg` hook. Allowed types: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`, `wip`.
-- **Husky** `pre-commit` hook runs `bun biome check --fix .`.
+- **Husky** `pre-commit` hook runs `bun biome format --fix .`.
 
 ## Architecture
 
 Two entrypoints declared in `package/package.json` exports:
 
-- `@adistack/forms/core` → `package/src/core/index.ts` — exports `createFormFormat` + types, and re-exports `SmartField`/`SmartFieldArray`/`resolveFieldDef` from `package/src/ui/`. `useForm`/`useFormContext` are **not** direct imports — `createFormFormat()` returns them (the `createUseForm`/`createUseFormContext` factories in `core/` are internal).
-- `@adistack/forms/adapters/zod` → `package/src/adapters/zod/index.ts` — Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `deriveDefault`, `createResolver`.
+- `@adistack/forms/core` → `package/src/core/index.ts` — exports `createFormFormat`, `resolveFieldDef` (from `./field-map`), `SmartFieldArray` (from `@/ui/`), and types. `SmartField` is **not** a direct import — it's returned by `createFormFormat()`. `useForm`/`useFormContext` are also factory-returned (the `createUseForm`/`createUseFormContext` factories in `core/` are internal).
+- `@adistack/forms/adapters/zod` → `package/src/adapters/zod/index.ts` — Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `createResolver`. (`deriveDefault` is a private helper in `build-defaults.ts`, not exported.)
 
-`package/src/ui/` contains `SmartField` and `SmartFieldArray` — they live separately from `package/src/core/` but are re-exported through the core entrypoint.
+`package/src/ui/` contains `SmartField` and `SmartFieldArray` — they live separately from `package/src/core/` but `SmartFieldArray` is re-exported through the core entrypoint. `SmartField` is created by `createSmartField()` inside `createFormFormat()`.
 
 ### Core flow
 
-1. `createFormFormat({ fieldMap, schemaResolver })` wires everything together — creates a React context, returns `{ Form, SmartField, SmartFieldArray, useForm, useFormContext }`.
-2. `createUseForm(adapter)` returns a `useForm` hook that builds `FieldMap`, defaults, and resolver from the schema via the adapter, then delegates to `react-hook-form`. Uses `resolver as never` cast to bridge resolver typing — be aware if editing resolver integration.
+1. `createFormFormat({ fieldComponents, schemaResolver })` wires everything together — creates a React context, returns `{ Form, SmartField, SmartFieldArray, useForm, useFormContext }`.
+2. `createUseForm(adapter)` returns a `useForm` hook that builds `FieldMap`, defaults, and resolver from the schema via the adapter, then delegates to `react-hook-form`.
 3. `<Form>` wraps `FormProvider` + the context that provides `fieldMap` to nested fields.
 4. `<SmartField>` reads `FieldMap` from context, dispatches to the caller-provided `FieldComponentMap`.
 
@@ -73,19 +73,19 @@ Two entrypoints declared in `package/package.json` exports:
 - `build-field-map.ts` — introspects Zod v4 schemas via `schema._zod.def` (private/fragile API). If Zod's internal shape changes, this will break.
   - Optional unwrapping: recurses into `innerType` with `optional = true`, overlays `meta` from outer.
   - Union handling: picks the first non-literal option (e.g. `z.string().optional()` → union of `string | literal(undefined)`).
-  - `meta.component` on a Zod field overrides the resolved `kind` — this is how callers force a field to render as e.g. `textarea` or `password` instead of the default `string`.
+  - Unsupported types (`record`, `literal`, etc.) throw an error.
   - `required` is derived as `!optional && min != null` — a field is only "required" when it's non-optional AND has a min constraint.
-- `build-defaults.ts` — derives default values from the schema. Also exports `deriveDefault` (currently in adapter but is schema-agnostic — planned move to core).
+- `build-defaults.ts` — derives default values from the schema. `deriveDefault` is a private helper.
 - `create-resolver.ts` — wraps `@hookform/resolvers/zod`.
-- `@hookform/resolvers` and `zod` are **optional peer dependencies** — consumers who don't use the Zod adapter don't need them.
+- `@hookform/resolvers` and `zod` are **optional peer dependencies** — consumers who don't use the Zod adapter don't need them. `react-hook-form` (≥7.80) is a **required** peer.
 
 ## Versioning & Publishing
 
-- **Changesets** for version management. `examples/` and `www/` are ignored (see `.changeset/config.json`); only `package/` gets published. Changeset `baseBranch` is `main` — that's the working branch; releases are cut from `beta`/`stable`.
+- **Changesets** for version management. `examples/` is ignored (see `.changeset/config.json`); only `package/` gets published. Changeset `baseBranch` is `main` — that's the working branch; releases are cut from `beta`/`stable`.
 - `bunfig.toml` sets `ignore-scripts=true` (lifecycle scripts skipped on install) and `minimumReleaseAge` of 3 days.
 - Publish branches: `beta` (prerelease) and `stable` (latest). `publish.yml` enters/exits changeset prerelease mode automatically and creates GitHub releases.
 
 ## Gotchas
 
-- `docs/CONTEXT.md` now matches actual code (see ADR 0001). Aspirational renames live in `docs/TODO.md`. The `fieldMap` naming collision (`FieldComponentMap` option vs `FieldMap` context value) is documented in CONTEXT.md's Design Tradeoffs section.
-- Cast chain: `use-form.ts` uses `resolver as never`, `form.tsx` and `use-form-context.ts` also have `as unknown as` / `as object` casts. Root cause is `SchemaAdapter<TSchema = unknown>` — the `unknown` default loses type info at the boundary.
+- `docs/CONTEXT.md` matches actual code (see ADR 0001 in `docs/adr/`). Aspirational renames live in `docs/TODO.md`. The `fieldMap` naming collision (`FieldComponentMap` option vs `FieldMap` context value) is documented in CONTEXT.md's Design Tradeoffs section.
+- Cast chain across core: `use-form.ts` casts the RHF return `as unknown as UseFormReturn`; `form.tsx` casts `onSubmit`/`onInvalid` `as never` and spreads `form as unknown as UseFormReturn` into `FormProvider`; `use-form-context.ts` casts `rhf as object`. Root cause is `SchemaAdapter<TSchema = unknown>` in `types.ts` — the `unknown` default loses type info at the adapter boundary.
