@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 import z from "zod";
 
-import type { FieldDef, FieldMap } from "@/types";
-
+import type { FieldDef, SchemaTree } from "@/types";
 import { buildDefaults } from "./build-defaults";
 import { buildFieldMap } from "./build-field-map";
 
-function fieldMap(...entries: Array<[string, FieldDef]>): FieldMap {
+function fieldMap(...entries: Array<[string, FieldDef]>): SchemaTree {
   return Object.fromEntries(entries);
 }
 
@@ -53,7 +52,7 @@ describe("buildDefaults — per-kind derivation", () => {
         fieldMap([
           "addr",
           {
-            fields: { city: { kind: "string", optional: false } },
+            elementFields: { city: { kind: "string", optional: false } },
             kind: "object",
             optional: false,
           },

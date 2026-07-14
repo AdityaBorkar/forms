@@ -1,4 +1,4 @@
-import type { FieldRenderProps } from "@adistack/forms/core";
+import type { FieldComponentProps } from "@adistack/forms/core";
 
 import {
   Select,
@@ -7,7 +7,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
 import { FieldShell } from "./field-shell";
 
 export function SelectField({
@@ -20,7 +19,7 @@ export function SelectField({
   meta,
   required,
   entries,
-}: FieldRenderProps) {
+}: FieldComponentProps) {
   const options = entries ? Object.entries(entries) : [];
   return (
     <FieldShell

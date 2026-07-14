@@ -31,16 +31,16 @@ const fieldComponents: FieldComponentMap = {
 };
 ```
 
-Each component receives [`FieldRenderProps`](./src/types.ts) — `value`, `onChange`, `onBlur`, `ref`, `error`, plus the resolved `FieldDef` (`kind`, `meta`, `required`, `min`/`max`, `entries`, …).
+Each component receives [`FieldComponentProps`](./src/types.ts) — `value`, `onChange`, `onBlur`, `ref`, `error`, plus the resolved `FieldDef` (`kind`, `meta`, `required`, `min`/`max`, `entries`, …).
 
 **2. Wire the factory once** with your components and a schema adapter:
 
 ```tsx
-import { createFormFormat } from "@adistack/forms/core";
+import { createFormSystem } from "@adistack/forms/core";
 import { zodAdapter } from "@adistack/forms/adapters/zod";
 
 export const { Form, SmartField, SmartFieldArray, useForm, useFormContext } =
-  createFormFormat({
+  createFormSystem({
     fieldComponents,
     schemaResolver: zodAdapter,
   });
@@ -77,9 +77,9 @@ function SimpleForm() {
 ## How it works
 
 ```
-createFormFormat({ fieldComponents, schemaResolver })
+createFormSystem({ fieldComponents, schemaResolver })
         │
-        ├── useForm(schema)      → builds FieldMap + defaults + resolver, delegates to react-hook-form
+        ├── useForm(schema)      → builds SchemaTree + defaults + resolver, delegates to react-hook-form
         ├── <Form>               → wraps FormProvider + the context that carries fieldMap
         ├── <SmartField name>    → resolves FieldDef, renders your component via <Controller>
         └── <SmartFieldArray>    → wraps useFieldArray for repeatable rows
@@ -90,7 +90,7 @@ Three moving parts, all yours to swap:
 | Part            | You provide                          | Library does                                   |
 | --------------- | ------------------------------------ | ---------------------------------------------- |
 | `FieldComponentMap` | React components keyed by `kind` | Rendered by `<SmartField>`                     |
-| `SchemaAdapter`     | `buildFieldMap` / `buildDefaults` / `createResolver` | Introspects your schema into a `FieldMap` |
+| `SchemaAdapter`     | `buildFieldMap` / `buildDefaults` / `createResolver` | Introspects your schema into a `SchemaTree` |
 | The schema          | e.g. a Zod object               | Source of truth for validation + defaults      |
 
 ## Field meta
@@ -139,7 +139,7 @@ Repeatable rows use `<SmartFieldArray>`:
 
 ```ts
 // Framework-agnostic core
-import { createFormFormat } from "@adistack/forms/core";
+import { createFormSystem } from "@adistack/forms/core";
 
 // Zod v4 adapter (optional — only if you use Zod)
 import { zodAdapter } from "@adistack/forms/adapters/zod";

@@ -1,8 +1,7 @@
-import type { FieldRenderProps } from "@adistack/forms/core";
+import type { FieldComponentProps } from "@adistack/forms/core";
 import { type ChangeEvent, useCallback } from "react";
 
 import { Textarea } from "@/components/ui/textarea";
-
 import { FieldShell } from "./field-shell";
 
 export function TextareaField({
@@ -15,7 +14,7 @@ export function TextareaField({
   disabled,
   meta,
   required,
-}: FieldRenderProps) {
+}: FieldComponentProps) {
   const handleChange = useCallback(
     (event: ChangeEvent<HTMLTextAreaElement>) => onChange(event.target.value),
     [onChange],

@@ -16,8 +16,7 @@ export type {
   SmartFieldArrayRenderProps,
 } from "@/ui/smart-field-array";
 export { SmartFieldArray } from "@/ui/smart-field-array";
-
-export { createFormSystem } from "./create-form-format";
+export { createFormSystem } from "./create-form-system";
 export { resolveFieldDef } from "./field-map";
 export type { FormProps } from "./form";
 export type {

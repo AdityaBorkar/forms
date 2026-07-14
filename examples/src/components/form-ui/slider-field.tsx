@@ -1,8 +1,7 @@
-import type { FieldRenderProps } from "@adistack/forms/core";
+import type { FieldComponentProps } from "@adistack/forms/core";
 import { useCallback } from "react";
 
 import { Slider } from "@/components/ui/slider";
-
 import { FieldShell } from "./field-shell";
 
 export function SliderField({
@@ -15,7 +14,7 @@ export function SliderField({
   required,
   min,
   max,
-}: FieldRenderProps) {
+}: FieldComponentProps) {
   const handleChange = useCallback(
     (value: number | readonly number[]) =>
       onChange(Array.isArray(value) ? value[0] : value),

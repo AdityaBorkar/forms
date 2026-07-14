@@ -20,9 +20,9 @@ describe("buildFieldMap — string kinds", () => {
     });
   });
 
-  it("maps a string with no min as not required", () => {
+  it("maps a string with no min as required", () => {
     const map = buildFieldMap(z.object({ note: z.string() }));
-    expect(map.note?.required).toBe(false);
+    expect(map.note?.required).toBe(true);
     expect(map.note?.min).toBeUndefined();
   });
 
@@ -70,7 +70,7 @@ describe("buildFieldMap — boolean / enum / date", () => {
     expect(map.active!).toEqual({
       kind: "boolean",
       optional: false,
-      required: false,
+      required: true,
     });
   });
 
@@ -107,9 +107,9 @@ describe("buildFieldMap — array / object", () => {
     expect(map.locations?.kind).toBe("array");
     expect(map.locations?.min).toBe(1);
     expect(map.locations?.max).toBe(5);
-    expect(map.locations?.fields?.city?.kind).toBe("string");
-    expect(map.locations?.fields?.city?.required).toBe(true);
-    expect(map.locations?.fields?.country?.kind).toBe("string");
+    expect(map.locations?.elementFields?.city?.kind).toBe("string");
+    expect(map.locations?.elementFields?.city?.required).toBe(true);
+    expect(map.locations?.elementFields?.country?.kind).toBe("string");
   });
 
   it("maps z.object() with nested fields", () => {
@@ -117,8 +117,8 @@ describe("buildFieldMap — array / object", () => {
       z.object({ addr: z.object({ city: z.string(), zip: z.string() }) }),
     );
     expect(map.addr?.kind).toBe("object");
-    expect(map.addr?.fields?.city?.kind).toBe("string");
-    expect(map.addr?.fields?.zip?.kind).toBe("string");
+    expect(map.addr?.elementFields?.city?.kind).toBe("string");
+    expect(map.addr?.elementFields?.zip?.kind).toBe("string");
   });
 });
 

@@ -1,8 +1,7 @@
-import type { FieldRenderProps } from "@adistack/forms/core";
+import type { FieldComponentProps } from "@adistack/forms/core";
 import { type ChangeEvent, useCallback } from "react";
 
 import { Input } from "@/components/ui/input";
-
 import { FieldShell } from "./field-shell";
 
 export function NumberField({
@@ -15,7 +14,7 @@ export function NumberField({
   disabled,
   meta,
   required,
-}: FieldRenderProps) {
+}: FieldComponentProps) {
   const handleChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) =>
       onChange(

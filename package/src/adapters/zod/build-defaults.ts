@@ -1,4 +1,4 @@
-import type { FieldDef, FieldMap } from "@/types";
+import type { FieldDef, SchemaTree } from "@/types";
 
 function deriveDefault(def: FieldDef): unknown {
   if (def.optional) return undefined;
@@ -20,9 +20,9 @@ function deriveDefault(def: FieldDef): unknown {
     case "array":
       return [];
     case "object": {
-      if (!def.fields) return undefined;
+      if (!def.elementFields) return undefined;
       const obj: Record<string, unknown> = {};
-      for (const [key, nested] of Object.entries(def.fields)) {
+      for (const [key, nested] of Object.entries(def.elementFields)) {
         obj[key] = deriveDefault(nested);
       }
       return obj;
@@ -34,17 +34,12 @@ function deriveDefault(def: FieldDef): unknown {
 
 export function buildDefaults(
   _schema: unknown,
-  fieldMap: FieldMap,
+  fieldMap: SchemaTree,
   overrides?: Record<string, unknown>,
 ): Record<string, unknown> {
   const defaults: Record<string, unknown> = {};
   for (const [key, def] of Object.entries(fieldMap)) {
     defaults[key] = deriveDefault(def);
   }
-  if (overrides) {
-    for (const [key, value] of Object.entries(overrides)) {
-      defaults[key] = value;
-    }
-  }
-  return defaults;
+  return Object.assign(defaults, overrides);
 }

@@ -1,6 +1,6 @@
 import type { Context } from "react";
 import { useContext } from "react";
-import { Controller, useFormContext as useRhfContext } from "react-hook-form";
+import { useFormContext as useRhfContext } from "react-hook-form";
 
 import { resolveFieldDef } from "@/core/field-map";
 import type {
@@ -32,27 +32,23 @@ export function createSmartField(
     const Component = fieldComponents[def.kind];
     if (!Component) return null;
 
-    return (
-      <Controller
-        control={rhf.control}
-        name={name}
-        // biome-ignore lint/performance/noJsxPropsBind: Controller render API requires inline function
-        render={({ field, fieldState }) => {
-          const renderProps: FieldRenderProps = {
-            ...def,
-            config,
-            disabled,
-            error: fieldState.error?.message,
-            name,
-            onBlur: field.onBlur,
-            onChange: field.onChange,
-            ref: field.ref,
-            value: field.value,
-          };
-          return <Component {...renderProps} />;
-        }}
-      />
-    );
+    const { ref, onChange, onBlur } = rhf.register(name);
+    const { error } = rhf.getFieldState(name);
+
+    const renderProps: FieldComponentProps = {
+      ...def,
+      config,
+      disabled,
+      error: error?.message,
+      name,
+      onBlur: () =>
+        onBlur({ target: { name, value: rhf.getValues(name) }, type: "blur" }),
+      onChange: (value: unknown) =>
+        onChange({ target: { name, value }, type: "change" }),
+      ref,
+    };
+
+    return <Component {...renderProps} />;
   }
 
   return SmartField;

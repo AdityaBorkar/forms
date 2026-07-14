@@ -1,8 +1,7 @@
-import type { FieldRenderProps } from "@adistack/forms/core";
+import type { FieldComponentProps } from "@adistack/forms/core";
 import { type ChangeEvent, useCallback } from "react";
 
 import { Input } from "@/components/ui/input";
-
 import { FieldShell } from "./field-shell";
 
 export function TextField({
@@ -16,7 +15,7 @@ export function TextField({
   meta,
   required,
   kind,
-}: FieldRenderProps) {
+}: FieldComponentProps) {
   const handleChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value),
     [onChange],

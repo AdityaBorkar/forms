@@ -15,14 +15,15 @@ The adapter contract. A schema adapter bridges a validation library (e.g., Zod,
 Yup, Valibot) to the form system. It has three methods:
 
 1. **`buildFieldMap(schema)`** — Introspects the schema and produces a
-   [FieldMap](#fieldmap).
+   [SchemaTree](#schematree).
 2. **`buildDefaults(schema, fieldMap, overrides?)`** — Derives default values from
-   the [FieldMap](#fieldmap) and optional overrides. The `schema` parameter is
+   the [SchemaTree](#schematree) and optional overrides. The `schema` parameter is
    kept for adapters that need it, though the Zod implementation prefixes it
    `_schema` and only uses `fieldMap` + `overrides`.
 3. **`createResolver(schema)`** — Creates a `react-hook-form`-compatible resolver
-   for schema-level validation. Returns `unknown`; the caller casts via
-   `resolver as never`. See [Design Tradeoffs](./CONTEXT.md#the-cast-chain).
+   for schema-level validation. Returns `Resolver` (typed). The `schema as never`
+   cast is contained inside the adapter. See
+   [Design Tradeoffs](./CONTEXT.md#the-cast-chain).
 
 The adapter is the **only** place that knows about a specific validation
 library's internals. Everything downstream operates on the adapter's normalized
@@ -33,22 +34,18 @@ The `TSchema = unknown` default is the root cause of the cast chain — the
 
 ---
 
-## FieldMap
+## SchemaTree
 
 **Type:** `Record<string, FieldDef>`
 
 The root of the schema-derived metadata tree. Each key is a top-level field name;
 each value is a [FieldDef](#fielddef) node. The tree is recursive —
-`FieldDef.fields` contains nested `FieldMap` structures for objects and arrays.
+`FieldDef.elementFields` contains nested `SchemaTree` structures for objects and arrays.
 
-The FieldMap is produced by the adapter and consumed by the UI layer. It is the
+The SchemaTree is produced by the adapter and consumed by the UI layer. It is the
 **single source of truth** for what fields exist, their types, constraints, and
 nesting structure. Once produced, the rest of the system never touches the raw
 schema again.
-
-> **Naming note:** `FieldMap` does not convey its tree structure, but it is the
-> actual name in the code. A rename to something like `SchemaTree` is backlog
-> (see [TODO.md](./TODO.md)).
 
 ---
 
@@ -56,18 +53,18 @@ schema again.
 
 **Type:** `FieldDef`
 
-A node in the [FieldMap](#fieldmap). Represents one field's resolved metadata
+A node in the [SchemaTree](#schematree). Represents one field's resolved metadata
 after adapter introspection. Key properties:
 
 | Property | Type | Meaning |
 |---|---|---|
 | `kind` | `string` | The resolved field kind — used as the dispatch key into [FieldComponentMap](#fieldcomponentmap). See [Kind](#kind). |
 | `optional` | `boolean` | Whether the schema marks this field as optional. |
-| `required` | `boolean?` | **Leaky** — derived as `!optional && min != null`, which conflates "has a min constraint" with "must be provided". See [Design Tradeoffs](./CONTEXT.md#required-is-a-leaky-derivation). |
+| `required` | `boolean?` | Derived as `!optional` — a field is "required" when it cannot be omitted. See [Design Tradeoffs](./CONTEXT.md#required-is-a-leaky-derivation). |
 | `meta` | `FieldMeta?` | User-supplied annotations from the schema (label, placeholder, description, etc.). |
 | `checks` | `FieldCheck[]?` | Adapter-normalized validation constraints. See [FieldCheck](#fieldcheck). |
 | `entries` | `Record<string, string>?` | For enum kinds — the value-label pairs. |
-| `fields` | `FieldMap?` | Nested fields. For objects, these are the child properties. For arrays, these are the **element's** child properties. |
+| `elementFields` | `SchemaTree?` | Nested fields. For objects, these are the child properties. For arrays, these are the **element's** child properties. |
 | `min` | `number?` | Derived minimum constraint (length for strings/arrays, value for numbers). |
 | `max` | `number?` | Derived maximum constraint. |
 
@@ -122,26 +119,25 @@ core type.
 
 ## FieldComponentMap
 
-**Type:** `Record<string, React.ComponentType<FieldRenderProps>>`
+**Type:** `Record<string, React.ComponentType<FieldComponentProps>>`
 
 The UI dispatch table. Maps [Kind](#kind) strings to React components. This is
 the **only** place where UI components are registered. When
 [SmartField](#smartfield) renders, it looks up `fieldComponents[def.kind]` and
-passes a [FieldRenderProps](#fieldrenderprops) object.
+passes a [FieldComponentProps](#fieldcomponentprops) object.
 
-This is provided by the consumer at `createFormFormat` time and closed over by
+This is provided by the consumer at `createFormSystem` time and closed over by
 `createSmartField`. It is **not** available in React context — components cannot
 be swapped at runtime.
 
-> **Naming collision:** `createFormFormat`'s option is **named** `fieldMap` but
-> its type is `FieldComponentMap` (UI components). This is unrelated to the
-> [FieldMap](#fieldmap) type (schema metadata). The factory immediately rebinds
-> the option as `fieldComponents`. See
+> **Naming collision (resolved):** `createFormSystem`'s option was renamed from
+> `fieldMap` to `fieldComponents`, eliminating the collision with
+> `FormContextValue.fieldMap` (`SchemaTree`). See
 > [Design Tradeoffs](./CONTEXT.md#fieldmap-is-an-overloaded-name).
 
 ---
 
-## FieldRenderProps
+## FieldComponentProps
 
 **Type:** `FieldDef & { name, value, onChange, onBlur, ref, error?, disabled?, config? }`
 
@@ -163,10 +159,10 @@ Spreads all of [FieldDef](#fielddef) and adds `react-hook-form` control bindings
 
 ## FormContextValue
 
-**Type:** `{ fieldMap: FieldMap }`
+**Type:** `{ fieldMap: SchemaTree }`
 
 The value held in the form's React context. Only carries the
-[FieldMap](#fieldmap) — this is all the UI layer needs from the schema. The
+[SchemaTree](#schematree) — this is all the UI layer needs from the schema. The
 [FieldComponentMap](#fieldcomponentmap) is closed over by the factory, not in
 context.
 
@@ -188,17 +184,17 @@ When RHF triggers validation. Passed through from
 
 Configuration for the `useForm` hook. The `schema` is the raw schema object (Zod
 schema, etc.) — it's passed to the [SchemaAdapter](#schemaadapter) to produce the
-[FieldMap](#fieldmap), defaults, and resolver. `defaultValues` overlays the
+[SchemaTree](#schematree), defaults, and resolver. `defaultValues` overlays the
 adapter-derived defaults.
 
 ---
 
 ## FormContextInstance
 
-**Type:** `UseFormReturn<TValues> & { fieldMap: FieldMap }`
+**Type:** `UseFormReturn<TValues> & { fieldMap: SchemaTree }`
 
 What [`useFormContext`](#useformcontext) returns. RHF's full return plus the
-[FieldMap](#fieldmap). Deliberately **omits** submit handlers — deep field
+[SchemaTree](#schematree). Deliberately **omits** submit handlers — deep field
 components shouldn't trigger submit. `useFormContext` throws if used outside a
 `<Form>`.
 
@@ -234,12 +230,12 @@ Props for [SmartField](#smartfield).
 
 - `name` — Dot-notation path into the form values (e.g. `"address.city"`,
   `"items.0.name"`).
-- `disabled` — Passed through to the component as `FieldRenderProps.disabled`.
+- `disabled` — Passed through to the component as `FieldComponentProps.disabled`.
 - `config` — Arbitrary pass-through for component-specific configuration.
 
 ---
 
-## createFormFormat
+## createFormSystem
 
 **Type:** `<TSchema = unknown>(options: { fieldComponents: FieldComponentMap, schemaResolver: SchemaAdapter<TSchema> }) => { Form, SmartField, SmartFieldArray, useForm, useFormContext }`
 
@@ -248,7 +244,7 @@ exports via closure. Called once per form system configuration:
 
 ```ts
 const { Form, SmartField, SmartFieldArray, useForm, useFormContext } =
-  createFormFormat({ fieldComponents: myComponents, schemaResolver: zodAdapter });
+  createFormSystem({ fieldComponents: myComponents, schemaResolver: zodAdapter });
 ```
 
 The closure captures:
@@ -265,7 +261,7 @@ The closure captures:
 
 **Type:** React component, created by `createSmartField(FormContext, fieldComponents)`
 
-Renders a single form field. Reads the [FieldMap](#fieldmap) from React context,
+Renders a single form field. Reads the [SchemaTree](#schematree) from React context,
 resolves the field definition via [resolveFieldDef](#resolvefielddef), looks up
 the component in [FieldComponentMap](#fieldcomponentmap), and renders it inside
 an RHF `Controller`.
@@ -285,7 +281,7 @@ Throws if used outside a `<Form>` (no context).
 **Type:** React component (static export, not factory-created)
 
 Renders a repeatable field array. Wraps RHF's `useFieldArray`. Schema-agnostic —
-it doesn't read the [FieldMap](#fieldmap) and doesn't need the adapter context.
+it doesn't read the [SchemaTree](#schematree) and doesn't need the adapter context.
 The consumer provides a render function that receives
 [SmartFieldArrayRenderProps](#smartfieldarrayrenderprops).
 
@@ -331,10 +327,10 @@ array path; `children` is a render function receiving the array operations.
 
 ## resolveFieldDef
 
-**Type:** `(fieldMap: FieldMap, name: string) => FieldDef`
+**Type:** `(fieldMap: SchemaTree, name: string) => FieldDef`
 
-Walks the [FieldMap](#fieldmap) by splitting the `name` on `.` and traversing
-nested `FieldDef.fields`. Skips numeric segments (for RHF array paths like
+Walks the [SchemaTree](#schematree) by splitting the `name` on `.` and traversing
+nested `FieldDef.elementFields`. Skips numeric segments (for RHF array paths like
 `"items.0.name"`). Throws `"No field definition found for \"<name>\""` if the
 path doesn't resolve, or `"Unsupported field type for \"<name>\""` if the
 resolved kind is `"unknown"`.
@@ -348,10 +344,10 @@ Lives in `core/field-map.ts` and is exported from core.
 **Type:** hook created by `createUseForm<TSchema>(adapter)`
 
 Returns a `useForm<TValues>(options: UseFormOptions) => FormInstance<TValues>`.
-Internally builds the [FieldMap](#fieldmap) via `adapter.buildFieldMap(schema)`,
+Internally builds the [SchemaTree](#schematree) via `adapter.buildFieldMap(schema)`,
 defaults via `adapter.buildDefaults(schema, fieldMap, defaultValues)`, and a
 resolver via `adapter.createResolver(schema)`, then delegates to RHF's `useForm`.
-The resolver is cast `as never` to bridge RHF's resolver type — see
+The resolver is cast `as Resolver<TValues>` to bridge RHF's resolver type — see
 [Design Tradeoffs](./CONTEXT.md#the-cast-chain).
 
 ---
@@ -381,21 +377,21 @@ Derives a default value from a [FieldDef](#fielddef) by switching on
 The Zod adapter (`@adistack/forms/adapters/zod`) exports:
 
 - **`zodAdapter`** — a `SchemaAdapter<ZodType>` wiring the three functions below.
-- **`buildFieldMap(schema)`** — Zod schema → [FieldMap](#fieldmap). Reads
+- **`buildFieldMap(schema)`** — Zod schema → [SchemaTree](#schematree). Reads
   `schema._zod.def.shape`; returns `{}` if no shape. See
   [Zod Adapter Internals](./CONTEXT.md#zod-adapter-internals).
-- **`buildDefaults(schema, fieldMap, overrides?)`** — [FieldMap](#fieldmap) →
+- **`buildDefaults(schema, fieldMap, overrides?)`** — [SchemaTree](#schematree) →
   default values. Ignores `schema` (prefixed `_schema`); iterates `fieldMap`
   calling `deriveDefault` (private helper) per field, then overlays `overrides`.
 - **`createResolver(schema)`** — returns `zodResolver(schema as never)` typed as
-  `unknown`.
+  `Resolver`. The `as never` cast is contained inside the adapter.
 
 ---
 
 ## Nested Objects vs. Nested Forms
 
-**Nested objects** are supported — the [FieldMap](#fieldmap) is recursive, and
-`resolveFieldDef` walks nested `fields`. A schema like
+**Nested objects** are supported — the [SchemaTree](#schematree) is recursive, and
+`resolveFieldDef` walks nested `elementFields`. A schema like
 `{ address: z.object({ city: z.string() }) }` produces
 `<SmartField name="address.city" />`.
 

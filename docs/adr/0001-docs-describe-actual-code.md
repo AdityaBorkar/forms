@@ -9,12 +9,12 @@
 `CONTEXT.md` and `GLOSSARY.md` described a *planned* design using names that
 did not exist in the codebase:
 
-| Documented (planned) | Actual code |
-|---|---|
-| `createFormSystem` | `createFormFormat` |
-| `SchemaTree` | `FieldMap` |
-| `FieldComponentProps` | `FieldRenderProps` |
-| `FormContextValue.schemaTree` | `FormContextValue.fieldMap` |
+| Documented (planned) | Actual code (then) | Resolved? |
+|---|---|---|
+| `createFormSystem` | `createFormFormat` | Yes — renamed to `createFormSystem` |
+| `SchemaTree` | `FieldMap` | Yes — renamed to `SchemaTree` |
+| `FieldComponentProps` | `FieldRenderProps` | Yes — renamed to `FieldComponentProps` |
+| `FormContextValue.schemaTree` | `FormContextValue.fieldMap` | No — property name retained |
 
 `AGENTS.md` already flagged this as a gotcha and instructed readers to
 cross-reference with source. The mismatch made the docs actively misleading:
@@ -28,15 +28,15 @@ A second problem: the docs **omitted** real exported types — `FormInstance`,
 A third problem, surfaced during the grilling: there is a **naming collision** the
 old docs never mentioned. `createFormFormat`'s option is named `fieldMap` but its
 type is `FieldComponentMap` (the UI component registry). Meanwhile
-`FormContextValue.fieldMap` is a `FieldMap` (the schema-derived metadata tree).
+`FormContextValue.fieldMap` is a `SchemaTree` (the schema-derived metadata tree).
 The same identifier denotes two unrelated things.
 
 ## Decision
 
 1. **Document actual code.** `CONTEXT.md` and `GLOSSARY.md` use the names that
-   exist in the source today (`createFormFormat`, `FieldMap`,
-   `FieldRenderProps`, `FormContextValue.fieldMap`). The docs no longer present
-   aspirational names as current.
+   exist in the source today (`createFormSystem`, `SchemaTree`,
+   `FieldComponentProps`, `FormContextValue.fieldMap`). The planned renames have
+   been applied to the source.
 
 2. **Expand the glossary to the full public surface.** Every exported type from
    `@adistack/forms/core` and `@adistack/forms/adapters/zod` gets a glossary
@@ -51,15 +51,19 @@ The same identifier denotes two unrelated things.
 
 4. **Record the `fieldMap` collision as a tradeoff.** The same-name-two-meanings
    issue is documented in CONTEXT.md's tradeoffs and flagged in GLOSSARY.md at
-   both `createFormFormat` and `FormContextValue`. The rename is backlog
-   (`TODO.md`), not a pretend-current fact.
+   both `createFormSystem` and `FormContextValue`. The option was renamed to
+   `fieldComponents`, resolving the collision.
 
 ## Consequences
 
 - `AGENTS.md`'s gotcha about planned-vs-actual names is resolved — the docs now
-  match the code, so the cross-reference warning is no longer needed for naming.
-- Future renames (`FieldMap` → `SchemaTree`, etc.) become explicit `TODO.md`
-  items rather than silent doc drift.
+  match the code, and the aspirational renames have been applied.
+- The `required` derivation was fixed from `!optional && min != null` to
+  `!optional` — a field is "required" when it cannot be omitted.
+- The adapter's `createResolver` now returns `Resolver` (not `Resolver<any>`);
+  the `schema as never` cast is contained inside the adapter.
+- `FieldDef.fields` was renamed to `FieldDef.elementFields` to convey that for
+  arrays, it holds the element's fields, not the array's own fields.
 - Anyone reading CONTEXT.md gets an accurate mental model of the running system,
-  including its warts (silent `null` on missing field/component, `required`
-  derivation, the cast chain, the `fieldMap` collision).
+  including its warts (the cast chain, the `fieldMap` property name retained
+  on `FormContextValue`).

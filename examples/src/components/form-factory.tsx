@@ -1,5 +1,5 @@
 import { zodAdapter } from "@adistack/forms/adapters/zod";
-import { createFormFormat, type FieldComponentMap } from "@adistack/forms/core";
+import { createFormSystem, type FieldComponentMap } from "@adistack/forms/core";
 
 import {
   CheckboxField,
@@ -27,7 +27,7 @@ const fieldComponents: FieldComponentMap = {
 };
 
 export const { SmartField, SmartFieldArray, Form, useForm, useFormContext } =
-  createFormFormat({
+  createFormSystem({
     fieldComponents,
     schemaResolver: zodAdapter,
   });

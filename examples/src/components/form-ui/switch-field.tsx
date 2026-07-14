@@ -1,8 +1,7 @@
-import type { FieldRenderProps } from "@adistack/forms/core";
+import type { FieldComponentProps } from "@adistack/forms/core";
 
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-
 import { FieldShell } from "./field-shell";
 
 export function SwitchField({
@@ -13,7 +12,7 @@ export function SwitchField({
   disabled,
   meta,
   required,
-}: FieldRenderProps) {
+}: FieldComponentProps) {
   return (
     <FieldShell
       description={meta?.description}

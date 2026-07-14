@@ -2,19 +2,21 @@
 
 ## Phase 1
 
-- Smart Component Support
 - never, any ts types
 - Clean and Complete Functionality
-- 
+- Smart Component Support
 - Review
   - thermo-nuclear
-  - security-audit
 - Publish to NPM
   - beta
   - latest
 
 ## Phase 2
 
+- Skills and Checks for
+  - security-audit
+  - vulnerabilities
+  - bug-finder
 - Transform `examples` using Fumadocs+Wrangler. Also write documentation in this file itself.
 - Write tests
   - E2E
@@ -24,3 +26,5 @@
   - GitHub Actions
   - GitHub Repository Settings
   - Auto-Publishing using Branches & PRs
+    - Documentation Publishing
+    - Package Publishing

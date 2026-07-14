@@ -29,7 +29,7 @@ export type SchemaTree = Record<string, FieldDef>;
 
 export type FieldComponentProps = FieldDef & {
   name: string;
-  value: unknown;
+  value?: unknown;
   onChange: (value: unknown) => void;
   onBlur: () => void;
   // biome-ignore lint/suspicious/noExplicitAny: mirrors react-hook-form's Ref type

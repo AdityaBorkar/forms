@@ -10,8 +10,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import z from "zod";
 
 import { zodAdapter } from "@/adapters/zod/index";
-import { createFormFormat } from "@/core/create-form-format";
-import type { FieldRenderProps } from "@/types";
+import { createFormSystem } from "@/core/create-form-system";
+import type { FieldComponentProps } from "@/types";
 
 afterEach(cleanup);
 
@@ -21,7 +21,7 @@ function makeStub(kind: string) {
     value,
     onChange,
     error,
-  }: FieldRenderProps) {
+  }: FieldComponentProps) {
     return (
       <div>
         <input
@@ -38,7 +38,7 @@ function makeStub(kind: string) {
   };
 }
 
-const { Form, SmartField, SmartFieldArray, useForm } = createFormFormat({
+const { Form, SmartField, SmartFieldArray, useForm } = createFormSystem({
   fieldComponents: {
     array: makeStub("array"),
     combobox: makeStub("combobox"),
@@ -67,7 +67,7 @@ function FormHarness({
   return <Form form={form}>{children}</Form>;
 }
 
-describe("createFormFormat — component resolution", () => {
+describe("createFormSystem — component resolution", () => {
   it("SmartField resolves the component by kind", () => {
     const schema = z.object({
       count: z.number(),
@@ -97,7 +97,7 @@ describe("createFormFormat — component resolution", () => {
   });
 });
 
-describe("createFormFormat — nested paths", () => {
+describe("createFormSystem — nested paths", () => {
   it("SmartField resolves a nested array element path", () => {
     const schema = z.object({
       locations: z.array(z.object({ city: z.string().min(1) })),
@@ -125,7 +125,7 @@ describe("createFormFormat — nested paths", () => {
   });
 });
 
-describe("createFormFormat — submission & validation", () => {
+describe("createFormSystem — submission & validation", () => {
   it("submits validated values", async () => {
     const schema = z.object({ name: z.string().min(1) });
     const onSubmit = vi.fn();
@@ -162,7 +162,7 @@ describe("createFormFormat — submission & validation", () => {
   });
 });
 
-describe("createFormFormat — SmartFieldArray", () => {
+describe("createFormSystem — SmartFieldArray", () => {
   it("supports append and remove", () => {
     const schema = z.object({
       items: z.array(z.object({ name: z.string() })),
