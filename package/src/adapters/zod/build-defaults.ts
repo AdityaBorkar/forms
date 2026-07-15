@@ -1,3 +1,5 @@
+import type { DefaultValues, FieldValues } from "react-hook-form";
+
 import type { FieldDef, SchemaTree } from "@/types";
 
 function deriveDefault(def: FieldDef): unknown {
@@ -36,7 +38,7 @@ export function buildDefaults(
   _schema: unknown,
   fieldMap: SchemaTree,
   overrides?: Record<string, unknown>,
-): Record<string, unknown> {
+): DefaultValues<FieldValues> {
   const defaults: Record<string, unknown> = {};
   for (const [key, def] of Object.entries(fieldMap)) {
     defaults[key] = deriveDefault(def);

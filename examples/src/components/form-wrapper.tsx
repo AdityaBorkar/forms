@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from "react";
+import type { FieldValues } from "react-hook-form";
 import type { ZodType } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ export function ExampleForm({
   children: ReactNode;
   defaultValues?: Record<string, unknown>;
   description: string;
-  schema: ZodType;
+  schema: ZodType<FieldValues, FieldValues>;
   title: string;
 }) {
   const [result, setResult] = useState<unknown>(null);

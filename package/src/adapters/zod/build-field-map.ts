@@ -42,11 +42,13 @@ function getType(schema: ZodSchema): string {
   return schema._zod?.def?.type ?? "";
 }
 
+function isFieldMeta(value: unknown): value is FieldMeta {
+  return typeof value === "object" && value !== null;
+}
+
 function getMeta(schema: ZodSchema): FieldMeta | undefined {
   const result = typeof schema.meta === "function" ? schema.meta() : undefined;
-  return result && typeof result === "object"
-    ? (result as FieldMeta)
-    : undefined;
+  return isFieldMeta(result) ? result : undefined;
 }
 
 type ConstraintAcc = { min?: number; max?: number; checks: FieldCheck[] };
@@ -210,13 +212,16 @@ function buildFieldDef(
   return result;
 }
 
-export function buildFieldMap(schema: unknown, parentPath = ""): SchemaTree {
-  const shape = (schema as ZodSchema)?._zod?.def?.shape;
+export function buildFieldMap(
+  schema: ZodSchema | undefined,
+  parentPath = "",
+): SchemaTree {
+  const shape = schema?._zod?.def?.shape;
   if (!shape) return {};
   const map: SchemaTree = {};
   for (const [key, fieldSchema] of Object.entries(shape)) {
     const fieldPath = parentPath ? `${parentPath}.${key}` : key;
-    map[key] = buildFieldDef(fieldSchema as ZodSchema, false, fieldPath);
+    map[key] = buildFieldDef(fieldSchema, false, fieldPath);
   }
   return map;
 }

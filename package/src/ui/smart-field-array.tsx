@@ -29,11 +29,11 @@ export function SmartFieldArray({ name, children }: SmartFieldArrayProps) {
   return (
     <>
       {children({
-        append: append as SmartFieldArrayRenderProps["append"],
-        fields: fields as FieldArrayRow[],
-        move: move as SmartFieldArrayRenderProps["move"],
+        append,
+        fields,
+        move,
         remove,
-        update: update as SmartFieldArrayRenderProps["update"],
+        update,
       })}
     </>
   );

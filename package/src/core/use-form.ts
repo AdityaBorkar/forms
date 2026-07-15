@@ -1,21 +1,15 @@
 import { useMemo } from "react";
-import type {
-  DefaultValues,
-  FieldValues,
-  Resolver,
-  UseFormReturn,
-} from "react-hook-form";
+import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { useForm as useRhfForm } from "react-hook-form";
 
 import type { SchemaAdapter, SchemaTree, UseFormOptions } from "@/types";
 
-export type FormContextInstance<TValues extends FieldValues = FieldValues> =
-  UseFormReturn<TValues> & {
-    fieldMap: SchemaTree;
-  };
+export type FormContextInstance = UseFormReturn<FieldValues> & {
+  fieldMap: SchemaTree;
+};
 
 export type FormInstance<TValues extends FieldValues = FieldValues> =
-  FormContextInstance<TValues> & {
+  FormContextInstance & {
     onSubmit: (values: TValues) => void;
     onInvalid?: (errors: Record<string, unknown>) => void;
   };
@@ -39,12 +33,12 @@ export function createUseForm<TSchema>(adapter: SchemaAdapter<TSchema>) {
     );
     const resolver = useMemo(() => adapter.createResolver(schema), [schema]);
 
-    const methods = useRhfForm<TValues>({
-      defaultValues: defaults as DefaultValues<TValues>,
+    const methods = useRhfForm({
+      defaultValues: defaults,
       mode: validationMode,
-      resolver: resolver as Resolver<TValues>,
+      resolver,
       reValidateMode: "onChange",
-    }) as unknown as UseFormReturn<TValues>;
+    });
 
     return {
       ...methods,

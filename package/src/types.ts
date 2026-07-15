@@ -1,5 +1,5 @@
 import type React from "react";
-import type { Resolver } from "react-hook-form";
+import type { DefaultValues, FieldValues, Resolver } from "react-hook-form";
 
 export type FieldMeta = {
   label?: string;
@@ -32,8 +32,7 @@ export type FieldComponentProps = FieldDef & {
   value?: unknown;
   onChange: (value: unknown) => void;
   onBlur: () => void;
-  // biome-ignore lint/suspicious/noExplicitAny: mirrors react-hook-form's Ref type
-  ref: React.Ref<any>;
+  ref: React.RefCallback<HTMLElement>;
   error?: string;
   disabled?: boolean;
   config?: Record<string, unknown>;
@@ -44,13 +43,13 @@ export type FieldComponentMap = Record<
   React.ComponentType<FieldComponentProps>
 >;
 
-export type SchemaAdapter<TSchema = unknown> = {
+export type SchemaAdapter<TSchema> = {
   buildFieldMap(schema: TSchema): SchemaTree;
   buildDefaults(
     schema: TSchema,
     fieldMap: SchemaTree,
     overrides?: Record<string, unknown>,
-  ): Record<string, unknown>;
+  ): DefaultValues<FieldValues>;
   createResolver(schema: TSchema): Resolver;
 };
 
@@ -61,8 +60,8 @@ export type FormContextValue = {
 };
 
 export type UseFormOptions<
-  TSchema = unknown,
-  TValues = Record<string, unknown>,
+  TSchema,
+  TValues extends FieldValues = FieldValues,
 > = {
   schema: TSchema;
   onSubmit: (values: TValues) => void;

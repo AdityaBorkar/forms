@@ -1,8 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { Resolver } from "react-hook-form";
+import type { FieldValues, Resolver } from "react-hook-form";
 import type { ZodType } from "zod";
 
-// biome-ignore lint/suspicious/noExplicitAny: adapter cannot know TValues — produces a generic RHF resolver
-export function createResolver(schema: ZodType): Resolver<any> {
-  return zodResolver(schema as never);
+export function createResolver(
+  schema: ZodType<FieldValues, FieldValues>,
+): Resolver {
+  return zodResolver(schema);
 }

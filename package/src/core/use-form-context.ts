@@ -1,6 +1,5 @@
 import type { Context } from "react";
 import { useContext } from "react";
-import type { FieldValues } from "react-hook-form";
 import { useFormContext as useRhfContext } from "react-hook-form";
 
 import { createFormError } from "@/errors";
@@ -10,10 +9,8 @@ import type { FormContextInstance } from "./use-form";
 export function createUseFormContext(
   FormContext: Context<FormContextValue | null>,
 ) {
-  return function useFormContext<
-    TValues extends FieldValues = FieldValues,
-  >(): FormContextInstance<TValues> {
-    const rhf = useRhfContext<TValues>();
+  return function useFormContext(): FormContextInstance {
+    const rhf = useRhfContext();
     const ctx = useContext(FormContext);
     if (!ctx) {
       throw createFormError("useFormContext must be used within a <Form>", [
@@ -22,8 +19,8 @@ export function createUseFormContext(
       ]);
     }
     return {
-      ...(rhf as object),
+      ...rhf,
       fieldMap: ctx.fieldMap,
-    } as FormContextInstance<TValues>;
+    };
   };
 }

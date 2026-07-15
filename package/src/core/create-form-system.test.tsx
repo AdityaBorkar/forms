@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import type { FieldValues } from "react-hook-form";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import z from "zod";
 
@@ -58,7 +59,7 @@ function FormHarness({
   defaultValues,
   children,
 }: {
-  schema: z.ZodType;
+  schema: z.ZodType<FieldValues, FieldValues>;
   onSubmit: (values: Record<string, unknown>) => void;
   defaultValues?: Record<string, unknown>;
   children: React.ReactNode;

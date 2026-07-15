@@ -25,7 +25,7 @@ Root-level commands (lint, typecheck, deps) operate across the whole workspace.
   - Import sorting with custom groups (Bun/Node, packages, alias `@/*`, relative paths).
   - Linting is disabled for `examples/src/components/ui/**` (shadcn-style generated components).
 - **TypeScript** strict with `verbatimModuleSyntax`, `noUncheckedIndexedAccess`. Path alias: `@/*` → `./src/*`. Root tsconfig uses `composite: true` with project references (`package/`, `examples/`) — `package/tsconfig.json` extends it.
-- **Vitest** for tests (not Jest). No vitest.config — environment is set per-file via `@vitest-environment` doc pragmas (component tests use `jsdom`).
+- **Vitest** for tests (not Jest). `vitest.config.ts` at root sets default `environment: "node"` and uses `vite-tsconfig-paths` for `@/*` alias resolution. Component tests override per-file with `// @vitest-environment jsdom` as the first line.
 - No build step — library is consumed as source TypeScript.
 - `"type": "module"` — all `.ts` files are ESM.
 
@@ -43,8 +43,7 @@ Run `check:lint` then `check:types` after changes. CI is commented out (`ci.yml`
 
 ## Testing
 
-- Tests are **colocated** next to source (`*.test.tsx`, `*.test.ts`). The `package/tests/` directory is empty — don't put tests there.
-- Component tests require `// @vitest-environment jsdom` as the first line.
+- Tests are **colocated** next to source (`*.test.tsx`, `*.test.ts`). Do not create a `package/tests/` directory.
 - Test files have relaxed Biome rules: `noNonNullAssertion` and `noUnnecessaryConditions` are off (see `biome.json` overrides).
 
 ## Git Conventions
@@ -54,10 +53,11 @@ Run `check:lint` then `check:types` after changes. CI is commented out (`ci.yml`
 
 ## Architecture
 
-Two entrypoints declared in `package/package.json` exports:
+Three entrypoints declared in `package/package.json` exports:
 
-- `@adistack/forms` → `package/src/core/index.ts` — exports `createFormSystem`, `resolveFieldDef` (from `./field-map`), `SmartFieldArray` (from `@/ui/`), and types. `SmartField` is **not** a direct import — it's returned by `createFormSystem()`. `useForm`/`useFormContext` are also factory-returned (the `createUseForm`/`createUseFormContext` factories in `core/` are internal).
+- `@adistack/forms` → `package/src/index.ts` — exports `createFormSystem`, `resolveFieldDef`, `SmartFieldArray`, and types. `SmartField` is **not** a direct import — it's returned by `createFormSystem()`. `useForm`/`useFormContext` are also factory-returned (the `createUseForm`/`createUseFormContext` factories in `core/` are internal).
 - `@adistack/forms/adapters/zod` → `package/src/adapters/zod/index.ts` — Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `createResolver`. (`deriveDefault` is a private helper in `build-defaults.ts`, not exported.)
+- `@adistack/forms/ui` → `package/src/ui/index.ts` — re-exports `SmartFieldArray` and its prop types.
 
 `package/src/ui/` contains `SmartField` and `SmartFieldArray` — they live separately from `package/src/core/` but `SmartFieldArray` is re-exported through the core entrypoint. `SmartField` is created by `createSmartField()` inside `createFormSystem()`.
 
@@ -77,7 +77,7 @@ Two entrypoints declared in `package/package.json` exports:
   - `required` is derived as `!optional` — a field is "required" when it cannot be omitted (i.e., not optional).
 - `build-defaults.ts` — derives default values from the schema. `deriveDefault` is a private helper.
 - `create-resolver.ts` — wraps `@hookform/resolvers/zod`.
-- `@hookform/resolvers` and `zod` are **optional peer dependencies** — consumers who don't use the Zod adapter don't need them. `react-hook-form` (≥7.80) is a **required** peer.
+- `@hookform/resolvers` (≥5) and `zod` (≥4) are **optional peer dependencies** — consumers who don't use the Zod adapter don't need them. `react` (≥18) and `react-hook-form` (≥7.80) are **required** peers.
 
 ## Versioning & Publishing
 
@@ -88,4 +88,4 @@ Two entrypoints declared in `package/package.json` exports:
 ## Gotchas
 
 - `docs/CONTEXT.md` matches actual code (see ADR 0001 in `docs/adr/`). The `fieldMap` naming collision (`FieldComponentMap` option vs `SchemaTree` context value) is documented in CONTEXT.md's Design Tradeoffs section.
-- Cast chain across core: `use-form.ts` casts the RHF return `as unknown as UseFormReturn` and casts the resolver `as Resolver<TValues>`; `form.tsx` casts `onSubmit`/`onInvalid` `as never` and spreads `form as unknown as UseFormReturn` into `FormProvider`; `use-form-context.ts` casts `rhf as object`. The adapter's `createResolver` returns `Resolver` (not `Resolver<any>`) and keeps the `schema as never` cast inside. Root cause is `SchemaAdapter<TSchema = unknown>` in `types.ts` — the `unknown` default loses type info at the adapter boundary.
+- Cast chain across core: `use-form.ts` casts the RHF return `as unknown as UseFormReturn` and casts the resolver `as Resolver<TValues>`; `form.tsx` casts `onSubmit`/`onInvalid` `as never` and spreads `form as unknown as UseFormReturn` into `FormProvider`; `use-form-context.ts` casts `rhf as object`. The adapter's `createResolver` returns `Resolver<any>` (with `schema as never` cast inside) even though the `SchemaAdapter` interface in `types.ts` declares `Resolver`. Root cause is `SchemaAdapter<TSchema = unknown>` in `types.ts` — the `unknown` default loses type info at the adapter boundary.

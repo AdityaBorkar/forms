@@ -21,9 +21,11 @@ Yup, Valibot) to the form system. It has three methods:
    kept for adapters that need it, though the Zod implementation prefixes it
    `_schema` and only uses `fieldMap` + `overrides`.
 3. **`createResolver(schema)`** — Creates a `react-hook-form`-compatible resolver
-   for schema-level validation. Returns `Resolver` (typed). The `schema as never`
-   cast is contained inside the adapter. See
-   [Design Tradeoffs](./CONTEXT.md#the-cast-chain).
+   for schema-level validation. Returns `Resolver<any>` (with a `noExplicitAny`
+   biome-ignore) — the `SchemaAdapter` interface declares `Resolver` (no
+   generic), but the implementation uses `Resolver<any>` because the adapter
+   cannot know `TValues`. The `schema as never` cast is contained inside the
+   adapter. See [Design Tradeoffs](./CONTEXT.md#the-cast-chain).
 
 The adapter is the **only** place that knows about a specific validation
 library's internals. Everything downstream operates on the adapter's normalized
@@ -83,6 +85,10 @@ Possible kinds include:
 - **Primitive types:** `"string"`, `"number"`, `"boolean"`, `"date"`
 - **Format variants:** `"email"`, `"url"`
 - **Structural types:** `"object"`, `"array"`, `"enum"`
+- **Adapter-extendable kinds:** [`deriveDefault`](#derivedefault) in
+  `build-defaults.ts` also handles `"password"`, `"textarea"`, `"combobox"`,
+  `"checkbox"` — these are not produced by the Zod adapter but are supported
+  for custom adapters or manual field maps.
 - **Unsupported types:** `record` and unrecognized Zod types throw an error
   rather than falling through to `"unknown"`.
 
@@ -139,7 +145,7 @@ be swapped at runtime.
 
 ## FieldComponentProps
 
-**Type:** `FieldDef & { name, value, onChange, onBlur, ref, error?, disabled?, config? }`
+**Type:** `FieldDef & { name, value?, onChange, onBlur, ref, error?, disabled?, config? }`
 
 The input contract for components in the [FieldComponentMap](#fieldcomponentmap).
 Spreads all of [FieldDef](#fielddef) and adds `react-hook-form` control bindings:
@@ -147,7 +153,7 @@ Spreads all of [FieldDef](#fielddef) and adds `react-hook-form` control bindings
 | Added property | Type | Source |
 |---|---|---|
 | `name` | `string` | The field's RHF-registered path (dot-notation) |
-| `value` | `unknown` | Current field value from RHF |
+| `value` | `unknown?` | Current field value from RHF |
 | `onChange` | `(value: unknown) => void` | RHF change handler |
 | `onBlur` | `() => void` | RHF blur handler |
 | `ref` | `React.Ref<any>` | RHF ref for focus management |
@@ -250,8 +256,10 @@ const { Form, SmartField, SmartFieldArray, useForm, useFormContext } =
 The closure captures:
 
 - The React context (for Form → SmartField communication)
-- The `FieldComponentMap` (rebound internally as `fieldComponents`, for
-  SmartField → component dispatch)
+- The `FieldComponentMap` (passed to `createSmartField` for component dispatch)
+
+Throws [`createFormError`](#createformerror) if `schemaResolver` is not provided
+or if `fieldComponents` is missing/empty.
 
 
 
@@ -263,14 +271,16 @@ The closure captures:
 
 Renders a single form field. Reads the [SchemaTree](#schematree) from React context,
 resolves the field definition via [resolveFieldDef](#resolvefielddef), looks up
-the component in [FieldComponentMap](#fieldcomponentmap), and renders it inside
-an RHF `Controller`.
+the component in [FieldComponentMap](#fieldcomponentmap), and renders it with
+RHF bindings via `register(name)` (`ref`, `onChange`, `onBlur`) and
+`getFieldState(name)` (`error`).
 
 Props: [SmartFieldProps](#smartfieldprops) — `{ name, disabled?, config? }`.
 
-Behavior on miss: `resolveFieldDef` throws if the field definition is not found
-or if the kind is `"unknown"`. If no component is registered for the resolved
-`kind`, SmartField returns `null`.
+Behavior on miss: SmartField catches `resolveFieldDef` errors (field not found
+or `kind === "unknown"`), calls [`devWarn`](#devwarn) with a diagnostic message,
+and renders `null`. If no component is registered for the resolved `kind`,
+SmartField also calls [`devWarn`](#devwarn) and renders `null`.
 
 Throws if used outside a `<Form>` (no context).
 
@@ -335,7 +345,8 @@ nested `FieldDef.elementFields`. Skips numeric segments (for RHF array paths lik
 path doesn't resolve, or `"Unsupported field type for \"<name>\""` if the
 resolved kind is `"unknown"`.
 
-Lives in `core/field-map.ts` and is exported from core.
+Lives in `core/field-map.ts` and is exported from `src/index.ts` (the
+`@adistack/forms` entrypoint).
 
 ---
 
@@ -358,7 +369,7 @@ The resolver is cast `as Resolver<TValues>` to bridge RHF's resolver type — se
 
 Returns a `useFormContext<TValues>() => FormContextInstance<TValues>`. Reads
 RHF's context plus the [FormContextValue](#formcontextvalue) from the factory's
-context. Throws `"useFormContext must be used within a Form"` if no context.
+context. Throws `"useFormContext must be used within a <Form>"` if no context.
 
 ---
 
@@ -367,8 +378,39 @@ context. Throws `"useFormContext must be used within a Form"` if no context.
 **Type:** `(def: FieldDef) => unknown` (private helper in `build-defaults.ts`)
 
 Derives a default value from a [FieldDef](#fielddef) by switching on
-[Kind](#kind). Called recursively for nested objects. Used internally by
-[buildDefaults](#builddefaults).
+[Kind](#kind). Returns `undefined` for optional fields. Handles primitive kinds
+(`string` → `""`, `number` → `0`, `boolean` → `false`), format variants
+(`email`, `url`), adapter-extendable kinds (`password`, `textarea`, `combobox`,
+`checkbox`), structural kinds (`array` → `[]`, `object` → recursive), and
+`enum` (first entry value). Called recursively for nested objects. Used
+internally by [buildDefaults](#builddefaults).
+
+---
+
+## createFormError
+
+**Type:** `(message: string, details?: string[]) => Error`
+
+Creates a structured error with the `[@adistack/forms]` prefix. If `details` are
+provided, they're appended as indented bullet lines (`→ detail`). Used throughout
+the codebase for user-facing errors (missing schemaResolver, unsupported Zod
+types, missing field definitions, etc.).
+
+Lives in `errors.ts`. Not exported from any entrypoint — internal only.
+
+---
+
+## devWarn
+
+**Type:** `(message: string, details?: string[]) => void`
+
+Emits a `console.warn` with the `[@adistack/forms]` prefix, but **only in
+non-production** environments (skipped when `NODE_ENV === "production"`). Used
+by [SmartField](#smartfield) when a field definition is not found or no component
+is registered for a kind — these are recoverable conditions (render `null`)
+rather than hard errors.
+
+Lives in `errors.ts`. Not exported from any entrypoint — internal only.
 
 ---
 
@@ -377,14 +419,15 @@ Derives a default value from a [FieldDef](#fielddef) by switching on
 The Zod adapter (`@adistack/forms/adapters/zod`) exports:
 
 - **`zodAdapter`** — a `SchemaAdapter<ZodType>` wiring the three functions below.
-- **`buildFieldMap(schema)`** — Zod schema → [SchemaTree](#schematree). Reads
-  `schema._zod.def.shape`; returns `{}` if no shape. See
+- **`buildFieldMap(schema, parentPath?)`** — Zod schema → [SchemaTree](#schematree). Reads
+  `schema._zod.def.shape`; returns `{}` if no shape. `parentPath` is used
+  internally for recursive calls and error messages (defaults to `""`). See
   [Zod Adapter Internals](./CONTEXT.md#zod-adapter-internals).
 - **`buildDefaults(schema, fieldMap, overrides?)`** — [SchemaTree](#schematree) →
   default values. Ignores `schema` (prefixed `_schema`); iterates `fieldMap`
   calling `deriveDefault` (private helper) per field, then overlays `overrides`.
 - **`createResolver(schema)`** — returns `zodResolver(schema as never)` typed as
-  `Resolver`. The `as never` cast is contained inside the adapter.
+  `Resolver<any>`. The `as never` cast is contained inside the adapter.
 
 ---
 

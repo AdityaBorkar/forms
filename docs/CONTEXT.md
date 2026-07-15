@@ -40,7 +40,7 @@ that knowledge.**
               SmartField ──reads──▶ SchemaTree
                  │                     (from React context)
                  ▼
-              Controller (RHF)
+              register(name) + getFieldState(name)  (RHF)
                  │
                  ▼
               FieldComponentMap[kind]
@@ -62,24 +62,22 @@ that knowledge.**
    `FormProvider` and sets React context with `{ fieldMap: form.fieldMap }`.
 4. Consumer renders `<SmartField name="address.city" />` — reads the `SchemaTree`
    from context, resolves the field definition via `resolveFieldDef`, looks up
-   the component in the `FieldComponentMap`, renders it inside an RHF
-   `Controller`.
+   the component in the `FieldComponentMap`, and renders it with RHF bindings
+   via `register(name)` (provides `ref`, `onChange`, `onBlur`) and
+   `getFieldState(name)` (provides `error`). If `resolveFieldDef` throws or no
+   component is registered for the resolved `kind`, SmartField calls `devWarn`
+   and renders `null`.
 
 ---
 
 ## Key Design Decisions
 
 ### 1. Factory pattern over provider pattern
-- `build-field-map.ts` — introspects Zod v4 schemas via `schema._zod.def` (private/fragile API). If Zod's internal shape changes, this will break.
-  - Optional unwrapping: recurses into `innerType` with `optional = true`, overlays `meta` from outer.
-  - Union handling: picks the first non-literal option (e.g. `z.string().optional()` → union of `string | literal(undefined)`).
-  - Unsupported types (`record`, `literal`, etc.) throw an error.
-  - `required` is derived as `!optional` — a field is "required" when it cannot be omitted (i.e., not optional).
-- `build-defaults.ts` — derives default values from the schema. `deriveDefault` is a private helper.
-- `create-resolver.ts` — wraps `@hookform/resolvers/zod`.
-- `@hookform/resolvers` and `zod` are **optional peer dependencies** — consumers who don't use the Zod adapter don't need them.
+
 - **Encapsulation** — `FieldComponentMap` is closed over, not floating in
   context.
+- **Input validation** — `createFormSystem` throws `createFormError` if no
+  `schemaResolver` is provided or if `fieldComponents` is missing/empty.
 
 The tradeoff: you can't swap components or adapters at runtime. This is
 acceptable — form systems are typically configured once at module level.
@@ -122,12 +120,13 @@ right `SmartField` components inside the array render function.
 
 ---
 
-## Two Entrypoints
+## Three Entrypoints
 
 | Entrypoint | Path | Purpose |
 |---|---|---|
-| `@adistack/forms` | `src/core/index.ts` | Framework-agnostic core: `createFormSystem`, `SmartField`, `SmartFieldArray`, `resolveFieldDef`, types, `useForm`/`useFormContext` factories |
-| `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `deriveDefault`, `createResolver` |
+| `@adistack/forms` | `src/index.ts` | Core: `createFormSystem`, `resolveFieldDef`, `SmartFieldArray`, and types (`FieldDef`, `SchemaTree`, `FieldComponentMap`, `FieldComponentProps`, `FormInstance`, `FormContextInstance`, `UseFormOptions`, etc.). `SmartField`, `useForm`, `useFormContext` are **not** direct exports — they're returned by `createFormSystem()`. |
+| `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `createResolver` (`deriveDefault` is private, not exported) |
+| `@adistack/forms/ui` | `src/ui/index.ts` | Re-exports `SmartFieldArray` and prop types (`SmartFieldProps`, `SmartFieldArrayProps`, `SmartFieldArrayRenderProps`) |
 
 `@hookform/resolvers` and `zod` are **optional peer dependencies** — consumers
 who don't use the Zod adapter don't need them. `react-hook-form` and `react` are
@@ -201,15 +200,16 @@ types:
 - `form.tsx`: `form.onSubmit as never, form.onInvalid as never`,
   `form as unknown as UseFormReturn<TValues>`
 - `use-form-context.ts`: `...(rhf as object)`, `as FormContextInstance<TValues>`
-- `create-resolver.ts`: `schema as never`, return cast `as Resolver`
+- `create-resolver.ts`: `schema as never`, return type `Resolver<any>`
 - `smart-field-array.tsx`: `append`/`fields`/`move`/`update` casts to
   `SmartFieldArrayRenderProps` shapes
 
-The adapter's `createResolver` returns `Resolver` (not `Resolver<any>`) — the
-`schema as never` cast is contained inside the adapter. Root cause is still
-`SchemaAdapter<TSchema = unknown>` in `types.ts` — the `unknown` default loses
-type info at the boundary. A future tightening of the generic chain would
-eliminate most of these.
+The adapter's `createResolver` returns `Resolver<any>` (with an explicit
+`noExplicitAny` biome-ignore) even though the `SchemaAdapter` interface in
+`types.ts` declares `Resolver` (no generic). The `schema as never` cast is
+contained inside the adapter. Root cause is `SchemaAdapter<TSchema = unknown>`
+in `types.ts` — the `unknown` default loses type info at the boundary. A future
+tightening of the generic chain would eliminate most of these.
 
 ### `buildDefaults` ignores its schema parameter
 
@@ -227,21 +227,23 @@ package/src/
 │                                     #   FieldComponentProps, FieldMeta, FieldCheck,
 │                                     #   SchemaAdapter, FormContextValue, UseFormOptions,
 │                                     #   ValidationMode
+├── errors.ts                         # createFormError (structured errors) + devWarn (dev-only warnings)
 ├── core/
-│   ├── index.ts                      # Public re-exports from core
-│   ├── create-form-format.ts         # createFormSystem factory
+│   ├── create-form-system.ts         # createFormSystem factory (validates inputs, creates context)
+│   ├── field-map.ts                  # resolveFieldDef (walks SchemaTree by dot-path)
 │   ├── form.tsx                      # <Form> component (wraps FormProvider + context)
 │   ├── use-form.ts                   # useForm hook + FormInstance / FormContextInstance types
 │   └── use-form-context.ts           # useFormContext hook
 ├── ui/
-│   ├── smart-field.tsx               # SmartField + createSmartField + resolveFieldDef
+│   ├── index.ts                      # Re-exports SmartFieldArray and prop types
+│   ├── smart-field.tsx               # SmartField + createSmartField
 │   └── smart-field-array.tsx         # SmartFieldArray + render-prop types
 └── adapters/
     └── zod/
         ├── index.ts                  # Public re-exports from Zod adapter
         ├── adapter.ts                # zodAdapter: SchemaAdapter<ZodType>
         ├── build-field-map.ts        # Zod schema → SchemaTree introspection
-        ├── build-defaults.ts         # SchemaTree → default values + deriveDefault
+        ├── build-defaults.ts         # SchemaTree → default values + deriveDefault (private)
         └── create-resolver.ts        # Zod schema → RHF resolver
 ```
 

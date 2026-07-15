@@ -8,10 +8,21 @@ export function createFormError(message: string, details?: string[]): Error {
   return new Error(lines.join("\n"));
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getNodeEnv(): string | undefined {
+  const process = Reflect.get(globalThis, "process");
+  if (!isRecord(process)) return undefined;
+  const env = Reflect.get(process, "env");
+  if (!isRecord(env)) return undefined;
+  const nodeEnv = Reflect.get(env, "NODE_ENV");
+  return typeof nodeEnv === "string" ? nodeEnv : undefined;
+}
+
 export function devWarn(message: string, details?: string[]): void {
-  const env = (globalThis as { process?: { env?: { NODE_ENV?: string } } })
-    .process?.env;
-  if (env?.NODE_ENV === "production") return;
+  if (getNodeEnv() === "production") return;
   const lines = [`${PREFIX} ${message}`];
   if (details?.length) {
     for (const detail of details) lines.push(`  → ${detail}`);

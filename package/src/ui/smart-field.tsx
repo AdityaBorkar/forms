@@ -2,7 +2,7 @@ import type { Context } from "react";
 import { useContext } from "react";
 import { useFormContext as useRhfContext } from "react-hook-form";
 
-import { resolveFieldDef } from "@/core/field-map";
+import { resolveFieldDef } from "@/core/resolve-field-def";
 import { createFormError, devWarn } from "@/errors";
 import type {
   FieldComponentMap,
@@ -60,7 +60,7 @@ export function createSmartField(
     }
 
     const { ref, onChange, onBlur } = rhf.register(name);
-    const { error } = rhf.getFieldState(name);
+    const { error } = rhf.getFieldState(name, rhf.formState);
 
     const renderProps: FieldComponentProps = {
       ...def,

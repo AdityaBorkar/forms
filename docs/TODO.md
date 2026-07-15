@@ -2,11 +2,14 @@
 
 ## Phase 1
 
-- never, any ts types
-- Clean and Complete Functionality
 - Smart Component Support
-- Review
-  - thermo-nuclear
+- Custom Smart Component Support
+- Validation & Error Handling
+- Clean and Complete Functionality
+- 
+- thermo-nuclear of ./package
+- 
+- never, any ts types
 - Publish to NPM
   - beta
   - latest
