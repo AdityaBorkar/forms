@@ -56,7 +56,7 @@ Run `check:lint` then `check:types` after changes. CI is commented out (`ci.yml`
 
 Two entrypoints declared in `package/package.json` exports:
 
-- `@adistack/forms/core` → `package/src/core/index.ts` — exports `createFormSystem`, `resolveFieldDef` (from `./field-map`), `SmartFieldArray` (from `@/ui/`), and types. `SmartField` is **not** a direct import — it's returned by `createFormSystem()`. `useForm`/`useFormContext` are also factory-returned (the `createUseForm`/`createUseFormContext` factories in `core/` are internal).
+- `@adistack/forms` → `package/src/core/index.ts` — exports `createFormSystem`, `resolveFieldDef` (from `./field-map`), `SmartFieldArray` (from `@/ui/`), and types. `SmartField` is **not** a direct import — it's returned by `createFormSystem()`. `useForm`/`useFormContext` are also factory-returned (the `createUseForm`/`createUseFormContext` factories in `core/` are internal).
 - `@adistack/forms/adapters/zod` → `package/src/adapters/zod/index.ts` — Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `createResolver`. (`deriveDefault` is a private helper in `build-defaults.ts`, not exported.)
 
 `package/src/ui/` contains `SmartField` and `SmartFieldArray` — they live separately from `package/src/core/` but `SmartFieldArray` is re-exported through the core entrypoint. `SmartField` is created by `createSmartField()` inside `createFormSystem()`.

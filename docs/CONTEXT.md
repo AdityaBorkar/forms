@@ -126,7 +126,7 @@ right `SmartField` components inside the array render function.
 
 | Entrypoint | Path | Purpose |
 |---|---|---|
-| `@adistack/forms/core` | `src/core/index.ts` | Framework-agnostic core: `createFormSystem`, `SmartField`, `SmartFieldArray`, `resolveFieldDef`, types, `useForm`/`useFormContext` factories |
+| `@adistack/forms` | `src/core/index.ts` | Framework-agnostic core: `createFormSystem`, `SmartField`, `SmartFieldArray`, `resolveFieldDef`, types, `useForm`/`useFormContext` factories |
 | `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `deriveDefault`, `createResolver` |
 
 `@hookform/resolvers` and `zod` are **optional peer dependencies** — consumers

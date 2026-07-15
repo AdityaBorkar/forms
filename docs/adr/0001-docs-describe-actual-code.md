@@ -39,7 +39,7 @@ The same identifier denotes two unrelated things.
    been applied to the source.
 
 2. **Expand the glossary to the full public surface.** Every exported type from
-   `@adistack/forms/core` and `@adistack/forms/adapters/zod` gets a glossary
+   `@adistack/forms` and `@adistack/forms/adapters/zod` gets a glossary
    entry, ordered by dependency. This makes the glossary a complete map of the
    public API, including the `FormInstance` vs `FormContextInstance` distinction
    the old docs missed.

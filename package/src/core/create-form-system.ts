@@ -1,5 +1,6 @@
 import { createContext } from "react";
 
+import { createFormError } from "@/errors";
 import type {
   FieldComponentMap,
   FormContextValue,
@@ -18,6 +19,19 @@ export function createFormSystem<TSchema = unknown>({
   fieldComponents: FieldComponentMap;
   schemaResolver: SchemaAdapter<TSchema>;
 }) {
+  if (!schemaResolver) {
+    throw createFormError("createFormSystem requires a schemaResolver", [
+      "Pass a schema adapter, e.g. zodAdapter from @adistack/forms/adapters/zod.",
+    ]);
+  }
+  if (!fieldComponents || Object.keys(fieldComponents).length === 0) {
+    throw createFormError(
+      "createFormSystem requires at least one field component",
+      [
+        "Pass a fieldComponents map, e.g. { string: TextInput, number: NumberInput, ... }.",
+      ],
+    );
+  }
   const FormContext = createContext<FormContextValue | null>(null);
   const useForm = createUseForm<TSchema>(schemaResolver);
   const useFormContext = createUseFormContext(FormContext);

@@ -1,4 +1,4 @@
-import type { FieldComponentProps } from "@adistack/forms/core";
+import type { FieldComponentProps } from "@adistack/forms";
 
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";

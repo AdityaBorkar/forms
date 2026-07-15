@@ -2,7 +2,7 @@
 
 Domain vocabulary for `@adistack/forms`. Terms are ordered by dependency —
 earlier terms are used in later definitions. Every exported type from
-`@adistack/forms/core` and `@adistack/forms/adapters/zod` is covered here. Names
+`@adistack/forms` and `@adistack/forms/adapters/zod` is covered here. Names
 match the actual source; see [ADR 0001](./adr/0001-docs-describe-actual-code.md).
 
 ---

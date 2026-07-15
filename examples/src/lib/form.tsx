@@ -1,5 +1,5 @@
+import { createFormSystem, type FieldComponentMap } from "@adistack/forms";
 import { zodAdapter } from "@adistack/forms/adapters/zod";
-import { createFormSystem, type FieldComponentMap } from "@adistack/forms/core";
 
 import {
   CheckboxField,

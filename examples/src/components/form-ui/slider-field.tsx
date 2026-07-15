@@ -1,4 +1,4 @@
-import type { FieldComponentProps } from "@adistack/forms/core";
+import type { FieldComponentProps } from "@adistack/forms";
 import { useCallback } from "react";
 
 import { Slider } from "@/components/ui/slider";

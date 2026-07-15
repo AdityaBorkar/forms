@@ -19,7 +19,7 @@ bun add @adistack/forms react-hook-form zod @hookform/resolvers
 **1. Register your field components** (one per "kind" the adapter can resolve):
 
 ```tsx
-import type { FieldComponentMap } from "@adistack/forms/core";
+import type { FieldComponentMap } from "@adistack/forms";
 
 const fieldComponents: FieldComponentMap = {
   string: TextField,
@@ -36,7 +36,7 @@ Each component receives [`FieldComponentProps`](./src/types.ts) — `value`, `on
 **2. Wire the factory once** with your components and a schema adapter:
 
 ```tsx
-import { createFormSystem } from "@adistack/forms/core";
+import { createFormSystem } from "@adistack/forms";
 import { zodAdapter } from "@adistack/forms/adapters/zod";
 
 export const { Form, SmartField, SmartFieldArray, useForm, useFormContext } =
@@ -139,7 +139,7 @@ Repeatable rows use `<SmartFieldArray>`:
 
 ```ts
 // Framework-agnostic core
-import { createFormSystem } from "@adistack/forms/core";
+import { createFormSystem } from "@adistack/forms";
 
 // Zod v4 adapter (optional — only if you use Zod)
 import { zodAdapter } from "@adistack/forms/adapters/zod";

@@ -1,3 +1,4 @@
+import { createFormError } from "@/errors";
 import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "@/types";
 
 type ZodCheckDef = {
@@ -26,6 +27,16 @@ type ZodDef = {
 };
 
 type ZodSchema = { _zod?: { def?: ZodDef }; meta?: () => unknown };
+
+const SUPPORTED_TYPES = [
+  "string",
+  "number",
+  "boolean",
+  "enum",
+  "array",
+  "object",
+  "date",
+] as const;
 
 function getType(schema: ZodSchema): string {
   return schema._zod?.def?.type ?? "";
@@ -107,6 +118,7 @@ function resolveType(
   schema: ZodSchema,
   type: string,
   def: ZodDef | undefined,
+  fieldPath: string,
 ): Resolved {
   switch (type) {
     case "string":
@@ -119,7 +131,9 @@ function resolveType(
       return { kind: "enum", ...(def?.entries && { entries: def.entries }) };
     case "array": {
       const element = def?.element;
-      const elementFields = element ? buildFieldMap(element) : undefined;
+      const elementFields = element
+        ? buildFieldMap(element, fieldPath)
+        : undefined;
       return {
         ...deriveLengthConstraints(def),
         ...(elementFields && { elementFields }),
@@ -127,33 +141,66 @@ function resolveType(
       };
     }
     case "object":
-      return { elementFields: buildFieldMap(schema), kind: "object" };
+      return {
+        elementFields: buildFieldMap(schema, fieldPath),
+        kind: "object",
+      };
     case "date":
       return { kind: "date" };
     case "record":
-      throw new Error("Unsupported Zod type: record");
+      throw createFormError(
+        `Unsupported Zod type: record (field "${fieldPath}")`,
+        [
+          `The "record" type is not supported by the form builder.`,
+          `Supported Zod types: ${SUPPORTED_TYPES.join(", ")}.`,
+          `Consider using z.array() or z.object() instead, or remove this field from the schema.`,
+        ],
+      );
     default:
-      throw new Error(`Unsupported Zod type: ${type}`);
+      throw createFormError(
+        `Unsupported Zod type: ${type || "(unknown)"} (field "${fieldPath}")`,
+        [`Supported Zod types: ${SUPPORTED_TYPES.join(", ")}.`],
+      );
   }
 }
 
-function buildFieldDef(schema: ZodSchema, optional = false): FieldDef {
+function buildFieldDef(
+  schema: ZodSchema,
+  optional = false,
+  fieldPath = "<root>",
+): FieldDef {
   const def = schema._zod?.def;
   const type = def?.type ?? "";
   const meta = getMeta(schema);
 
   let result: FieldDef;
   if (type === "optional") {
-    if (!def?.innerType) throw new Error("Optional type has no inner type");
-    result = buildFieldDef(def.innerType, true);
+    if (!def?.innerType) {
+      throw createFormError(
+        `Optional type has no inner type (field "${fieldPath}")`,
+        [
+          `This usually indicates a malformed Zod schema.`,
+          `Ensure the field is defined as z.someType().optional().`,
+        ],
+      );
+    }
+    result = buildFieldDef(def.innerType, true, fieldPath);
   } else if (type === "union") {
     const options = def?.options ?? [];
     const picked = options.find((o) => getType(o) !== "literal") ?? options[0];
-    if (!picked) throw new Error("Union type has no options");
-    result = buildFieldDef(picked, optional);
+    if (!picked) {
+      throw createFormError(
+        `Union type has no options (field "${fieldPath}")`,
+        [
+          `The union type was defined with an empty options array.`,
+          `Ensure z.union() has at least one option, e.g. z.union([z.string(), z.number()]).`,
+        ],
+      );
+    }
+    result = buildFieldDef(picked, optional, fieldPath);
   } else {
     result = {
-      ...resolveType(schema, type, def),
+      ...resolveType(schema, type, def, fieldPath),
       optional,
       required: !optional,
     };
@@ -163,12 +210,13 @@ function buildFieldDef(schema: ZodSchema, optional = false): FieldDef {
   return result;
 }
 
-export function buildFieldMap(schema: unknown): SchemaTree {
+export function buildFieldMap(schema: unknown, parentPath = ""): SchemaTree {
   const shape = (schema as ZodSchema)?._zod?.def?.shape;
   if (!shape) return {};
   const map: SchemaTree = {};
   for (const [key, fieldSchema] of Object.entries(shape)) {
-    map[key] = buildFieldDef(fieldSchema as ZodSchema);
+    const fieldPath = parentPath ? `${parentPath}.${key}` : key;
+    map[key] = buildFieldDef(fieldSchema as ZodSchema, false, fieldPath);
   }
   return map;
 }
