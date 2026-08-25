@@ -4,14 +4,14 @@
   },
   "description": "Schema-driven React form library. Pass a Zod schema, get auto-rendered form fields via react-hook-form.",
   "devDependencies": {
-    "@hookform/resolvers": "^5.4.0",
+    "@hookform/resolvers": "^5.9.1",
     "@testing-library/react": "^16.3.2",
-    "@types/bun": "latest",
-    "@types/react": "^19.2.17",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "typescript": "^7.0.1-rc",
-    "vitest": "^4.1.9",
+    "@types/bun": "^1.4.0",
+    "@types/react": "^19.2.18",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11",
     "zod": "^4.4.3"
   },
   "exports": {
@@ -35,7 +35,7 @@
   "peerDependencies": {
     "@hookform/resolvers": ">=5",
     "react": ">=18",
-    "react-hook-form": "^7.80.0",
+    "react-hook-form": "^7.86.0",
     "zod": ">=4"
   },
   "peerDependenciesMeta": {
