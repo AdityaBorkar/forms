@@ -1,4 +1,15 @@
 {
+	"name": "examples",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "bun run generate:sources && bun run tsr:generate && bun run build.ts",
+		"dev": "bun run generate:sources && bun run tsr:generate && bun --hot src/server.ts",
+		"generate:sources": "bun run scripts/generate-sources.ts",
+		"start": "NODE_ENV=production bun src/server.ts",
+		"tsr:generate": "tsr generate"
+	},
 	"dependencies": {
 		"@adistack/forms": "workspace:*",
 		"@base-ui/react": "^1.7.0",
@@ -22,16 +33,5 @@
 		"@types/react": "^19.2.18",
 		"@types/react-dom": "^19.2.4",
 		"tailwindcss": "^4.3.3"
-	},
-	"name": "examples",
-	"private": true,
-	"scripts": {
-		"build": "bun run generate:sources && bun run tsr:generate && bun run build.ts",
-		"dev": "bun run generate:sources && bun run tsr:generate && bun --hot src/server.ts",
-		"generate:sources": "bun run scripts/generate-sources.ts",
-		"start": "NODE_ENV=production bun src/server.ts",
-		"tsr:generate": "tsr generate"
-	},
-	"type": "module",
-	"version": "0.1.0"
+	}
 }
