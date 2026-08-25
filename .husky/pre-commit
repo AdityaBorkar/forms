@@ -1,1 +1,1 @@
-bun biome format --fix .
+bun format

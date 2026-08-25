@@ -2,90 +2,51 @@
 
 ## Project
 
-`@adistack/forms` — schema-driven React form library. Pass a schema + adapter, get auto-rendered form fields via `react-hook-form`. Uses a `createFormSystem()` factory pattern: callers bring their own `SchemaAdapter` and `FieldComponentMap`.
+`@adistack/forms` — schema-driven React forms via `react-hook-form`. Factory `createFormSystem({ fieldComponents, schemaResolver })` — caller supplies `SchemaAdapter` + `FieldComponentMap`.
 
-## Repo Structure
+## Structure
 
-**Bun workspace.** Root `package.json` declares `workspaces: ["./package", "./examples"]`. The actual library lives in `package/` — that's where `src/`, `tsconfig.json`, and the library `package.json` are.
-
-```
-package/           ← library source and tests (the thing that gets published)
-examples/          ← Bun+React demo app using TanStack Router (workspace member)
-docs/              ← architecture docs (CONTEXT.md, GLOSSARY.md, TODO.md, adr/)
-```
-
-Root-level commands (lint, typecheck, deps) operate across the whole workspace.
-
-## Runtime & Toolchain
-
-- **Bun** is the package manager and runtime (not Node). Use `bun` for install/run/script commands.
-- **Biome** for linting and formatting (not ESLint/Prettier). Config in root `biome.json`.
-  - Linter domains set to `"all"`: `react`, `tailwind`, `types` — enables every rule in those domains.
-  - `useSortedClasses` (nursery) enforces Tailwind class order — write sorted or let Biome fix.
-  - Import sorting with custom groups (Bun/Node, packages, alias `@/*`, relative paths).
-  - Linting is disabled for `examples/src/components/ui/**` (shadcn-style generated components).
-- **TypeScript** strict with `verbatimModuleSyntax`, `noUncheckedIndexedAccess`. Path alias: `@/*` → `./src/*`. Root tsconfig uses `composite: true` with project references (`package/`, `examples/`) — `package/tsconfig.json` extends it.
-- **Vitest** for tests (not Jest). `vitest.config.ts` at root sets default `environment: "node"` and uses `vite-tsconfig-paths` for `@/*` alias resolution. Component tests override per-file with `// @vitest-environment jsdom` as the first line.
-- No build step — library is consumed as source TypeScript.
-- `"type": "module"` — all `.ts` files are ESM.
+Bun workspace. Root `package.json` → `workspaces: ["./package","./examples"]`. Library is `package/` (`src/`, `tsconfig.json`, library `package.json`); `examples/` is Bun+TanStack Router demo. `docs/` → `CONTEXT.md`, `GLOSSARY.md`, `TODO.md`, `adr/`. Root scripts cover workspace.
 
 ## Commands
 
 ```
-bun run check:lint    # biome check --fix .
-bun run check:types   # tsc -b (build mode — needed for composite project references)
-bun test              # run all tests
-bun test package/src/adapters/zod/build-field-map.test.ts  # run a single test file
-bun run update:deps   # taze -rw --maturity-period 3 && bun install
+bun run check:lint   # biome check --fix .
+bun run check:types  # tsc -b (composite project references)
+bun test             # all tests (vitest)
+bun test package/src/adapters/zod/build-field-map.test.ts  # single file
+bun run update:deps  # taze -rw --maturity-period 3 && bun install
 ```
 
-Run `check:lint` then `check:types` after changes. CI is commented out (`ci.yml`); Husky hooks are the local enforcement. The `pre-commit` hook runs `bun biome format --fix .` (formatting only — `check:lint` also lints). The active `publish.yml` runs on push to `beta`/`stable` branches — it versions via changesets, publishes to npm, and creates GitHub releases.
+Run `check:lint` → `check:types` after changes. `ci.yml` is commented out; `publish.yml` is active (push to `beta`/`stable` → lint+types, changesets versioning, `npm publish`, GitHub release). Husky `pre-commit` only runs `bun biome format --fix .` (format, not lint).
 
-## Testing
+## Toolchain
 
-- Tests are **colocated** next to source (`*.test.tsx`, `*.test.ts`). Do not create a `package/tests/` directory.
-- Test files have relaxed Biome rules: `noNonNullAssertion` and `noUnnecessaryConditions` are off (see `biome.json` overrides).
-
-## Git Conventions
-
-- **Commit messages** must follow [Conventional Commits](https://www.conventionalcommits.org/). Enforced by `commitlint` via Husky `commit-msg` hook. Allowed types: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`, `wip`.
-- **Husky** `pre-commit` hook runs `bun biome format --fix .`.
+- **Bun** only — use `bun` for install/run (not `npm`/`node`).
+- **Biome** (not ESLint/Prettier): `biome.json` domains `react`/`tailwind`/`types` = `all`, nursery `useSortedClasses` enforces Tailwind order (`clsx`/`cva`/`tw`), import groups `Bun/Node → packages → @/* → relative`. Lint disabled for `examples/src/components/ui/**` (generated shadcn).
+- **TypeScript** strict `verbatimModuleSyntax` + `noUncheckedIndexedAccess`, `composite:true` with refs `package/`+`examples/`, alias `@/*` → `./src/*` (relative to `package/`). Package overrides `lib: [ES2022,DOM]` and `types: [react]`.
+- **Vitest** (not Jest): `vitest.config.ts` defaults `environment: "node"` + `vite-tsconfig-paths`. Component tests must set `// @vitest-environment jsdom` as first line.
+- No build — consumed as source TS, ESM only (`"type":"module"`).
+- `bunfig.toml`: `ignore-scripts=true`, `minimumReleaseAge=259200` (3d), `saveTextLockfile=false`.
 
 ## Architecture
 
-Three entrypoints declared in `package/package.json` exports:
+3 exports in `package/package.json`:
 
-- `@adistack/forms` → `package/src/index.ts` — exports `createFormSystem`, `resolveFieldDef`, `SmartFieldArray`, and types. `SmartField` is **not** a direct import — it's returned by `createFormSystem()`. `useForm`/`useFormContext` are also factory-returned (the `createUseForm`/`createUseFormContext` factories in `core/` are internal).
-- `@adistack/forms/adapters/zod` → `package/src/adapters/zod/index.ts` — Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `createResolver`. (`deriveDefault` is a private helper in `build-defaults.ts`, not exported.)
-- `@adistack/forms/ui` → `package/src/ui/index.ts` — re-exports `SmartFieldArray` and its prop types.
+- `@adistack/forms` → `package/src/index.ts`: `createFormSystem`, `resolveFieldDef`, `SmartFieldArray`, types. `SmartField`/`useForm`/`useFormContext` are **factory-returned** (not direct imports); `core/createUseForm` + `core/createUseFormContext` are internal.
+- `@adistack/forms/adapters/zod` → `package/src/adapters/zod/index.ts`: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `createResolver`.
+- `@adistack/forms/ui` → `package/src/ui/index.ts`: re-exports `SmartFieldArray` + prop types.
 
-`package/src/ui/` contains `SmartField` and `SmartFieldArray` — they live separately from `package/src/core/` but `SmartFieldArray` is re-exported through the core entrypoint. `SmartField` is created by `createSmartField()` inside `createFormSystem()`.
+Flow: `createFormSystem` creates context + validates inputs → `useForm({ schema })` calls adapter for `SchemaTree`+defaults+resolver, delegates to `react-hook-form` (`validationMode` defaults `onBlur`, `reValidateMode: onChange`) → `<Form form={form}>` wraps `FormProvider` + context `{ fieldMap }` → `<SmartField name="address.city">` reads context, `resolveFieldDef` walks `elementFields` (skips numeric segments), dispatches `fieldComponents[def.kind]` via `register`+`getFieldState`.
 
-### Core flow
+Zod adapter: introspects `schema._zod.def` (private/fragile — breaks if Zod internals change). `optional` recurses `innerType` with `optional=true` overlaying outer `meta`; `union` picks first non-`literal`; `record`/`literal`/unknown throws; `required = !optional`. `build-defaults.ts` derives defaults (private `deriveDefault` not exported). `zod@>=4` + `@hookform/resolvers@>=5` are optional peers (`peerDependenciesMeta`); `react@>=18` + `react-hook-form@^7.80` required.
 
-1. `createFormSystem({ fieldComponents, schemaResolver })` wires everything together — creates a React context, returns `{ Form, SmartField, SmartFieldArray, useForm, useFormContext }`.
-2. `createUseForm(adapter)` returns a `useForm` hook that builds `SchemaTree`, defaults, and resolver from the schema via the adapter, then delegates to `react-hook-form`.
-3. `<Form>` wraps `FormProvider` + the context that provides `fieldMap` to nested fields.
-4. `<SmartField>` reads `SchemaTree` from context, dispatches to the caller-provided `FieldComponentMap`.
+## Testing
 
-### Zod adapter internals
+- Colocated `*.test.ts`/`*.test.tsx` next to source — never create `package/tests/`.
+- `biome.json` overrides relax `noNonNullAssertion` + `noUnnecessaryConditions` in `**/*.test.*`.
 
-- `build-field-map.ts` — introspects Zod v4 schemas via `schema._zod.def` (private/fragile API). If Zod's internal shape changes, this will break.
-  - Optional unwrapping: recurses into `innerType` with `optional = true`, overlays `meta` from outer.
-  - Union handling: picks the first non-literal option (e.g. `z.string().optional()` → union of `string | literal(undefined)`).
-  - Unsupported types (`record`, `literal`, etc.) throw an error.
-  - `required` is derived as `!optional` — a field is "required" when it cannot be omitted (i.e., not optional).
-- `build-defaults.ts` — derives default values from the schema. `deriveDefault` is a private helper.
-- `create-resolver.ts` — wraps `@hookform/resolvers/zod`.
-- `@hookform/resolvers` (≥5) and `zod` (≥4) are **optional peer dependencies** — consumers who don't use the Zod adapter don't need them. `react` (≥18) and `react-hook-form` (≥7.80) are **required** peers.
+## Git & Release
 
-## Versioning & Publishing
-
-- **Changesets** for version management. `examples/` is ignored (see `.changeset/config.json`); only `package/` gets published. Changeset `baseBranch` is `main` — that's the working branch; releases are cut from `beta`/`stable`.
-- `bunfig.toml` sets `ignore-scripts=true` (lifecycle scripts skipped on install) and `minimumReleaseAge` of 3 days.
-- Publish branches: `beta` (prerelease) and `stable` (latest). `publish.yml` enters/exits changeset prerelease mode automatically and creates GitHub releases.
-
-## Gotchas
-
-- `docs/CONTEXT.md` matches actual code (see ADR 0001 in `docs/adr/`). The `fieldMap` naming collision (`FieldComponentMap` option vs `SchemaTree` context value) is documented in CONTEXT.md's Design Tradeoffs section.
-- Cast chain across core: `use-form.ts` casts the RHF return `as unknown as UseFormReturn` and casts the resolver `as Resolver<TValues>`; `form.tsx` casts `onSubmit`/`onInvalid` `as never` and spreads `form as unknown as UseFormReturn` into `FormProvider`; `use-form-context.ts` casts `rhf as object`. The adapter's `createResolver` returns `Resolver<any>` (with `schema as never` cast inside) even though the `SchemaAdapter` interface in `types.ts` declares `Resolver`. Root cause is `SchemaAdapter<TSchema = unknown>` in `types.ts` — the `unknown` default loses type info at the adapter boundary.
+- Conventional Commits enforced by `commitlint` via Husky `commit-msg` (`bunx commitlint --edit $1`). Types: `build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|wip`.
+- Changesets: `baseBranch: main`, `ignore: ["examples","www"]`, only `package/` published. `beta` branch enters prerelease mode, `stable` exits it; both auto-bump `CHANGELOG.md` + `git push` + `npm publish` (`beta` tag vs `latest`).

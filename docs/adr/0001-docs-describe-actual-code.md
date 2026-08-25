@@ -60,10 +60,11 @@ The same identifier denotes two unrelated things.
   match the code, and the aspirational renames have been applied.
 - The `required` derivation was fixed from `!optional && min != null` to
   `!optional` — a field is "required" when it cannot be omitted.
-- The adapter's `createResolver` now returns `Resolver` (not `Resolver<any>`);
-  the `schema as never` cast is contained inside the adapter.
+- The adapter's `createResolver` now returns `Resolver` (not `Resolver<any>`)
+  with no cast — it delegates directly to `zodResolver(schema)`.
 - `FieldDef.fields` was renamed to `FieldDef.elementFields` to convey that for
   arrays, it holds the element's fields, not the array's own fields.
 - Anyone reading CONTEXT.md gets an accurate mental model of the running system,
-  including its warts (the cast chain, the `fieldMap` property name retained
-  on `FormContextValue`).
+  including its remaining wart (the `fieldMap` property name retained on
+  `FormContextValue`). The cast chain that previously bridged the
+  `SchemaAdapter`/RHF boundary has been removed.

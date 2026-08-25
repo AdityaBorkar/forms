@@ -5,6 +5,7 @@
   },
   "file_scan_exclusions": [
     "**/.git",
+    "**/.local",
     "**/.output",
     "**/.tanstack",
     "**/node_modules",

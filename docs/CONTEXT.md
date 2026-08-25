@@ -40,7 +40,7 @@ that knowledge.**
               SmartField ──reads──▶ SchemaTree
                  │                     (from React context)
                  ▼
-              register(name) + getFieldState(name)  (RHF)
+              register(name) + getFieldState(name, formState)  (RHF)
                  │
                  ▼
               FieldComponentMap[kind]
@@ -60,13 +60,14 @@ that knowledge.**
    (RHF methods + `fieldMap` + `onSubmit`/`onInvalid`).
 3. Consumer renders `<Form form={formInstance}>` — this wraps RHF's
    `FormProvider` and sets React context with `{ fieldMap: form.fieldMap }`.
-4. Consumer renders `<SmartField name="address.city" />` — reads the `SchemaTree`
-   from context, resolves the field definition via `resolveFieldDef`, looks up
-   the component in the `FieldComponentMap`, and renders it with RHF bindings
-   via `register(name)` (provides `ref`, `onChange`, `onBlur`) and
-   `getFieldState(name)` (provides `error`). If `resolveFieldDef` throws or no
-   component is registered for the resolved `kind`, SmartField calls `devWarn`
-   and renders `null`.
+4. Consumer renders `<SmartField name="address.city" />` — reads RHF context
+   plus the `SchemaTree` from context (throws `createFormError` if used outside
+   `<Form>`), resolves the field definition via `resolveFieldDef`, looks up the
+   component in the `FieldComponentMap`, and renders it with RHF bindings via
+   `register(name)` (provides `ref`, `onChange`, `onBlur`) and
+   `getFieldState(name, formState).error?.message` (provides `error`). If
+   `resolveFieldDef` throws or no component is registered for the resolved
+   `kind`, SmartField calls `devWarn` and renders `null`.
 
 ---
 
@@ -128,9 +129,10 @@ right `SmartField` components inside the array render function.
 | `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `createResolver` (`deriveDefault` is private, not exported) |
 | `@adistack/forms/ui` | `src/ui/index.ts` | Re-exports `SmartFieldArray` and prop types (`SmartFieldProps`, `SmartFieldArrayProps`, `SmartFieldArrayRenderProps`) |
 
-`@hookform/resolvers` and `zod` are **optional peer dependencies** — consumers
-who don't use the Zod adapter don't need them. `react-hook-form` and `react` are
-required peers.
+`zod` and `@hookform/resolvers` are **optional peer dependencies** (marked
+`optional: true` via `peerDependenciesMeta`) — consumers who don't use the Zod
+adapter don't need them. `react-hook-form@^7.80.0` and `react@>=18` are required
+peers.
 
 ---
 
@@ -138,12 +140,15 @@ required peers.
 
 `useForm` and `useFormContext` return different (but related) shapes:
 
-- **`FormInstance<TValues>`** — what `useForm` returns. `UseFormReturn<TValues>`
-  & `{ fieldMap }` & `{ onSubmit, onInvalid? }`. Carries the submit handlers
-  because only the form author wires those.
-- **`FormContextInstance<TValues>`** — what `useFormContext` returns.
-  `UseFormReturn<TValues>` & `{ fieldMap }`. No submit handlers — deep field
-  components shouldn't trigger submit.
+- **`FormInstance<TValues>`** — what `useForm` returns.
+  `FormContextInstance & { onSubmit: (values: TValues) => void, onInvalid? }`.
+  Carries the submit handlers because only the form author wires those. Generic
+  over `TValues extends FieldValues` (defaults to `FieldValues`).
+- **`FormContextInstance`** — what `useFormContext` returns.
+  `UseFormReturn<FieldValues> & { fieldMap: SchemaTree }`. Not generic — deep
+  field components read form state without needing to know the submit value
+  type. Deliberately omits submit handlers — deep field components shouldn't
+  trigger submit.
 
 `FormInstance` extends `FormContextInstance` with the submit callbacks. `<Form>`
 accepts a `FormInstance`; everything inside reads via `useFormContext` as a
@@ -157,10 +162,10 @@ accepts a `FormInstance`; everything inside reads via `useFormContext` as a
 
 | Dependency | Role | Required? |
 |---|---|---|
-| `react-hook-form` | Form state management, validation, field registration | Yes (peer) |
-| `@hookform/resolvers` | Schema resolver bridge | Only with Zod adapter |
-| `zod` | Schema definition & validation | Only with Zod adapter |
-| `react` | UI runtime | Yes (peer) |
+| `react-hook-form@^7.80.0` | Form state management, validation, field registration | Yes (peer) |
+| `react@>=18` | UI runtime | Yes (peer) |
+| `@hookform/resolvers@>=5` | Schema resolver bridge | Only with Zod adapter (optional peer via `peerDependenciesMeta`) |
+| `zod@>=4` | Schema definition & validation | Only with Zod adapter (optional peer via `peerDependenciesMeta`) |
 
 ### Internal invariants
 
@@ -189,28 +194,6 @@ option name now matches its type (`FieldComponentMap`).
 "has a min constraint" with "must be provided." It is now derived as `!optional`
 — a field is "required" when it cannot be omitted (i.e., not optional).
 
-
-### The cast chain
-
-Several casts bridge the `SchemaAdapter<TSchema = unknown>` boundary and RHF's
-types:
-
-- `use-form.ts`: `resolver as Resolver<TValues>`,
-  `useRhfForm(...) as unknown as UseFormReturn<TValues>`
-- `form.tsx`: `form.onSubmit as never, form.onInvalid as never`,
-  `form as unknown as UseFormReturn<TValues>`
-- `use-form-context.ts`: `...(rhf as object)`, `as FormContextInstance<TValues>`
-- `create-resolver.ts`: `schema as never`, return type `Resolver<any>`
-- `smart-field-array.tsx`: `append`/`fields`/`move`/`update` casts to
-  `SmartFieldArrayRenderProps` shapes
-
-The adapter's `createResolver` returns `Resolver<any>` (with an explicit
-`noExplicitAny` biome-ignore) even though the `SchemaAdapter` interface in
-`types.ts` declares `Resolver` (no generic). The `schema as never` cast is
-contained inside the adapter. Root cause is `SchemaAdapter<TSchema = unknown>`
-in `types.ts` — the `unknown` default loses type info at the boundary. A future
-tightening of the generic chain would eliminate most of these.
-
 ### `buildDefaults` ignores its schema parameter
 
 `SchemaAdapter.buildDefaults(schema, fieldMap, overrides?)` accepts the schema,
@@ -223,6 +206,7 @@ but the Zod implementation prefixes it `_schema` and only uses `fieldMap` +
 
 ```
 package/src/
+├── index.ts                          # Core entrypoint (createFormSystem, resolveFieldDef, SmartFieldArray, types)
 ├── types.ts                          # Core types: FieldDef, SchemaTree, FieldComponentMap,
 │                                     #   FieldComponentProps, FieldMeta, FieldCheck,
 │                                     #   SchemaAdapter, FormContextValue, UseFormOptions,
@@ -230,7 +214,7 @@ package/src/
 ├── errors.ts                         # createFormError (structured errors) + devWarn (dev-only warnings)
 ├── core/
 │   ├── create-form-system.ts         # createFormSystem factory (validates inputs, creates context)
-│   ├── field-map.ts                  # resolveFieldDef (walks SchemaTree by dot-path)
+│   ├── resolve-field-def.ts          # resolveFieldDef (walks SchemaTree by dot-path)
 │   ├── form.tsx                      # <Form> component (wraps FormProvider + context)
 │   ├── use-form.ts                   # useForm hook + FormInstance / FormContextInstance types
 │   └── use-form-context.ts           # useFormContext hook
@@ -269,6 +253,17 @@ changes, `build-field-map.ts` will break.
 
 ---
 
-## Features not supported / planned:
+## Supported vs. Unsupported Nesting
 
-- Nested Forms
+- **Nested objects — supported.** The `SchemaTree` is recursive, and
+  `resolveFieldDef` walks nested `elementFields`. A schema like
+  `{ address: z.object({ city: z.string() }) }` produces
+  `<SmartField name="address.city" />`. Arrays of objects also nest via
+  `elementFields` on the array's `FieldDef` (e.g. `tasks.0.title` skips the
+  numeric segment).
+- **Nested forms — not supported.** Sub-forms with an independent
+  submit/validation lifecycle (separate `useForm` / `<Form>` inside another
+  `<Form>`) are not supported. The system assumes a single `FormInstance` per
+  form tree.
+
+See [GLOSSARY.md — Nested Objects vs. Nested Forms](./GLOSSARY.md#nested-objects-vs-nested-forms).

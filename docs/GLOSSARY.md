@@ -9,7 +9,7 @@ match the actual source; see [ADR 0001](./adr/0001-docs-describe-actual-code.md)
 
 ## SchemaAdapter
 
-**Type:** `SchemaAdapter<TSchema = unknown>`
+**Type:** `SchemaAdapter<TSchema>`
 
 The adapter contract. A schema adapter bridges a validation library (e.g., Zod,
 Yup, Valibot) to the form system. It has three methods:
@@ -21,18 +21,12 @@ Yup, Valibot) to the form system. It has three methods:
    kept for adapters that need it, though the Zod implementation prefixes it
    `_schema` and only uses `fieldMap` + `overrides`.
 3. **`createResolver(schema)`** — Creates a `react-hook-form`-compatible resolver
-   for schema-level validation. Returns `Resolver<any>` (with a `noExplicitAny`
-   biome-ignore) — the `SchemaAdapter` interface declares `Resolver` (no
-   generic), but the implementation uses `Resolver<any>` because the adapter
-   cannot know `TValues`. The `schema as never` cast is contained inside the
-   adapter. See [Design Tradeoffs](./CONTEXT.md#the-cast-chain).
+   for schema-level validation. Returns `Resolver` (no generic) — the Zod
+   adapter delegates directly to `zodResolver(schema)` with no cast.
 
 The adapter is the **only** place that knows about a specific validation
 library's internals. Everything downstream operates on the adapter's normalized
 output.
-
-The `TSchema = unknown` default is the root cause of the cast chain — the
-`unknown` default loses type info at the boundary.
 
 ---
 
@@ -156,8 +150,8 @@ Spreads all of [FieldDef](#fielddef) and adds `react-hook-form` control bindings
 | `value` | `unknown?` | Current field value from RHF |
 | `onChange` | `(value: unknown) => void` | RHF change handler |
 | `onBlur` | `() => void` | RHF blur handler |
-| `ref` | `React.Ref<any>` | RHF ref for focus management |
-| `error` | `string?` | Current validation error message |
+| `ref` | `React.RefCallback<HTMLElement>` | RHF ref for focus management |
+| `error` | `string?` | Current validation error message (`getFieldState(name, formState).error?.message`) |
 | `disabled` | `boolean?` | From SmartField's `disabled` prop |
 | `config` | `Record<string, unknown>?` | From SmartField's `config` prop — arbitrary pass-through |
 
@@ -186,34 +180,55 @@ When RHF triggers validation. Passed through from
 
 ## UseFormOptions
 
-**Type:** `{ schema, onSubmit, onInvalid?, defaultValues?, validationMode? }`
+**Type:** `UseFormOptions<TSchema, TValues extends FieldValues = FieldValues>`
 
 Configuration for the `useForm` hook. The `schema` is the raw schema object (Zod
 schema, etc.) — it's passed to the [SchemaAdapter](#schemaadapter) to produce the
 [SchemaTree](#schematree), defaults, and resolver. `defaultValues` overlays the
-adapter-derived defaults.
+adapter-derived defaults. `onSubmit` is `(values: TValues) => void`;
+`onInvalid` is an optional `(errors: Record<string, unknown>) => void`.
+
+```ts
+type UseFormOptions<TSchema, TValues extends FieldValues = FieldValues> = {
+  schema: TSchema;
+  onSubmit: (values: TValues) => void;
+  onInvalid?: (errors: Record<string, unknown>) => void;
+  defaultValues?: Record<string, unknown>;
+  validationMode?: ValidationMode;
+}
+```
 
 ---
 
 ## FormContextInstance
 
-**Type:** `UseFormReturn<TValues> & { fieldMap: SchemaTree }`
+**Type:** `UseFormReturn<FieldValues> & { fieldMap: SchemaTree }`
 
-What [`useFormContext`](#useformcontext) returns. RHF's full return plus the
-[SchemaTree](#schematree). Deliberately **omits** submit handlers — deep field
-components shouldn't trigger submit. `useFormContext` throws if used outside a
-`<Form>`.
+What [`useFormContext`](#useformcontext) returns. RHF's full return (over
+`FieldValues`) plus the [SchemaTree](#schematree). Not generic — deep field
+components read form state without needing to know the submit value type.
+Deliberately **omits** submit handlers — deep field components shouldn't trigger
+submit. `useFormContext` throws if used outside a `<Form>`.
 
 ---
 
 ## FormInstance
 
-**Type:** `FormContextInstance<TValues> & { onSubmit, onInvalid? }`
+**Type:** `FormContextInstance & { onSubmit: (values: TValues) => void, onInvalid?: (errors: Record<string, unknown>) => void }`
 
 What [`useForm`](#useform) returns. Extends
 [FormContextInstance](#formcontextinstance) with the submit callbacks
-(`onSubmit`, optional `onInvalid`), because only the form author wires those.
-This is what `<Form>` accepts as its `form` prop.
+(`onSubmit`, optional `onInvalid`), generic over `TValues extends FieldValues`
+(defaults to `FieldValues`), because only the form author wires those. This is
+what `<Form>` accepts as its `form` prop.
+
+```ts
+type FormInstance<TValues extends FieldValues = FieldValues> =
+  FormContextInstance & {
+    onSubmit: (values: TValues) => void;
+    onInvalid?: (errors: Record<string, unknown>) => void;
+  }
+```
 
 ---
 
@@ -243,7 +258,7 @@ Props for [SmartField](#smartfield).
 
 ## createFormSystem
 
-**Type:** `<TSchema = unknown>(options: { fieldComponents: FieldComponentMap, schemaResolver: SchemaAdapter<TSchema> }) => { Form, SmartField, SmartFieldArray, useForm, useFormContext }`
+**Type:** `<TSchema>(options: { fieldComponents: FieldComponentMap, schemaResolver: SchemaAdapter<TSchema> }) => { Form, SmartField, SmartFieldArray, useForm, useFormContext }`
 
 The factory entry point. Creates a React context and wires together all five
 exports via closure. Called once per form system configuration:
@@ -269,11 +284,12 @@ or if `fieldComponents` is missing/empty.
 
 **Type:** React component, created by `createSmartField(FormContext, fieldComponents)`
 
-Renders a single form field. Reads the [SchemaTree](#schematree) from React context,
-resolves the field definition via [resolveFieldDef](#resolvefielddef), looks up
-the component in [FieldComponentMap](#fieldcomponentmap), and renders it with
-RHF bindings via `register(name)` (`ref`, `onChange`, `onBlur`) and
-`getFieldState(name)` (`error`).
+Renders a single form field. Reads RHF context plus the [SchemaTree](#schematree)
+from React context (throws `createFormError("SmartField must be used within a <Form>")`
+if no context), resolves the field definition via [resolveFieldDef](#resolvefielddef),
+looks up the component in [FieldComponentMap](#fieldcomponentmap), and renders it
+with RHF bindings via `register(name)` (`ref`, `onChange`, `onBlur`) and
+`getFieldState(name, formState).error?.message` (`error`).
 
 Props: [SmartFieldProps](#smartfieldprops) — `{ name, disabled?, config? }`.
 
@@ -340,12 +356,12 @@ array path; `children` is a render function receiving the array operations.
 **Type:** `(fieldMap: SchemaTree, name: string) => FieldDef`
 
 Walks the [SchemaTree](#schematree) by splitting the `name` on `.` and traversing
-nested `FieldDef.elementFields`. Skips numeric segments (for RHF array paths like
-`"items.0.name"`). Throws `"No field definition found for \"<name>\""` if the
+nested `FieldDef.elementFields`. Skips empty segments and numeric segments (for
+RHF array paths like `"items.0.name"`). Throws `"No field definition found for \"<name>\""` if the
 path doesn't resolve, or `"Unsupported field type for \"<name>\""` if the
 resolved kind is `"unknown"`.
 
-Lives in `core/field-map.ts` and is exported from `src/index.ts` (the
+Lives in `core/resolve-field-def.ts` and is exported from `src/index.ts` (the
 `@adistack/forms` entrypoint).
 
 ---
@@ -358,8 +374,6 @@ Returns a `useForm<TValues>(options: UseFormOptions) => FormInstance<TValues>`.
 Internally builds the [SchemaTree](#schematree) via `adapter.buildFieldMap(schema)`,
 defaults via `adapter.buildDefaults(schema, fieldMap, defaultValues)`, and a
 resolver via `adapter.createResolver(schema)`, then delegates to RHF's `useForm`.
-The resolver is cast `as Resolver<TValues>` to bridge RHF's resolver type — see
-[Design Tradeoffs](./CONTEXT.md#the-cast-chain).
 
 ---
 
@@ -367,7 +381,7 @@ The resolver is cast `as Resolver<TValues>` to bridge RHF's resolver type — se
 
 **Type:** hook created by `createUseFormContext(FormContext)`
 
-Returns a `useFormContext<TValues>() => FormContextInstance<TValues>`. Reads
+Returns a `useFormContext() => FormContextInstance`. Reads
 RHF's context plus the [FormContextValue](#formcontextvalue) from the factory's
 context. Throws `"useFormContext must be used within a <Form>"` if no context.
 
@@ -426,8 +440,8 @@ The Zod adapter (`@adistack/forms/adapters/zod`) exports:
 - **`buildDefaults(schema, fieldMap, overrides?)`** — [SchemaTree](#schematree) →
   default values. Ignores `schema` (prefixed `_schema`); iterates `fieldMap`
   calling `deriveDefault` (private helper) per field, then overlays `overrides`.
-- **`createResolver(schema)`** — returns `zodResolver(schema as never)` typed as
-  `Resolver<any>`. The `as never` cast is contained inside the adapter.
+- **`createResolver(schema)`** — returns `zodResolver(schema)` typed as
+  `Resolver` (no generic, no cast).
 
 ---
 
