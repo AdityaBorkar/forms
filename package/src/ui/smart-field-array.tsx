@@ -1,40 +1,40 @@
 import type { ReactNode } from "react";
 import {
-  useFieldArray,
-  useFormContext as useRhfContext,
+	useFieldArray,
+	useFormContext as useRhfContext,
 } from "react-hook-form";
 
 export type FieldArrayRow = Record<string, unknown> & { id: string };
 
 export type SmartFieldArrayRenderProps = {
-  fields: FieldArrayRow[];
-  append: (value: Record<string, unknown>) => void;
-  remove: (index: number) => void;
-  update: (index: number, value: Record<string, unknown>) => void;
-  move: (from: number, to: number) => void;
+	fields: FieldArrayRow[];
+	append: (value: Record<string, unknown>) => void;
+	remove: (index: number) => void;
+	update: (index: number, value: Record<string, unknown>) => void;
+	move: (from: number, to: number) => void;
 };
 
 export type SmartFieldArrayProps = {
-  name: string;
-  children: (props: SmartFieldArrayRenderProps) => ReactNode;
+	name: string;
+	children: (props: SmartFieldArrayRenderProps) => ReactNode;
 };
 
 export function SmartFieldArray({ name, children }: SmartFieldArrayProps) {
-  const rhf = useRhfContext();
-  const { fields, append, remove, update, move } = useFieldArray({
-    control: rhf.control,
-    name,
-  });
+	const rhf = useRhfContext();
+	const { fields, append, remove, update, move } = useFieldArray({
+		control: rhf.control,
+		name,
+	});
 
-  return (
-    <>
-      {children({
-        append,
-        fields,
-        move,
-        remove,
-        update,
-      })}
-    </>
-  );
+	return (
+		<>
+			{children({
+				append,
+				fields,
+				move,
+				remove,
+				update,
+			})}
+		</>
+	);
 }

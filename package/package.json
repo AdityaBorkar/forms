@@ -1,63 +1,65 @@
 {
-  "bugs": {
-    "url": "https://github.com/AdityaBorkar/forms/issues"
-  },
-  "description": "Schema-driven React form library. Pass a Zod schema, get auto-rendered form fields via react-hook-form.",
-  "devDependencies": {
-    "@hookform/resolvers": "^5.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@types/bun": "^1.4.0",
-    "@types/react": "^19.2.18",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.11",
-    "zod": "^4.4.3"
-  },
-  "exports": {
-    ".": "./src/index.ts",
-    "./adapters/zod": "./src/adapters/zod/index.ts",
-    "./ui": "./src/ui/index.ts"
-  },
-  "files": ["src"],
-  "homepage": "https://github.com/AdityaBorkar/forms#readme",
-  "keywords": [
-    "react",
-    "forms",
-    "zod",
-    "react-hook-form",
-    "schema-driven",
-    "auto-render"
-  ],
-  "license": "MIT",
-  "module": "src/index.ts",
-  "name": "@adistack/forms",
-  "peerDependencies": {
-    "@hookform/resolvers": ">=5",
-    "react": ">=18",
-    "react-hook-form": "^7.86.0",
-    "zod": ">=4"
-  },
-  "peerDependenciesMeta": {
-    "@hookform/resolvers": {
-      "optional": true
-    },
-    "zod": {
-      "optional": true
-    }
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/AdityaBorkar/forms.git"
-  },
-  "scripts": {
-    "check:lint": "biome check --fix .",
-    "check:types": "tsc --noEmit"
-  },
-  "type": "module",
-  "types": "src/index.ts",
-  "version": "0.0.1-alpha.0"
+	"bugs": {
+		"url": "https://github.com/AdityaBorkar/forms/issues"
+	},
+	"description": "Schema-driven React form library. Pass a Zod schema, get auto-rendered form fields via react-hook-form.",
+	"devDependencies": {
+		"@hookform/resolvers": "^5.9.1",
+		"@testing-library/react": "^16.3.2",
+		"@types/bun": "^1.4.0",
+		"@types/react": "^19.2.18",
+		"react": "^19.2.8",
+		"react-dom": "^19.2.8",
+		"typescript": "^7.0.2",
+		"vitest": "^4.1.11",
+		"zod": "^4.4.3"
+	},
+	"exports": {
+		".": "./src/index.ts",
+		"./adapters/zod": "./src/adapters/zod/index.ts",
+		"./ui": "./src/ui/index.ts"
+	},
+	"files": [
+		"src"
+	],
+	"homepage": "https://github.com/AdityaBorkar/forms#readme",
+	"keywords": [
+		"react",
+		"forms",
+		"zod",
+		"react-hook-form",
+		"schema-driven",
+		"auto-render"
+	],
+	"license": "MIT",
+	"module": "src/index.ts",
+	"name": "@adistack/forms",
+	"peerDependencies": {
+		"@hookform/resolvers": ">=5",
+		"react": ">=18",
+		"react-hook-form": "^7.86.0",
+		"zod": ">=4"
+	},
+	"peerDependenciesMeta": {
+		"@hookform/resolvers": {
+			"optional": true
+		},
+		"zod": {
+			"optional": true
+		}
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/AdityaBorkar/forms.git"
+	},
+	"scripts": {
+		"check:lint": "biome check --fix .",
+		"check:types": "tsc --noEmit"
+	},
+	"type": "module",
+	"types": "src/index.ts",
+	"version": "0.0.1-alpha.0"
 }

@@ -15,25 +15,25 @@ import { routeTree } from "./routeTree.gen";
 const router = createRouter({ routeTree });
 
 declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
-  }
+	interface Register {
+		router: typeof router;
+	}
 }
 
 const elem = document.getElementById("root");
 if (!elem) throw new Error("Root element not found");
 
 const app = (
-  <StrictMode>
-    <RouterProvider router={router} />
-  </StrictMode>
+	<StrictMode>
+		<RouterProvider router={router} />
+	</StrictMode>
 );
 
 // https://bun.com/docs/bundler/hot-reloading#import-meta-hot-data
 if (import.meta.hot) {
-  const root = import.meta.hot.data.root ?? createRoot(elem);
-  import.meta.hot.data.root = root;
-  root.render(app);
+	const root = import.meta.hot.data.root ?? createRoot(elem);
+	import.meta.hot.data.root = root;
+	root.render(app);
 } else {
-  createRoot(elem).render(app);
+	createRoot(elem).render(app);
 }

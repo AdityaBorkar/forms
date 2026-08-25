@@ -2,32 +2,32 @@ import { createFormSystem, type FieldComponentMap } from "@adistack/forms";
 import { zodAdapter } from "@adistack/forms/adapters/zod";
 
 import {
-  CheckboxField,
-  NumberField,
-  SelectField,
-  SliderField,
-  SwitchField,
-  TextareaField,
-  TextField,
+	CheckboxField,
+	NumberField,
+	SelectField,
+	SliderField,
+	SwitchField,
+	TextareaField,
+	TextField,
 } from "@/components/form-ui";
 
 const fieldComponents: FieldComponentMap = {
-  boolean: CheckboxField,
-  checkbox: CheckboxField,
-  email: TextField,
-  enum: SelectField,
-  number: NumberField,
-  password: TextField,
-  slider: SliderField,
-  string: TextField,
-  switch: SwitchField,
-  textarea: TextareaField,
-  unknown: TextField,
-  url: TextField,
+	boolean: CheckboxField,
+	checkbox: CheckboxField,
+	email: TextField,
+	enum: SelectField,
+	number: NumberField,
+	password: TextField,
+	slider: SliderField,
+	string: TextField,
+	switch: SwitchField,
+	textarea: TextareaField,
+	unknown: TextField,
+	url: TextField,
 };
 
 export const { SmartField, SmartFieldArray, Form, useForm, useFormContext } =
-  createFormSystem({
-    fieldComponents,
-    schemaResolver: zodAdapter,
-  });
+	createFormSystem({
+		fieldComponents,
+		schemaResolver: zodAdapter,
+	});
