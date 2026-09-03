@@ -1,28 +1,35 @@
 import type { ComponentType } from "react";
 
-import { ArrayForm } from "../examples/array-form";
-import { CustomComponentForm } from "../examples/custom-component";
-import { DefaultsOptionalForm } from "../examples/defaults-optional";
-import { FieldKindsForm } from "../examples/field-kinds";
-import { FormContextForm } from "../examples/form-context";
-import { NestedForm } from "../examples/nested-form";
-import { ServerSubmitForm } from "../examples/server-submit";
-import { SimpleForm } from "../examples/simple-form";
-import { ValibotFormExample } from "../examples/valibot-form";
-import { ValidationModesForm } from "../examples/validation-modes";
+import { ArrayForm } from "#/examples/array-form";
+import { CustomComponentForm } from "#/examples/custom-component";
+import { DefaultsOptionalForm } from "#/examples/defaults-optional";
+import { FieldKindsForm } from "#/examples/field-kinds";
+import { FormContextForm } from "#/examples/form-context";
+import { NestedForm } from "#/examples/nested-form";
+import { ServerSubmitForm } from "#/examples/server-submit";
+import { SimpleForm } from "#/examples/simple-form";
+import { ValibotFormExample } from "#/examples/valibot-form";
+import { ValidationModesForm } from "#/examples/validation-modes";
+import NotFoundPage from "../not-found";
 
 export type ExampleMeta = {
-	/** Registry id — also the `/api/sources/:name` key (without extension). */
+	/** Registry id — also the page path (`/<id>`). */
 	id: string;
 	label: string;
-	/** Example component file, served raw by the Elysia `/api/sources` route. */
+	/** Example component file, served raw by the `/api/sources` route. */
 	file: string;
 	/** Form-system file backing this example (`form.tsx` or `form-valibot.tsx`). */
 	systemFile: string;
-	component: ComponentType;
 	description: string;
+	component: ComponentType;
 };
 
+/**
+ * The example registry lives here and only here — this catch-all route
+ * is the single place that maps URL → example. The sidebar
+ * (`../layout.tsx`), the index (`../page.tsx`) and the entry
+ * (`#/frontend.tsx`) all import `EXAMPLES` from this file.
+ */
 export const EXAMPLES: ExampleMeta[] = [
 	{
 		component: SimpleForm,
@@ -98,10 +105,24 @@ export const EXAMPLES: ExampleMeta[] = [
 	},
 	{
 		component: ServerSubmitForm,
-		description: "POST to Elysia, 422 demo.",
+		description: "POST to the API, echo demo.",
 		file: "server-submit.tsx",
 		id: "server-submit",
 		label: "Server Submit",
 		systemFile: "form.tsx",
 	},
 ];
+
+/**
+ * Catch-all route — `/<id>` renders the matching example, anything else
+ * renders the 404 page. (`params` mirrors the Next.js page signature;
+ * `src/frontend.tsx` builds it from `window.location.pathname`.)
+ */
+export default function Page({ params }: { params: { id: string[] } }) {
+	const [id] = params.id;
+	const example =
+		params.id.length === 1 ? EXAMPLES.find((ex) => ex.id === id) : undefined;
+	if (!example) return <NotFoundPage />;
+	const Example = example.component;
+	return <Example />;
+}

@@ -1,7 +1,7 @@
 import z from "zod";
 
 import { ExampleForm } from "#/components/form-wrapper";
-import { SmartField } from "#/lib/form";
+import { SmartField } from "#/lib/form-zod";
 
 const schema = z.object({
 	address: z.object({

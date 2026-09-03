@@ -373,7 +373,7 @@ Small, mostly non-breaking items found during the audit:
    for array-row defaults (§8) and tests.
 4. **Shadowed RHF names**: factory returns `useForm`/`useFormContext`/`Form`.
    Keep them (renaming breaks everyone) but bless the alias pattern in README:
-   `import { Form as SmartForm, useForm as useSmartForm } from "#/lib/form"`,
+   `import { Form as SmartForm, useForm as useSmartForm } from "#/lib/form-zod"`,
    and add a namespace export (`createFormSystem` also returns nothing new —
    just document `import * as loginForm from …` usage).
 5. **Expose submit state**: examples track `pending` manually for server submits

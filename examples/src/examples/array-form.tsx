@@ -2,7 +2,7 @@ import z from "zod";
 
 import { ExampleForm } from "#/components/form-wrapper";
 import { Button } from "#/components/ui/button";
-import { SmartField, SmartFieldArray } from "#/lib/form";
+import { SmartField, SmartFieldArray } from "#/lib/form-zod";
 
 const schema = z.object({
 	project: z.string().min(1).meta({ label: "Project name" }),

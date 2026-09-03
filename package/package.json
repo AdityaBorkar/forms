@@ -7,9 +7,7 @@
 		"forms",
 		"zod",
 		"valibot",
-		"react-hook-form",
-		"schema-driven",
-		"auto-render"
+		"react-hook-form"
 	],
 	"homepage": "https://github.com/AdityaBorkar/forms#readme",
 	"bugs": {

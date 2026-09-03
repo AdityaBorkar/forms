@@ -11,7 +11,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "#/components/ui/card";
-import { Form, useForm } from "#/lib/form";
+import { Form, useForm } from "#/lib/form-zod";
 
 type SubmitOutcome =
 	| { status: "local"; values: unknown }
@@ -38,7 +38,7 @@ export function ExampleForm({
 	validationMode?: ValidationMode;
 	reValidateMode?: ReValidateMode;
 	/**
-	 * When set, submit POSTs the values as JSON to this Elysia endpoint
+	 * When set, submit POSTs the values as JSON to this API endpoint
 	 * (e.g. `/api/submit/contact`) instead of echoing them locally.
 	 */
 	submitTo?: string;

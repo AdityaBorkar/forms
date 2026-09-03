@@ -4,7 +4,7 @@ import type { FieldValues } from "react-hook-form";
 import z from "zod";
 
 import { Button } from "#/components/ui/button";
-import { Form, SmartField, useForm, useFormContext } from "#/lib/form";
+import { Form, SmartField, useForm, useFormContext } from "#/lib/form-zod";
 
 const schema = z.object({
 	name: z.string().min(1).meta({ label: "Name", placeholder: "Ada Lovelace" }),

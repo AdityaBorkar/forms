@@ -32,7 +32,7 @@
 	},
 	"files": {
 		"ignoreUnknown": true,
-		"includes": ["**", "!**/dist"]
+		"includes": ["**"]
 	},
 	"formatter": {
 		"enabled": true
@@ -55,13 +55,7 @@
 	},
 	"overrides": [
 		{
-			"assist": {
-				"actions": {
-					"source": {
-						"useSortedKeys": "off"
-					}
-				}
-			},
+			"assist": { "actions": { "source": { "useSortedKeys": "off" } } },
 			"includes": ["**/package.json"]
 		},
 		{

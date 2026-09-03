@@ -1,8 +1,9 @@
 import { IconBrandGithub, IconExternalLink } from "@tabler/icons-react";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import { GITHUB_EXAMPLES_PREFIX } from "#/lib/utils";
-import { EXAMPLES } from "#/lib/examples-registry.js";
+import { EXAMPLES } from "./[...id]/page";
 
 type SourceTab = { name: string; content: string };
 
@@ -18,7 +19,7 @@ function SourcePanel({ exampleId }: { exampleId: string }) {
 		setTabs([]);
 		setError(null);
 		let cancelled = false;
-		// Raw file contents come from the Elysia `/api/sources` route —
+		// Raw file contents come from the `/api/sources` route —
 		// no build-time codegen, the server reads `src/` from disk.
 		Promise.all(
 			[`examples/${example.file}`, `lib/${example.systemFile}`].map(
@@ -87,40 +88,45 @@ function SourcePanel({ exampleId }: { exampleId: string }) {
 	);
 }
 
-export function App() {
-	const [activeId, setActiveId] = useState<string>(EXAMPLES[0]?.id ?? "");
-	const active = EXAMPLES.find((ex) => ex.id === activeId) ?? EXAMPLES[0];
-	const ActiveComponent = active?.component;
-
+/**
+ * Root layout — sidebar nav + page + source panel, shared by every route.
+ * Links are plain `<a>` tags: the server serves the same shell for every
+ * path, and `src/frontend.tsx` renders the matching `./app` page.
+ */
+export function RootLayout({
+	children,
+	exampleId,
+}: {
+	children: ReactNode;
+	/** Registry id of the current example page, or null (`/`, 404). */
+	exampleId: string | null;
+}) {
 	return (
 		<div className="flex min-h-screen">
 			<aside className="w-64 shrink-0 border-border border-r bg-sidebar p-4 text-sidebar-foreground">
-				<h1 className="mb-1 font-semibold text-lg">@adistack/forms</h1>
-				<p className="mb-6 text-muted-foreground text-xs">
-					Bun + Elysia 2 (beta) + React
-				</p>
+				<a className="mb-1 block font-semibold text-lg" href="/">
+					@adistack/forms
+				</a>
+				<p className="mb-6 text-muted-foreground text-xs">Bun + React</p>
 				<nav className="grid gap-1">
 					{EXAMPLES.map((ex) => (
-						<button
-							className={`rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
-								ex.id === activeId
+						<a
+							className={`rounded-md px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+								ex.id === exampleId
 									? "bg-sidebar-accent text-sidebar-accent-foreground"
 									: ""
 							}`}
+							href={`/${ex.id}`}
 							key={ex.id}
-							onClick={() => setActiveId(ex.id)}
 							title={ex.description}
-							type="button"
 						>
 							{ex.label}
-						</button>
+						</a>
 					))}
 				</nav>
 			</aside>
-			<main className="flex min-w-0 flex-1 justify-center p-8">
-				{ActiveComponent ? <ActiveComponent /> : null}
-			</main>
-			<SourcePanel exampleId={activeId} />
+			<main className="flex min-w-0 flex-1 justify-center p-8">{children}</main>
+			{exampleId === null ? null : <SourcePanel exampleId={exampleId} />}
 		</div>
 	);
 }
