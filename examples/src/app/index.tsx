@@ -1,5 +1,5 @@
-import { RootLayout } from "#/components/docs/root-layout.tsx";
-import { EXAMPLES } from "./$id";
+import { RootLayout } from "#/components/layout/root.tsx";
+import { EXAMPLES } from "#/examples";
 
 export default function Page() {
 	return (

@@ -1,13 +1,15 @@
 import type { ReactNode } from "react";
 
-import { EXAMPLES } from "#/app/[...id]/page.tsx";
+import { EXAMPLES } from "#/examples";
 
 export function RootLayout({
 	children,
 	className,
+	exampleId,
 }: {
 	children: ReactNode;
 	className: string;
+	exampleId: string | null;
 }) {
 	return (
 		<div className="flex min-h-screen">

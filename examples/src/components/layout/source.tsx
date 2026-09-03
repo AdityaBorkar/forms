@@ -1,13 +1,13 @@
 import { IconBrandGithub, IconExternalLink } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 
+import { EXAMPLES } from "#/examples";
 import { GITHUB_EXAMPLES_PREFIX } from "#/lib/utils";
-import { EXAMPLES } from "./[...id]/page";
 
 type SourceTab = { name: string; content: string };
 
 export function SourcePanel({ exampleId }: { exampleId: string }) {
-	const example = EXAMPLES.find((ex) => ex.id === exampleId);
+	const example = EXAMPLES.find((ex) => ex.slug === exampleId);
 	const [activeTab, setActiveTab] = useState(0);
 	const [tabs, setTabs] = useState<SourceTab[]>([]);
 	const [error, setError] = useState<string | null>(null);
@@ -21,14 +21,12 @@ export function SourcePanel({ exampleId }: { exampleId: string }) {
 		// Raw file contents come from the `/api/sources` route —
 		// no build-time codegen, the server reads `src/` from disk.
 		Promise.all(
-			[`examples/${example.file}`, `lib/${example.systemFile}`].map(
-				async (rel): Promise<SourceTab> => {
-					const res = await fetch(`/api/sources/${rel}`);
-					if (!res.ok) throw new Error(`HTTP ${res.status}`);
-					const data = (await res.json()) as { content: string };
-					return { content: data.content, name: rel.split("/").pop() ?? rel };
-				},
-			),
+			example.files.map(async (rel): Promise<SourceTab> => {
+				const res = await fetch(`/api/sources/${rel}`);
+				if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				const data = (await res.json()) as { content: string };
+				return { content: data.content, name: rel.split("/").pop() ?? rel };
+			}),
 		)
 			.then((loaded) => {
 				if (!cancelled) setTabs(loaded);
@@ -43,9 +41,11 @@ export function SourcePanel({ exampleId }: { exampleId: string }) {
 
 	if (!example) return null;
 	const current = tabs[activeTab] ?? tabs[0];
-	const githubPath =
-		current?.name === "form.tsx" ? `lib/form.tsx` : `examples/${example.file}`;
-	const githubUrl = `${GITHUB_EXAMPLES_PREFIX}/${githubPath}`;
+	const currentRel =
+		example.files.find((rel) => rel.endsWith(`/${current?.name ?? ""}`)) ??
+		example.files[0] ??
+		`examples/${example.slug}.tsx`;
+	const githubUrl = `${GITHUB_EXAMPLES_PREFIX}/${currentRel}`;
 
 	return (
 		<aside className="flex w-2xl shrink-0 flex-col border-border border-l bg-card">

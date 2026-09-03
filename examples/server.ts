@@ -1,5 +1,5 @@
-import { GET as getSource } from "./src/app/api/sources/[...file]/route";
-import { POST as submitEcho } from "./src/app/api/submit/route";
+import { GET as getSource } from "./src/app/api.sources.$.ts";
+import { POST as submitEcho } from "./src/app/api.submit.ts";
 import index from "./src/frontend.html";
 
 const server = Bun.serve({

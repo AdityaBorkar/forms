@@ -1,25 +1,22 @@
 /** Example + system files this route may read from `src/`. */
-const SOURCE_ALLOWLIST = new Set<string>(
-	[
-		"simple-form.tsx",
-		"nested-form.tsx",
-		"array-form.tsx",
-		"field-kinds.tsx",
-		"custom-component.tsx",
-		"validation-modes.tsx",
-		"defaults-optional.tsx",
-		"form-context.tsx",
-		"valibot-form.tsx",
-		"server-submit.tsx",
-	].map((file) => `examples/${file}`),
-);
-for (const file of ["form.tsx", "form-valibot.tsx"])
-	SOURCE_ALLOWLIST.add(`lib/${file}`);
-SOURCE_ALLOWLIST.add("components/form-wrapper.tsx");
+const SOURCE_ALLOWLIST = new Set<string>([
+	"examples/simple-form.tsx",
+	"examples/nested-form.tsx",
+	"examples/array-form.tsx",
+	"examples/field-kinds.tsx",
+	"examples/custom-component.tsx",
+	"examples/validation-modes.tsx",
+	"examples/defaults-optional.tsx",
+	"examples/form-context.tsx",
+	"examples/valibot-form.tsx",
+	"examples/server-submit.tsx",
+	"components/form-zod.tsx",
+	"components/form-valibot.tsx",
+	"components/form-wrapper.tsx",
+]);
 
-// `src/` is four levels up from this file:
-// `src/app/api/sources/[...file]/route.ts`.
-const SRC_DIR = `${import.meta.dir}/../../../../`;
+// `src/` is one level up from this file: `src/app/api.sources.$.ts`.
+const SRC_DIR = `${import.meta.dir}/../`;
 
 /** `GET /api/sources/<rel>` — raw file contents for the source panel. */
 export async function GET(request: Request): Promise<Response> {
