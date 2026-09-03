@@ -1,8 +1,8 @@
 import { IconBrandGithub, IconExternalLink } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 
-import { EXAMPLES } from "#/routes/registry";
 import { GITHUB_EXAMPLES_PREFIX } from "#/lib/utils";
+import { EXAMPLES } from "#/lib/examples-registry.js";
 
 type SourceTab = { name: string; content: string };
 
@@ -21,7 +21,7 @@ function SourcePanel({ exampleId }: { exampleId: string }) {
 		// Raw file contents come from the Elysia `/api/sources` route —
 		// no build-time codegen, the server reads `src/` from disk.
 		Promise.all(
-			[`routes/${example.file}`, `lib/${example.systemFile}`].map(
+			[`examples/${example.file}`, `lib/${example.systemFile}`].map(
 				async (rel): Promise<SourceTab> => {
 					const res = await fetch(`/api/sources/${rel}`);
 					if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -46,7 +46,7 @@ function SourcePanel({ exampleId }: { exampleId: string }) {
 	const githubPath =
 		current?.name === example.systemFile
 			? `lib/${example.systemFile}`
-			: `routes/${example.file}`;
+			: `examples/${example.file}`;
 	const githubUrl = `${GITHUB_EXAMPLES_PREFIX}/${githubPath}`;
 
 	return (

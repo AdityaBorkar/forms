@@ -2,8 +2,6 @@
 
 ## Phase 1
 
-@examples/ move the examples setup to Elysia 2
-
 How can I simplify the entire API setup and usage pattern of this library for a better Developer Experience. Create a better-dx.md report with the list of suggestions with examples.
 
 - Smart Component Support

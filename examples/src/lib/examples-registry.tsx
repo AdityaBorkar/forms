@@ -1,15 +1,15 @@
 import type { ComponentType } from "react";
 
-import { ArrayForm } from "./array-form";
-import { CustomComponentForm } from "./custom-component";
-import { DefaultsOptionalForm } from "./defaults-optional";
-import { FieldKindsForm } from "./field-kinds";
-import { FormContextForm } from "./form-context";
-import { NestedForm } from "./nested-form";
-import { ServerSubmitForm } from "./server-submit";
-import { SimpleForm } from "./simple-form";
-import { ValibotFormExample } from "./valibot-form";
-import { ValidationModesForm } from "./validation-modes";
+import { ArrayForm } from "../examples/array-form";
+import { CustomComponentForm } from "../examples/custom-component";
+import { DefaultsOptionalForm } from "../examples/defaults-optional";
+import { FieldKindsForm } from "../examples/field-kinds";
+import { FormContextForm } from "../examples/form-context";
+import { NestedForm } from "../examples/nested-form";
+import { ServerSubmitForm } from "../examples/server-submit";
+import { SimpleForm } from "../examples/simple-form";
+import { ValibotFormExample } from "../examples/valibot-form";
+import { ValidationModesForm } from "../examples/validation-modes";
 
 export type ExampleMeta = {
 	/** Registry id — also the `/api/sources/:name` key (without extension). */

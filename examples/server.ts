@@ -40,7 +40,7 @@ const SYSTEM_FILES = ["form.tsx", "form-valibot.tsx"] as const;
 
 /** Files the `/api/sources` route is allowed to read from `src/`. */
 const SOURCE_ALLOWLIST = new Set<string>([
-	...EXAMPLE_FILES.map((file) => `routes/${file}`),
+	...EXAMPLE_FILES.map((file) => `examples/${file}`),
 	...SYSTEM_FILES.map((file) => `lib/${file}`),
 	"components/form-wrapper.tsx",
 ]);
@@ -71,7 +71,7 @@ const app = new Elysia({ prefix: "/api" })
 	.get("/health", () => ({ ok: true, server: "elysia-2-beta" }))
 	.get("/forms", () => FORMS)
 	.get("/sources/*", ({ params }) => {
-		// Wildcard keeps the full relative path (`routes/x.tsx`); the
+		// Wildcard keeps the full relative path (`examples/x.tsx`); the
 		// allowlist below rejects anything else (no traversal possible).
 		const rel = params["*"];
 		if (!SOURCE_ALLOWLIST.has(rel))
@@ -95,6 +95,7 @@ const server = Bun.serve({
 		console: true,
 		hmr: true,
 	},
+	port: 4000,
 	routes: {
 		"/*": index,
 		"/api/*": (request) => app.fetch(request),
