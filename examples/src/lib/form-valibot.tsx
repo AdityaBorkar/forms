@@ -3,9 +3,8 @@ import {
 	type FieldComponentMap,
 	type FormSystem,
 } from "@adistack/forms";
-import { zodAdapter } from "@adistack/forms/adapters/zod";
-import type { FieldValues } from "react-hook-form";
-import type { ZodType } from "zod";
+import { valibotAdapter } from "@adistack/forms/adapters/valibot";
+import type { GenericSchema } from "valibot";
 
 import {
 	CheckboxField,
@@ -20,10 +19,9 @@ import {
 } from "@/components/form-ui";
 
 /**
- * Shared form system for every Zod example. One `createFormSystem` call per
- * app is the norm — the `fieldComponents` map is closed over, so each `kind`
- * (including `meta.component` overrides like `password` / `textarea` /
- * `slider` / `switch` / `combobox`) always renders the same widget.
+ * Same widget map as the Zod system, but driven by the Valibot adapter.
+ * Only the adapter changes — `SmartField`, `Form`, `SmartFieldArray` and
+ * every other API stay identical.
  */
 const fieldComponents: FieldComponentMap = {
 	boolean: CheckboxField,
@@ -42,10 +40,15 @@ const fieldComponents: FieldComponentMap = {
 	url: TextField,
 };
 
-const system: FormSystem<ZodType<FieldValues, FieldValues>> = createFormSystem({
+const system: FormSystem<GenericSchema> = createFormSystem({
 	fieldComponents,
-	schemaResolver: zodAdapter,
+	schemaResolver: valibotAdapter,
 });
 
-export const { SmartField, SmartFieldArray, Form, useForm, useFormContext } =
-	system;
+export const {
+	SmartField: ValibotSmartField,
+	SmartFieldArray: ValibotSmartFieldArray,
+	Form: ValibotForm,
+	useForm: useValibotForm,
+	useFormContext: useValibotFormContext,
+} = system;

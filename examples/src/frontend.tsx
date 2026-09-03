@@ -5,27 +5,18 @@
  * It is included in `src/index.html`.
  */
 
-import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import { App } from "./app";
 import "./index.css";
-import { routeTree } from "./routeTree.gen";
-
-const router = createRouter({ routeTree });
-
-declare module "@tanstack/react-router" {
-	interface Register {
-		router: typeof router;
-	}
-}
 
 const elem = document.getElementById("root");
 if (!elem) throw new Error("Root element not found");
 
 const app = (
 	<StrictMode>
-		<RouterProvider router={router} />
+		<App />
 	</StrictMode>
 );
 

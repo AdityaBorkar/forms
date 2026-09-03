@@ -1,12 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
 import z from "zod";
 
 import { ExampleForm } from "@/components/form-wrapper";
 import { SmartField } from "@/lib/form";
-
-export const Route = createFileRoute("/nested-form")({
-	component: NestedForm,
-});
 
 const schema = z.object({
 	address: z.object({
@@ -17,7 +12,12 @@ const schema = z.object({
 	name: z.string().min(1).meta({ label: "Full name" }),
 });
 
-function NestedForm() {
+/**
+ * 2 · Nested fields — nested `z.object` schemas resolve via dotted names.
+ * `resolveFieldDef` walks `elementFields`, skipping numeric segments, so
+ * `address.street` finds the street definition inside the address object.
+ */
+export function NestedForm() {
 	return (
 		<ExampleForm
 			description="Nested objects resolve via dotted field names — address.street, address.city…"

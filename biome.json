@@ -32,7 +32,7 @@
 	},
 	"files": {
 		"ignoreUnknown": true,
-		"includes": ["**"]
+		"includes": ["**", "!**/dist"]
 	},
 	"formatter": {
 		"enabled": true

@@ -1,4 +1,6 @@
 export { CheckboxField } from "./checkbox-field";
+export { ComboboxField } from "./combobox-field";
+export { DateField } from "./date-field";
 export { FieldShell } from "./field-shell";
 export { NumberField } from "./number-field";
 export { SelectField } from "./select-field";

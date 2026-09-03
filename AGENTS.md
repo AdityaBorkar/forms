@@ -6,7 +6,7 @@
 
 ## Structure
 
-Bun workspace. Root `package.json` → `workspaces: ["./package","./examples"]`. Library is `package/` (`src/`, `tsconfig.json`, library `package.json`); `examples/` is Bun+TanStack Router demo. `docs/` → `CONTEXT.md`, `GLOSSARY.md`, `USER-TODO.md`, `adr/` (`TODO.md` was renamed to `USER-TODO.md`). `www/` exists but is empty. `.github/workflows/` is empty — no CI/publish workflows committed.
+Bun workspace. Root `package.json` → `workspaces: ["./package","./examples"]`. Library is `package/` (`src/`, `tsconfig.json`, library `package.json`); `examples/` is a Bun + Elysia 2 (beta) + React demo (no frontend router — state-switched pages in `src/examples/`, API + source serving in `src/server.ts`). `docs/` → `CONTEXT.md`, `GLOSSARY.md`, `USER-TODO.md`, `adr/` (`TODO.md` was renamed to `USER-TODO.md`). `www/` exists but is empty. `.github/workflows/` is empty — no CI/publish workflows committed.
 
 ## Commands
 
