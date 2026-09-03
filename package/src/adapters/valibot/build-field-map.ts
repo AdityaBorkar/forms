@@ -1,11 +1,20 @@
 import {
 	createConstraintAcc,
 	finalizeConstraints,
-} from "@/adapters/shared/constraints";
-import { makeFieldDef, mergeMeta } from "@/adapters/shared/field-def";
-import type { ValibotPipeItem } from "@/adapters/shared/valibot-types";
+	makeFieldDef,
+	mergeMeta,
+} from "@/adapters/shared";
 import { createFormError } from "@/errors";
 import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "@/types";
+
+type ValibotPipeItem = {
+	kind?: string;
+	type?: string;
+	requirement?: unknown;
+	metadata?: unknown;
+	title?: unknown;
+	description?: unknown;
+};
 
 type ValibotSchema = {
 	type?: string;

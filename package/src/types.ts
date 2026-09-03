@@ -4,6 +4,7 @@ import type {
 	FieldErrors,
 	FieldValues,
 	Resolver,
+	UseFormReturn,
 } from "react-hook-form";
 
 export type FieldMeta = {
@@ -111,6 +112,18 @@ export type ReValidateMode = "onChange" | "onBlur" | "onSubmit";
 export type FormContextValue = {
 	fieldMap: SchemaTree;
 };
+
+export type FormContextInstance<TValues extends FieldValues = FieldValues> =
+	UseFormReturn<TValues> & {
+		fieldMap: SchemaTree;
+	};
+
+export type FormInstance<TValues extends FieldValues = FieldValues> =
+	UseFormReturn<TValues, unknown, TValues> & {
+		fieldMap: SchemaTree;
+		onSubmit: (values: TValues) => void;
+		onInvalid?: (errors: FieldErrors<TValues>) => void;
+	};
 
 export type UseFormOptions<
 	TSchema,

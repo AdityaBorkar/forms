@@ -8,8 +8,7 @@ import { useCallback, useMemo } from "react";
 import type { FieldValues } from "react-hook-form";
 import { FormProvider } from "react-hook-form";
 
-import type { FormContextValue } from "@/types";
-import type { FormInstance } from "./use-form";
+import type { FormContextValue, FormInstance } from "@/types";
 
 export type FormProps<TValues extends FieldValues = FieldValues> = {
 	form: FormInstance<TValues>;

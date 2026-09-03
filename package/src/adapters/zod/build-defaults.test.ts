@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import z from "zod";
 
+import { buildDefaults } from "@/adapters/shared";
 import type { FieldDef, SchemaTree } from "@/types";
-import { buildDefaults } from "./build-defaults";
 import { buildFieldMap } from "./build-field-map";
 
 function fieldMap(...entries: Array<[string, FieldDef]>): SchemaTree {

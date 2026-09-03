@@ -5,7 +5,9 @@ import type { FieldValues } from "react-hook-form";
 import { createFormError } from "@/errors";
 import type {
 	FieldComponentMap,
+	FormContextInstance,
 	FormContextValue,
+	FormInstance,
 	SchemaAdapter,
 	UseFormOptions,
 } from "@/types";
@@ -15,9 +17,7 @@ import type { SmartFieldArrayProps } from "@/ui/smart-field-array";
 import { createSmartFieldArray } from "@/ui/smart-field-array";
 import type { FormProps } from "./form";
 import { createForm } from "./form";
-import type { FormInstance } from "./use-form";
 import { createUseForm } from "./use-form";
-import type { FormContextInstance } from "./use-form-context";
 import { createUseFormContext } from "./use-form-context";
 
 export type CreateFormSystemOptions<TSchema> = {

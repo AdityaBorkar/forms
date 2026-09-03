@@ -1,14 +1,9 @@
 import type { Context } from "react";
-import type { FieldValues, UseFormReturn } from "react-hook-form";
+import type { FieldValues } from "react-hook-form";
 import { useFormContext as useRhfContext } from "react-hook-form";
 
-import type { FormContextValue, SchemaTree } from "@/types";
+import type { FormContextInstance, FormContextValue } from "@/types";
 import { useFormContextValue } from "./form-context";
-
-export type FormContextInstance<TValues extends FieldValues = FieldValues> =
-	UseFormReturn<TValues> & {
-		fieldMap: SchemaTree;
-	};
 
 export function createUseFormContext(
 	FormContext: Context<FormContextValue | null>,

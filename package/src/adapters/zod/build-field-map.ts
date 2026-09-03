@@ -1,9 +1,10 @@
-import type { ConstraintAcc } from "@/adapters/shared/constraints";
+import type { ConstraintAcc } from "@/adapters/shared";
 import {
 	createConstraintAcc,
 	finalizeConstraints,
-} from "@/adapters/shared/constraints";
-import { makeFieldDef, mergeMeta } from "@/adapters/shared/field-def";
+	makeFieldDef,
+	mergeMeta,
+} from "@/adapters/shared";
 import { createFormError } from "@/errors";
 import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "@/types";
 
