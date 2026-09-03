@@ -1,4 +1,15 @@
 export type {
+	CreateFormSystemOptions,
+	FormSystem,
+} from "@/core/create-form-system";
+export { createFormSystem } from "@/core/create-form-system";
+export type { FormProps } from "@/core/form";
+export { resolveFieldDef } from "@/core/resolve-field-def";
+export type {
+	FormContextInstance,
+	FormInstance,
+} from "@/core/use-form";
+export type {
 	FieldCheck,
 	FieldComponentMap,
 	FieldComponentProps,
@@ -16,10 +27,3 @@ export type {
 	SmartFieldArrayRenderProps,
 } from "@/ui/smart-field-array";
 export { SmartFieldArray } from "@/ui/smart-field-array";
-export { createFormSystem } from "./core/create-form-system";
-export type { FormProps } from "./core/form";
-export { resolveFieldDef } from "./core/resolve-field-def";
-export type {
-	FormContextInstance,
-	FormInstance,
-} from "./core/use-form";

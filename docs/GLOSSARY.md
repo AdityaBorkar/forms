@@ -74,17 +74,16 @@ The `kind` property on [FieldDef](#fielddef). A flat, single-string value that
 serves as the dispatch key into the [FieldComponentMap](#fieldcomponentmap). The
 adapter resolves all schema nuances to a single `kind`.
 
-Possible kinds include:
+Possible kinds (everything the Zod adapter can emit):
 
 - **Primitive types:** `"string"`, `"number"`, `"boolean"`, `"date"`
 - **Format variants:** `"email"`, `"url"`
 - **Structural types:** `"object"`, `"array"`, `"enum"`
-- **Adapter-extendable kinds:** [`deriveDefault`](#derivedefault) in
-  `build-defaults.ts` also handles `"password"`, `"textarea"`, `"combobox"`,
-  `"checkbox"` — these are not produced by the Zod adapter but are supported
-  for custom adapters or manual field maps.
-- **Unsupported types:** `record` and unrecognized Zod types throw an error
-  rather than falling through to `"unknown"`.
+
+**Unsupported types:** `record`, `literal`, and unrecognized Zod types throw an
+error rather than falling through to `"unknown"`. The Zod adapter never emits
+`"unknown"` — `resolveFieldDef` still rejects `kind === "unknown"` for manually
+built field maps.
 
 The `kind` is intentionally flat — the adapter is responsible for collapsing
 type/format into a single string. This keeps the
@@ -289,7 +288,10 @@ from React context (throws `createFormError("SmartField must be used within a <F
 if no context), resolves the field definition via [resolveFieldDef](#resolvefielddef),
 looks up the component in [FieldComponentMap](#fieldcomponentmap), and renders it
 with RHF bindings via `register(name)` (`ref`, `onChange`, `onBlur`) and
-`getFieldState(name, formState).error?.message` (`error`).
+`getFieldState(name, formState).error?.message` (`error`). No `<Controller>` is
+used; `onChange`/`onBlur` adapt the component value to
+`{ target: { name, value }, type }` events. There is no `meta.component` kind
+override — dispatch is always `fieldComponents[def.kind]`.
 
 Props: [SmartFieldProps](#smartfieldprops) — `{ name, disabled?, config? }`.
 
@@ -322,7 +324,9 @@ Props: [SmartFieldArrayProps](#smartfieldarrayprops) — `{ name, children }`.
 The row shape exposed by [SmartFieldArray](#smartfieldarray). Each entry in the
 `fields` array is a `FieldArrayRow` — the row's field values plus RHF's stable
 `id` (used as `key`). Consumers access named fields off each row inside the
-render function.
+render function. Defined in `ui/smart-field-array.tsx` but not re-exported from
+`@adistack/forms` or `@adistack/forms/ui` — infer it from render props or import
+the file directly.
 
 ---
 
@@ -373,7 +377,9 @@ Lives in `core/resolve-field-def.ts` and is exported from `src/index.ts` (the
 Returns a `useForm<TValues>(options: UseFormOptions) => FormInstance<TValues>`.
 Internally builds the [SchemaTree](#schematree) via `adapter.buildFieldMap(schema)`,
 defaults via `adapter.buildDefaults(schema, fieldMap, defaultValues)`, and a
-resolver via `adapter.createResolver(schema)`, then delegates to RHF's `useForm`.
+resolver via `adapter.createResolver(schema)`, then delegates to RHF's `useForm`
+with `mode: validationMode` (defaults to `"onBlur"`) and
+`reValidateMode: "onChange"`.
 
 ---
 
@@ -392,12 +398,13 @@ context. Throws `"useFormContext must be used within a <Form>"` if no context.
 **Type:** `(def: FieldDef) => unknown` (private helper in `build-defaults.ts`)
 
 Derives a default value from a [FieldDef](#fielddef) by switching on
-[Kind](#kind). Returns `undefined` for optional fields. Handles primitive kinds
-(`string` → `""`, `number` → `0`, `boolean` → `false`), format variants
-(`email`, `url`), adapter-extendable kinds (`password`, `textarea`, `combobox`,
-`checkbox`), structural kinds (`array` → `[]`, `object` → recursive), and
-`enum` (first entry value). Called recursively for nested objects. Used
-internally by [buildDefaults](#builddefaults).
+[Kind](#kind). Returns `undefined` for optional fields. Handles Zod-produced
+kinds (`string`/`email`/`url` → `""`, `number` → `0`, `boolean` → `false`,
+`array` → `[]`, `object` → recursive, `enum` → first entry value) and returns
+`undefined` for `date` and anything else. The switch also contains
+`password`/`textarea`/`combobox` → `""` and `checkbox` → `false` branches that
+are unreachable via the Zod adapter (it never emits those kinds). Called
+recursively for nested objects. Used internally by [buildDefaults](#builddefaults).
 
 ---
 

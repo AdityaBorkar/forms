@@ -7,9 +7,9 @@
 		"analyze:packages": "bun audit",
 		"check:lint": "biome check --fix .",
 		"check:types": "tsc -b",
+		"clean": "bunx rimraf --glob \"**/{node_modules,.output,.local,.tanstack,.wrangler,bun.lockb}\"",
 		"format": "biome format --fix .",
 		"prepare": "husky",
-		"clean": "bunx rimraf --glob \"**/{node_modules,.output,.local,.tanstack,.wrangler,bun.lockb}\"",
 		"update:deps": "bun taze -rw --maturity-period 3 && bun install"
 	},
 	"devDependencies": {

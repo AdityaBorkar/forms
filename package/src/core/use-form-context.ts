@@ -8,7 +8,7 @@ import type { FormContextInstance } from "./use-form";
 
 export function createUseFormContext(
 	FormContext: Context<FormContextValue | null>,
-) {
+): () => FormContextInstance {
 	return function useFormContext(): FormContextInstance {
 		const rhf = useRhfContext();
 		const ctx = useContext(FormContext);

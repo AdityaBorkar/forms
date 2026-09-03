@@ -81,7 +81,7 @@ createFormSystem({ fieldComponents, schemaResolver })
         │
         ├── useForm(schema)      → builds SchemaTree + defaults + resolver, delegates to react-hook-form
         ├── <Form>               → wraps FormProvider + the context that carries fieldMap
-        ├── <SmartField name>    → resolves FieldDef, renders your component via <Controller>
+        ├── <SmartField name>    → resolves FieldDef, renders your component via register()
         └── <SmartFieldArray>    → wraps useFieldArray for repeatable rows
 ```
 
@@ -102,11 +102,11 @@ z.string().min(8).meta({
   label: "Password",
   placeholder: "••••••••",
   description: "At least 8 characters.",
-  component: "password", // overrides the resolved kind → renders your "password" component
 })
 ```
 
-`meta.component` is the escape hatch — force a `string` to render as a `textarea`, a `boolean` as a `switch`, etc.
+`meta` is passthrough only — dispatch is always `fieldComponents[def.kind]` and
+the Zod adapter only emits `string|number|boolean|date|email|url|object|array|enum`.
 
 ## Nested objects & arrays
 

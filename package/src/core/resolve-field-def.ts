@@ -2,7 +2,7 @@ import { createFormError } from "@/errors";
 import type { FieldDef, SchemaTree } from "@/types";
 
 function isNumeric(segment: string): boolean {
-	return segment.length > 0 && /^\d+$/.test(segment);
+	return /^\d+$/.test(segment);
 }
 
 export function resolveFieldDef(fieldMap: SchemaTree, name: string): FieldDef {

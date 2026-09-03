@@ -65,7 +65,10 @@ that knowledge.**
    `<Form>`), resolves the field definition via `resolveFieldDef`, looks up the
    component in the `FieldComponentMap`, and renders it with RHF bindings via
    `register(name)` (provides `ref`, `onChange`, `onBlur`) and
-   `getFieldState(name, formState).error?.message` (provides `error`). If
+   `getFieldState(name, formState).error?.message` (provides `error`). There is
+   no `<Controller>` and no `meta.component` kind override — dispatch is always
+   `fieldComponents[def.kind]`, with `onChange`/`onBlur` adapted to
+   `{ target: { name, value }, type }` events. If
    `resolveFieldDef` throws or no component is registered for the resolved
    `kind`, SmartField calls `devWarn` and renders `null`.
 
@@ -125,13 +128,13 @@ right `SmartField` components inside the array render function.
 
 | Entrypoint | Path | Purpose |
 |---|---|---|
-| `@adistack/forms` | `src/index.ts` | Core: `createFormSystem`, `resolveFieldDef`, `SmartFieldArray`, and types (`FieldDef`, `SchemaTree`, `FieldComponentMap`, `FieldComponentProps`, `FormInstance`, `FormContextInstance`, `UseFormOptions`, etc.). `SmartField`, `useForm`, `useFormContext` are **not** direct exports — they're returned by `createFormSystem()`. |
+| `@adistack/forms` | `src/index.ts` | Core: `createFormSystem`, `resolveFieldDef`, `SmartFieldArray`, and types (`FieldDef`, `SchemaTree`, `FieldComponentMap`, `FieldComponentProps`, `FormInstance`, `FormContextInstance`, `UseFormOptions`, etc.). `SmartField`, `useForm`, `useFormContext` are **not** direct exports — they're returned by `createFormSystem()`. `FieldArrayRow` is defined in `ui/smart-field-array.tsx` but not re-exported from any entrypoint. |
 | `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | Zod v4 adapter: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `createResolver` (`deriveDefault` is private, not exported) |
-| `@adistack/forms/ui` | `src/ui/index.ts` | Re-exports `SmartFieldArray` and prop types (`SmartFieldProps`, `SmartFieldArrayProps`, `SmartFieldArrayRenderProps`) |
+| `@adistack/forms/ui` | `src/ui/index.ts` | Re-exports `SmartFieldArray` and prop types (`SmartFieldProps`, `SmartFieldArrayProps`, `SmartFieldArrayRenderProps` — `FieldArrayRow` is not re-exported) |
 
 `zod` and `@hookform/resolvers` are **optional peer dependencies** (marked
 `optional: true` via `peerDependenciesMeta`) — consumers who don't use the Zod
-adapter don't need them. `react-hook-form@^7.80.0` and `react@>=18` are required
+adapter don't need them. `react-hook-form@^7.86.0` and `react@>=18` are required
 peers.
 
 ---
@@ -162,7 +165,7 @@ accepts a `FormInstance`; everything inside reads via `useFormContext` as a
 
 | Dependency | Role | Required? |
 |---|---|---|
-| `react-hook-form@^7.80.0` | Form state management, validation, field registration | Yes (peer) |
+| `react-hook-form@^7.86.0` | Form state management, validation, field registration | Yes (peer) |
 | `react@>=18` | UI runtime | Yes (peer) |
 | `@hookform/resolvers@>=5` | Schema resolver bridge | Only with Zod adapter (optional peer via `peerDependenciesMeta`) |
 | `zod@>=4` | Schema definition & validation | Only with Zod adapter (optional peer via `peerDependenciesMeta`) |
@@ -180,7 +183,7 @@ accepts a `FormInstance`; everything inside reads via `useFormContext` as a
 ## Design Tradeoffs
 
 These describe the current design's costs honestly. Forward-looking fixes live
-in [TODO.md](./TODO.md), not here.
+in [USER-TODO.md](./USER-TODO.md), not here.
 
 ### ~~`fieldMap` is an overloaded name~~ — resolved
 
@@ -214,20 +217,23 @@ package/src/
 ├── errors.ts                         # createFormError (structured errors) + devWarn (dev-only warnings)
 ├── core/
 │   ├── create-form-system.ts         # createFormSystem factory (validates inputs, creates context)
+│   ├── create-form-system.test.tsx   # jsdom integration: resolution, nesting, submit, arrays
 │   ├── resolve-field-def.ts          # resolveFieldDef (walks SchemaTree by dot-path)
 │   ├── form.tsx                      # <Form> component (wraps FormProvider + context)
-│   ├── use-form.ts                   # useForm hook + FormInstance / FormContextInstance types
-│   └── use-form-context.ts           # useFormContext hook
+│   ├── use-form.ts                   # createUseForm hook factory + FormInstance / FormContextInstance types
+│   └── use-form-context.ts           # createUseFormContext hook factory
 ├── ui/
 │   ├── index.ts                      # Re-exports SmartFieldArray and prop types
 │   ├── smart-field.tsx               # SmartField + createSmartField
-│   └── smart-field-array.tsx         # SmartFieldArray + render-prop types
+│   └── smart-field-array.tsx         # SmartFieldArray + render-prop types (+ FieldArrayRow, not re-exported)
 └── adapters/
     └── zod/
         ├── index.ts                  # Public re-exports from Zod adapter
         ├── adapter.ts                # zodAdapter: SchemaAdapter<ZodType>
         ├── build-field-map.ts        # Zod schema → SchemaTree introspection
+        ├── build-field-map.test.ts   # Kind mapping, optional/union, record/literal throws
         ├── build-defaults.ts         # SchemaTree → default values + deriveDefault (private)
+        ├── build-defaults.test.ts    # Per-kind defaults, nesting, overrides
         └── create-resolver.ts        # Zod schema → RHF resolver
 ```
 
@@ -239,17 +245,32 @@ The Zod adapter is the most complex part of the system because it walks Zod v4's
 private `_zod.def` API. This is intentionally fragile — if Zod's internal shape
 changes, `build-field-map.ts` will break.
 
+Supported types (`SUPPORTED_TYPES`): `string`, `number`, `boolean`, `enum`,
+`array`, `object`, `date`. `buildFieldMap(schema, parentPath?)` reads
+`schema._zod.def.shape` and returns `{}` for non-object or `undefined` input.
+
 ### Key behaviors
 
 - **Optional unwrapping:** When `type === "optional"`, the adapter recurses into
   `innerType` with `optional = true`, then overlays `meta` from the outer schema.
 - **Union handling:** When `type === "union"`, the adapter picks the first
   non-literal option (to handle `z.string().optional()` which becomes a union of
-  `string | literal(undefined)`).
+  `string | literal(undefined)`). A bare `literal` or an empty union throws.
 - **String kind resolution:** `resolveStringKind` checks `def.format` and
   `checks` for `"email"` / `"url"` before falling back to `"string"`.
+- **Number constraints:** inclusive `greater_than` / `greater_than_equal` → `min`,
+  inclusive `less_than` / `less_than_equal` → `max`; exclusive bounds become
+  `{ type: "gt"/"lt" }` checks.
 - **Required derivation:** `required = !optional`.
-- **Unsupported types:** `record` and unrecognized Zod types throw an error.
+- **Defaults:** `deriveDefault` (private) returns `""` for
+  `string/email/url/password/textarea/combobox`, `0` for `number`, `false` for
+  `boolean/checkbox`, first entry for `enum`, `[]` for `array`, recursive object
+  for `object`, and `undefined` for `optional`, `date`, `unknown`, and anything
+  else. The Zod adapter never emits `password`/`textarea`/`combobox`/`checkbox` —
+  those branches only trigger via custom adapters or manual field maps.
+- **Unsupported types:** `record`, `literal`, and unrecognized Zod types throw
+  (`Unsupported Zod type: …`). The adapter never produces `kind: "unknown"`;
+  `resolveFieldDef` still rejects `"unknown"` for manually built maps.
 
 ---
 

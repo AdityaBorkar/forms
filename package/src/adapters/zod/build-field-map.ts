@@ -69,8 +69,12 @@ function collectConstraints(
 	};
 }
 
-const deriveLengthConstraints = (def: ZodDef | undefined) =>
-	collectConstraints(def, (cd, acc) => {
+function deriveLengthConstraints(def: ZodDef | undefined): {
+	checks?: FieldCheck[];
+	max?: number;
+	min?: number;
+} {
+	return collectConstraints(def, (cd, acc) => {
 		if (cd.check === "min_length" && cd.minimum != null) {
 			acc.min = cd.minimum;
 			acc.checks.push({ type: "min", value: cd.minimum });
@@ -81,9 +85,14 @@ const deriveLengthConstraints = (def: ZodDef | undefined) =>
 			acc.checks.push({ type: cd.format });
 		}
 	});
+}
 
-const deriveNumberConstraints = (def: ZodDef | undefined) =>
-	collectConstraints(def, (cd, acc) => {
+function deriveNumberConstraints(def: ZodDef | undefined): {
+	checks?: FieldCheck[];
+	max?: number;
+	min?: number;
+} {
+	return collectConstraints(def, (cd, acc) => {
 		if (cd.check === "greater_than") {
 			if (cd.inclusive && typeof cd.value === "number") acc.min = cd.value;
 			else if (typeof cd.value === "number")
@@ -103,6 +112,7 @@ const deriveNumberConstraints = (def: ZodDef | undefined) =>
 			acc.checks.push({ type: cd.format });
 		}
 	});
+}
 
 function resolveStringKind(def: ZodDef | undefined): string {
 	const formats = [

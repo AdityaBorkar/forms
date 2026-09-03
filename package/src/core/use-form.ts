@@ -14,7 +14,11 @@ export type FormInstance<TValues extends FieldValues = FieldValues> =
 		onInvalid?: (errors: Record<string, unknown>) => void;
 	};
 
-export function createUseForm<TSchema>(adapter: SchemaAdapter<TSchema>) {
+export function createUseForm<TSchema>(
+	schemaResolver: SchemaAdapter<TSchema>,
+): <TValues extends FieldValues = FieldValues>(
+	options: UseFormOptions<TSchema, TValues>,
+) => FormInstance<TValues> {
 	return function useForm<TValues extends FieldValues = FieldValues>(
 		options: UseFormOptions<TSchema, TValues>,
 	): FormInstance<TValues> {
@@ -26,12 +30,18 @@ export function createUseForm<TSchema>(adapter: SchemaAdapter<TSchema>) {
 			validationMode = "onBlur",
 		} = options;
 
-		const fieldMap = useMemo(() => adapter.buildFieldMap(schema), [schema]);
+		const fieldMap = useMemo(
+			() => schemaResolver.buildFieldMap(schema),
+			[schema],
+		);
 		const defaults = useMemo(
-			() => adapter.buildDefaults(schema, fieldMap, defaultValues),
+			() => schemaResolver.buildDefaults(schema, fieldMap, defaultValues),
 			[schema, fieldMap, defaultValues],
 		);
-		const resolver = useMemo(() => adapter.createResolver(schema), [schema]);
+		const resolver = useMemo(
+			() => schemaResolver.createResolver(schema),
+			[schema],
+		);
 
 		const methods = useRhfForm({
 			defaultValues: defaults,

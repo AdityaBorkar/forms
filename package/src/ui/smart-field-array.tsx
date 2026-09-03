@@ -19,22 +19,21 @@ export type SmartFieldArrayProps = {
 	children: (props: SmartFieldArrayRenderProps) => ReactNode;
 };
 
-export function SmartFieldArray({ name, children }: SmartFieldArrayProps) {
+export function SmartFieldArray({
+	name,
+	children,
+}: SmartFieldArrayProps): ReactNode {
 	const rhf = useRhfContext();
 	const { fields, append, remove, update, move } = useFieldArray({
 		control: rhf.control,
 		name,
 	});
 
-	return (
-		<>
-			{children({
-				append,
-				fields,
-				move,
-				remove,
-				update,
-			})}
-		</>
-	);
+	return children({
+		append,
+		fields,
+		move,
+		remove,
+		update,
+	});
 }

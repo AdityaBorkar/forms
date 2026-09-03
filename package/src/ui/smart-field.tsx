@@ -1,4 +1,4 @@
-import type { Context } from "react";
+import type { ComponentType, Context, ReactElement } from "react";
 import { useContext } from "react";
 import { useFormContext as useRhfContext } from "react-hook-form";
 
@@ -20,8 +20,12 @@ export type SmartFieldProps = {
 export function createSmartField(
 	FormContext: Context<FormContextValue | null>,
 	fieldComponents: FieldComponentMap,
-) {
-	function SmartField({ name, disabled, config }: SmartFieldProps) {
+): ComponentType<SmartFieldProps> {
+	function SmartField({
+		name,
+		disabled,
+		config,
+	}: SmartFieldProps): ReactElement | null {
 		const rhf = useRhfContext();
 		const ctx = useContext(FormContext);
 

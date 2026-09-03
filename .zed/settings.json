@@ -1,11 +1,14 @@
 {
 	"file_scan_exclusions": [
+		"**/.agents",
 		"**/.git",
 		"**/.local",
 		"**/.output",
 		"**/.tanstack",
+		"**/.coverage",
 		"**/node_modules",
-		"codedb.snapshot"
+		"codedb.snapshot",
+		"tsconfig.tsbuildinfo"
 	],
 	"format_on_save": "on",
 	"formatter": [
@@ -24,7 +27,7 @@
 		"biome": {
 			"binary": {
 				"arguments": ["lsp-proxy"],
-				"path": "./node_modules/@biomejs/cli-linux-x64/biome"
+				"path": "./node_modules/.bin/biome"
 			}
 		}
 	}

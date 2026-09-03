@@ -6,6 +6,7 @@
 		"react",
 		"forms",
 		"zod",
+		"valibot",
 		"react-hook-form",
 		"schema-driven",
 		"auto-render"
@@ -22,6 +23,7 @@
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
+		"./adapters/valibot": "./src/adapters/valibot/index.ts",
 		"./adapters/zod": "./src/adapters/zod/index.ts",
 		"./ui": "./src/ui/index.ts"
 	},
@@ -42,6 +44,7 @@
 		"react": "^19.2.8",
 		"react-dom": "^19.2.8",
 		"typescript": "^7.0.2",
+		"valibot": "^1.4.2",
 		"vitest": "^4.1.11",
 		"zod": "^4.4.3"
 	},
@@ -49,10 +52,14 @@
 		"@hookform/resolvers": ">=5",
 		"react": ">=18",
 		"react-hook-form": "^7.86.0",
+		"valibot": ">=1",
 		"zod": ">=4"
 	},
 	"peerDependenciesMeta": {
 		"@hookform/resolvers": {
+			"optional": true
+		},
+		"valibot": {
 			"optional": true
 		},
 		"zod": {
