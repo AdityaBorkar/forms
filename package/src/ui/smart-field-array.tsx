@@ -4,8 +4,8 @@ import {
 	useFormContext as useRhfContext,
 } from "react-hook-form";
 
-import { useFormContextValue } from "@/core/form-context";
-import type { FormContextValue } from "@/types";
+import { useFormContextValue } from "#/core/form-context";
+import type { FormContextValue } from "#/types";
 
 export type FieldArrayRow = Record<string, unknown> & { id: string };
 

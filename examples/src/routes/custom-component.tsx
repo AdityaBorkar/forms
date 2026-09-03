@@ -5,16 +5,16 @@ import type { FieldValues } from "react-hook-form";
 import type { ZodType } from "zod";
 import z from "zod";
 
-import { TextareaField, TextField } from "@/components/form-ui";
-import { FieldShell } from "@/components/form-ui/field-shell";
-import { Button } from "@/components/ui/button";
+import { TextareaField, TextField } from "#/components/form-ui";
+import { FieldShell } from "#/components/form-ui/field-shell";
+import { Button } from "#/components/ui/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@/components/ui/card";
+} from "#/components/ui/card";
 
 /**
  * A custom widget registered under its own kind. It receives the standard
@@ -47,7 +47,6 @@ function StarsField({
 						}
 						disabled={disabled}
 						key={star}
-						// biome-ignore lint/performance/noJsxPropsBind: demo — render perf is irrelevant
 						onClick={() => onChange(star)}
 						type="button"
 					>

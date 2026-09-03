@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import z from "zod";
 
-import { buildFieldMap } from "@/adapters/zod/build-field-map";
+import { buildFieldMap } from "#/adapters/zod/build-field-map";
 
 describe("buildFieldMap — string kinds", () => {
 	it("maps a plain string to kind string with min/max/optional", () => {

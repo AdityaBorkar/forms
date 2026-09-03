@@ -3,9 +3,9 @@ import {
 	finalizeConstraints,
 	makeFieldDef,
 	mergeMeta,
-} from "@/adapters/shared";
-import { createFormError } from "@/errors";
-import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "@/types";
+} from "#/adapters/shared";
+import { createFormError } from "#/errors";
+import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "#/types";
 
 type ValibotPipeItem = {
 	kind?: string;

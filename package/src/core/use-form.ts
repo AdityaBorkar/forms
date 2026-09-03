@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { DefaultValues, FieldValues, Resolver } from "react-hook-form";
 import { useForm as useRhfForm } from "react-hook-form";
 
-import type { FormInstance, SchemaAdapter, UseFormOptions } from "@/types";
+import type { FormInstance, SchemaAdapter, UseFormOptions } from "#/types";
 
 export function createUseForm<TSchema>(
 	schemaResolver: SchemaAdapter<TSchema>,

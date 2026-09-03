@@ -16,7 +16,7 @@ import {
 	SwitchField,
 	TextareaField,
 	TextField,
-} from "@/components/form-ui";
+} from "#/components/form-ui";
 
 /**
  * Same widget map as the Zod system, but driven by the Valibot adapter.

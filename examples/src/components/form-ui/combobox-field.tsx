@@ -1,7 +1,7 @@
 import type { FieldComponentProps } from "@adistack/forms";
 import { type ChangeEvent, useCallback, useId } from "react";
 
-import { Input } from "@/components/ui/input";
+import { Input } from "#/components/ui/input";
 import { FieldShell } from "./field-shell";
 
 /**

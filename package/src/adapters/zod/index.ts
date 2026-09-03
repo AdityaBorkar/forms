@@ -2,8 +2,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { FieldValues, Resolver } from "react-hook-form";
 import type { ZodType } from "zod";
 
-import { buildDefaults } from "@/adapters/shared";
-import type { SchemaAdapter } from "@/types";
+import { buildDefaults } from "#/adapters/shared";
+import type { SchemaAdapter } from "#/types";
 import { buildFieldMap } from "./build-field-map";
 
 export { buildDefaults, buildFieldMap };

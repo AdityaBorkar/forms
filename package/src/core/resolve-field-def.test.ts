@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveFieldDef } from "@/core/resolve-field-def";
-import type { SchemaTree } from "@/types";
+import { resolveFieldDef } from "#/core/resolve-field-def";
+import type { SchemaTree } from "#/types";
 
 const tree: SchemaTree = {
 	addr: {

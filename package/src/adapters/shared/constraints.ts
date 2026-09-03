@@ -1,4 +1,4 @@
-import type { FieldCheck } from "@/types";
+import type { FieldCheck } from "#/types";
 
 export type ConstraintAcc = {
 	min?: number;

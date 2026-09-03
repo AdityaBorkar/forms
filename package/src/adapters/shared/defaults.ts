@@ -1,6 +1,6 @@
 import type { DefaultValues, FieldValues } from "react-hook-form";
 
-import type { FieldDef, SchemaTree } from "@/types";
+import type { FieldDef, SchemaTree } from "#/types";
 
 function deriveDefault(def: FieldDef): unknown {
 	if (def.optional) return undefined;

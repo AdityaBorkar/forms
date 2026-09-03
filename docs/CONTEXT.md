@@ -175,7 +175,7 @@ accepts a `FormInstance`; everything inside reads via `useFormContext` as a
 - No build step — consumed as source TypeScript.
 - ESM only (`"type": "module"`).
 - TypeScript strict with `verbatimModuleSyntax`, `noUncheckedIndexedAccess`.
-- Path alias: `@/*` → `./src/*` (relative to `package/`).
+- Path alias: `#/*` → `./src/*` (relative to `package/`).
 - Tests colocated with source (`*.test.ts`, `*.test.tsx`).
 
 ---

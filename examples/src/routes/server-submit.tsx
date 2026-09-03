@@ -1,9 +1,9 @@
 import { useState } from "react";
 import z from "zod";
 
-import { ExampleForm } from "@/components/form-wrapper";
-import { Button } from "@/components/ui/button";
-import { SmartField } from "@/lib/form";
+import { ExampleForm } from "#/components/form-wrapper";
+import { Button } from "#/components/ui/button";
+import { SmartField } from "#/lib/form";
 
 const schema = z.object({
 	email: z.email().meta({ label: "Email" }),

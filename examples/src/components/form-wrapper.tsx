@@ -3,15 +3,15 @@ import { type ReactNode, useState } from "react";
 import type { FieldErrors, FieldValues } from "react-hook-form";
 import type { ZodType } from "zod";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "#/components/ui/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@/components/ui/card";
-import { Form, useForm } from "@/lib/form";
+} from "#/components/ui/card";
+import { Form, useForm } from "#/lib/form";
 
 type SubmitOutcome =
 	| { status: "local"; values: unknown }

@@ -3,8 +3,8 @@ import { useState } from "react";
 import type { FieldValues } from "react-hook-form";
 import z from "zod";
 
-import { Button } from "@/components/ui/button";
-import { Form, SmartField, useForm, useFormContext } from "@/lib/form";
+import { Button } from "#/components/ui/button";
+import { Form, SmartField, useForm, useFormContext } from "#/lib/form";
 
 const schema = z.object({
 	name: z.string().min(1).meta({ label: "Name", placeholder: "Ada Lovelace" }),
@@ -33,12 +33,7 @@ function LivePreview() {
 function ResetButton() {
 	const { reset } = useFormContext();
 	return (
-		<Button
-			// biome-ignore lint/performance/noJsxPropsBind: demo — render perf is irrelevant
-			onClick={() => reset()}
-			type="button"
-			variant="outline"
-		>
+		<Button onClick={() => reset()} type="button" variant="outline">
 			Reset
 		</Button>
 	);

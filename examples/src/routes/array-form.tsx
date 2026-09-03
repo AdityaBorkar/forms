@@ -1,8 +1,8 @@
 import z from "zod";
 
-import { ExampleForm } from "@/components/form-wrapper";
-import { Button } from "@/components/ui/button";
-import { SmartField, SmartFieldArray } from "@/lib/form";
+import { ExampleForm } from "#/components/form-wrapper";
+import { Button } from "#/components/ui/button";
+import { SmartField, SmartFieldArray } from "#/lib/form";
 
 const schema = z.object({
 	project: z.string().min(1).meta({ label: "Project name" }),
@@ -45,7 +45,6 @@ export function ArrayForm() {
 								</div>
 								<div className="flex gap-1">
 									<Button
-										// biome-ignore lint/performance/noJsxPropsBind: demo — render perf is irrelevant
 										onClick={() =>
 											update(index, {
 												hours: 0,
@@ -59,7 +58,6 @@ export function ArrayForm() {
 									</Button>
 									<Button
 										disabled={index === 0}
-										// biome-ignore lint/performance/noJsxPropsBind: demo — render perf is irrelevant
 										onClick={() => move(index, index - 1)}
 										type="button"
 										variant="outline"
@@ -67,7 +65,6 @@ export function ArrayForm() {
 										↑
 									</Button>
 									<Button
-										// biome-ignore lint/performance/noJsxPropsBind: demo — render perf is irrelevant
 										onClick={() => remove(index)}
 										type="button"
 										variant="destructive"
@@ -78,7 +75,6 @@ export function ArrayForm() {
 							</div>
 						))}
 						<Button
-							// biome-ignore lint/performance/noJsxPropsBind: demo — render perf is irrelevant
 							onClick={() => append({ hours: 0, title: "" })}
 							type="button"
 							variant="outline"

@@ -1,7 +1,7 @@
 import type { FieldComponentProps } from "@adistack/forms";
 import { useCallback } from "react";
 
-import { Slider } from "@/components/ui/slider";
+import { Slider } from "#/components/ui/slider";
 import { FieldShell } from "./field-shell";
 
 export function SliderField({

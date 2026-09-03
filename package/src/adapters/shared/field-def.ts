@@ -1,4 +1,4 @@
-import type { FieldDef, FieldMeta } from "@/types";
+import type { FieldDef, FieldMeta } from "#/types";
 
 /**
  * Resolve the dispatch kind. `meta.component` wins when it is a non-empty

@@ -1,7 +1,7 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import { buildFieldMap } from "@/adapters/valibot/build-field-map";
+import { buildFieldMap } from "#/adapters/valibot/build-field-map";
 
 describe("buildFieldMap — string kinds", () => {
 	it("maps a piped string to kind string with min/max/optional", () => {

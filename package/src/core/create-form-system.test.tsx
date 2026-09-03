@@ -10,9 +10,9 @@ import type { FieldValues } from "react-hook-form";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import z from "zod";
 
-import { zodAdapter } from "@/adapters/zod/index";
-import { createFormSystem } from "@/core/create-form-system";
-import type { FieldComponentProps } from "@/types";
+import { zodAdapter } from "#/adapters/zod/index";
+import { createFormSystem } from "#/core/create-form-system";
+import type { FieldComponentProps } from "#/types";
 
 afterEach(cleanup);
 

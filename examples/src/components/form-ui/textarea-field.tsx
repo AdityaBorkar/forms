@@ -1,7 +1,7 @@
 import type { FieldComponentProps } from "@adistack/forms";
 import { type ChangeEvent, useCallback } from "react";
 
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "#/components/ui/textarea";
 import { FieldShell } from "./field-shell";
 
 export function TextareaField({

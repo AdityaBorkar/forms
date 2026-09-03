@@ -1,8 +1,8 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import { buildDefaults } from "@/adapters/shared";
-import type { FieldDef, SchemaTree } from "@/types";
+import { buildDefaults } from "#/adapters/shared";
+import type { FieldDef, SchemaTree } from "#/types";
 import { buildFieldMap } from "./build-field-map";
 
 function fieldMap(...entries: Array<[string, FieldDef]>): SchemaTree {

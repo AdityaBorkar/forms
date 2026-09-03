@@ -1,12 +1,12 @@
-import type { ConstraintAcc } from "@/adapters/shared";
+import type { ConstraintAcc } from "#/adapters/shared";
 import {
 	createConstraintAcc,
 	finalizeConstraints,
 	makeFieldDef,
 	mergeMeta,
-} from "@/adapters/shared";
-import { createFormError } from "@/errors";
-import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "@/types";
+} from "#/adapters/shared";
+import { createFormError } from "#/errors";
+import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "#/types";
 
 type ZodCheckDef = {
 	check?: string;

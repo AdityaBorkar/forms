@@ -1,15 +1,15 @@
 import type { ComponentType, Context, ReactElement } from "react";
 import { useController } from "react-hook-form";
 
-import { useFormContextValue } from "@/core/form-context";
-import { resolveFieldDef } from "@/core/resolve-field-def";
-import { devWarn } from "@/errors";
+import { useFormContextValue } from "#/core/form-context";
+import { resolveFieldDef } from "#/core/resolve-field-def";
+import { devWarn } from "#/errors";
 import type {
 	FieldComponentMap,
 	FieldComponentProps,
 	FieldDef,
 	FormContextValue,
-} from "@/types";
+} from "#/types";
 
 export type SmartFieldProps = {
 	name: string;

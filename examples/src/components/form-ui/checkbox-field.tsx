@@ -1,7 +1,7 @@
 import type { FieldComponentProps } from "@adistack/forms";
 import { type ChangeEvent, useCallback } from "react";
 
-import { Label } from "@/components/ui/label";
+import { Label } from "#/components/ui/label";
 import { FieldShell } from "./field-shell";
 
 export function CheckboxField({

@@ -6,7 +6,7 @@
 
 ## Structure
 
-Bun workspace. Root `package.json` → `workspaces: ["./package","./examples"]`. Library is `package/` (`src/`, `tsconfig.json`, library `package.json`); `examples/` is a Bun + Elysia 2 (beta) + React demo (no frontend router — state-switched pages in `src/examples/`, API + source serving in `src/server.ts`). `docs/` → `CONTEXT.md`, `GLOSSARY.md`, `USER-TODO.md`, `adr/` (`TODO.md` was renamed to `USER-TODO.md`). `www/` exists but is empty. `.github/workflows/` is empty — no CI/publish workflows committed.
+Bun workspace. Root `package.json` → `workspaces: ["./package","./examples"]`. Library is `package/` (`src/`, `tsconfig.json`, library `package.json`); `examples/` is an Elysia 2 (beta) fullstack demo — Elysia API app + Bun-served React shell in `server.ts`, web root in `public/` (pages in `public/examples/`, no frontend router, no build script). `docs/` → `CONTEXT.md`, `GLOSSARY.md`, `USER-TODO.md`, `adr/` (`TODO.md` was renamed to `USER-TODO.md`). `www/` exists but is empty. `.github/workflows/` is empty — no CI/publish workflows committed.
 
 ## Commands
 
@@ -24,8 +24,8 @@ Run `check:lint` → `check:types` after changes. No workflows committed (`.gith
 ## Toolchain
 
 - **Bun** only — use `bun` for install/run (not `npm`/`node`).
-- **Biome** (not ESLint/Prettier): `biome.json` domains `react`/`tailwind`/`types` = `all`, nursery `useSortedClasses` enforces Tailwind order (`clsx`/`cva`/`tw`), import groups `Bun/Node → packages → @/* → relative`. Lint disabled for `examples/src/components/ui/**` (generated shadcn).
-- **TypeScript** strict `verbatimModuleSyntax` + `noUncheckedIndexedAccess`, `composite:true` with refs `package/`+`examples/`, alias `@/*` → `./src/*` in both `package/tsconfig.json` and `examples/tsconfig.json`. Package overrides `lib: [ES2022,DOM,DOM.Iterable]` and `types: [react]` (root uses `types: [bun]`).
+- **Biome** (not ESLint/Prettier): `biome.json` domains `react`/`tailwind`/`types` = `all`, nursery `useSortedClasses` enforces Tailwind order (`clsx`/`cva`/`tw`), import groups `Bun/Node → packages → #/* → relative`. Lint disabled for `examples/public/components/ui/**` (generated shadcn).
+- **TypeScript** strict `verbatimModuleSyntax` + `noUncheckedIndexedAccess`, `composite:true` with refs `package/`+`examples/`, alias `#/*` → `./src/*` in `package/tsconfig.json` and `#/*` → `./public/*` in `examples/tsconfig.json`. Package overrides `lib: [ES2022,DOM,DOM.Iterable]` and `types: [react]` (root uses `types: [bun]`).
 - **Vitest** (not Jest): `vitest.config.ts` defaults `environment: "node"` + `vite-tsconfig-paths`. Component tests must set `// @vitest-environment jsdom` as first line.
 - No build — consumed as source TS, ESM only (`"type":"module"`).
 - `bunfig.toml`: `ignore-scripts=true`, `minimumReleaseAge=259200` (3d), `saveTextLockfile=false`.

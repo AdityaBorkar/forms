@@ -17,7 +17,7 @@ import {
 	SwitchField,
 	TextareaField,
 	TextField,
-} from "@/components/form-ui";
+} from "#/components/form-ui";
 
 /**
  * Shared form system for every Zod example. One `createFormSystem` call per

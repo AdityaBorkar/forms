@@ -1,5 +1,5 @@
-import { createFormError } from "@/errors";
-import type { FieldDef, SchemaTree } from "@/types";
+import { createFormError } from "#/errors";
+import type { FieldDef, SchemaTree } from "#/types";
 
 function isNumeric(segment: string): boolean {
 	return /^\d+$/.test(segment);

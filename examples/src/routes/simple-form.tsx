@@ -1,7 +1,7 @@
 import z from "zod";
 
-import { ExampleForm } from "@/components/form-wrapper";
-import { SmartField } from "@/lib/form";
+import { ExampleForm } from "#/components/form-wrapper";
+import { SmartField } from "#/lib/form";
 
 const schema = z.object({
 	email: z.email().meta({ label: "Email", placeholder: "ada@example.com" }),

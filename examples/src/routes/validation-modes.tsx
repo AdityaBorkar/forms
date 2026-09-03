@@ -2,8 +2,8 @@ import type { ReValidateMode, ValidationMode } from "@adistack/forms";
 import { useState } from "react";
 import z from "zod";
 
-import { ExampleForm } from "@/components/form-wrapper";
-import { SmartField } from "@/lib/form";
+import { ExampleForm } from "#/components/form-wrapper";
+import { SmartField } from "#/lib/form";
 
 const schema = z.object({
 	email: z.email().meta({ label: "Email", placeholder: "ada@example.com" }),
@@ -38,7 +38,6 @@ export function ValidationModesForm() {
 									: "border-border bg-card hover:bg-accent"
 							}`}
 							key={m}
-							// biome-ignore lint/performance/noJsxPropsBind: demo — render perf is irrelevant
 							onClick={() => setMode(m)}
 							type="button"
 						>
@@ -56,7 +55,6 @@ export function ValidationModesForm() {
 									: "border-border bg-card hover:bg-accent"
 							}`}
 							key={m}
-							// biome-ignore lint/performance/noJsxPropsBind: demo — render perf is irrelevant
 							onClick={() => setReMode(m)}
 							type="button"
 						>

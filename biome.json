@@ -80,7 +80,27 @@
 		{
 			"includes": ["examples/src/components/ui/**"],
 			"linter": {
-				"enabled": false
+				"rules": {
+					"a11y": {
+						"noLabelWithoutControl": "off"
+					},
+					"style": {
+						"useComponentExportOnlyModules": "off"
+					},
+					"suspicious": {
+						"noArrayIndexKey": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["examples/src/**"],
+			"linter": {
+				"rules": {
+					"performance": {
+						"noJsxPropsBind": "off"
+					}
+				}
 			}
 		}
 	],

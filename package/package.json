@@ -21,6 +21,9 @@
 	},
 	"license": "MIT",
 	"type": "module",
+	"imports": {
+		"#/*": "./src/*"
+	},
 	"exports": {
 		".": "./src/index.ts",
 		"./adapters/valibot": "./src/adapters/valibot/index.ts",

@@ -1,9 +1,18 @@
 import { Elysia, problem, t } from "elysia";
 
-import index from "./index.html";
+import index from "./src/index.html";
 
 /**
- * Examples backend — Elysia 2 (beta).
+ * Examples server — Elysia 2 (beta) API + Bun fullstack frontend.
+ *
+ * This follows https://elysiajs.com/patterns/fullstack-dev-server.html
+ * (one server for API + React, no bundler, `bun --hot` for HMR) with a
+ * single beta workaround: Elysia 2 beta cannot serve Bun's HTMLBundle yet
+ * (upstream regression, elysiajs/elysia#1788 — route responses, including
+ * the `@elysia/static` fullstack path, serialize to `{}`). Until that
+ * lands, `Bun.serve` owns the SPA shell line below while every `/api/*`
+ * route lives in the Elysia app. Afterwards the shell collapses to:
+ * `.use(await staticPlugin({ prefix: "/" }))` + `.listen()`.
  *
  * Elysia 2 notes (see https://elysiajs.com/blog/elysia-20):
  * - route hooks/schemas come BEFORE the handler:
@@ -12,11 +21,6 @@ import index from "./index.html";
  * - errors are RFC 9457 problem details (`application/problem+json`);
  *   `problem(status, { detail })` builds one manually
  * - validation failures automatically return a 422 problem response
- *
- * Serving note: Elysia 2 beta cannot serve Bun's HTMLBundle yet
- * (upstream regression, elysiajs/elysia#1788 — route responses serialize
- * to `{}`). Until that lands, `Bun.serve` owns the SPA shell line below
- * while every `/api/*` route lives in the Elysia app.
  */
 
 const EXAMPLE_FILES = [
@@ -36,7 +40,7 @@ const SYSTEM_FILES = ["form.tsx", "form-valibot.tsx"] as const;
 
 /** Files the `/api/sources` route is allowed to read from `src/`. */
 const SOURCE_ALLOWLIST = new Set<string>([
-	...EXAMPLE_FILES.map((file) => `examples/${file}`),
+	...EXAMPLE_FILES.map((file) => `routes/${file}`),
 	...SYSTEM_FILES.map((file) => `lib/${file}`),
 	"components/form-wrapper.tsx",
 ]);
@@ -67,12 +71,12 @@ const app = new Elysia({ prefix: "/api" })
 	.get("/health", () => ({ ok: true, server: "elysia-2-beta" }))
 	.get("/forms", () => FORMS)
 	.get("/sources/*", ({ params }) => {
-		// Wildcard keeps the full relative path (`examples/x.tsx`); the
+		// Wildcard keeps the full relative path (`routes/x.tsx`); the
 		// allowlist below rejects anything else (no traversal possible).
 		const rel = params["*"];
 		if (!SOURCE_ALLOWLIST.has(rel))
 			return problem(404, { detail: `Unknown source file "${rel}".` });
-		return Bun.file(`${import.meta.dir}/${rel}`)
+		return Bun.file(`${import.meta.dir}/src/${rel}`)
 			.text()
 			.then((content) => ({ content, name: rel.split("/").pop() ?? rel }));
 	})
