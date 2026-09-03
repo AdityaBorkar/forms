@@ -1,0 +1,69 @@
+---
+title: "Validation"
+description: "Modes, submit wiring, and server errors."
+icon: ShieldCheck
+---
+
+# Validation
+
+You will control when validation runs and where failures go.
+
+## Modes
+
+`useForm` maps straight onto react-hook-form (`package/src/core/use-form.ts:189`):
+
+| Option | Values | Default |
+|---|---|---|
+| `validationMode` | `onBlur` \| `onChange` \| `onSubmit` \| `onTouched` \| `all` | `onBlur` |
+| `reValidateMode` | `onChange` \| `onBlur` \| `onSubmit` | `onChange` |
+
+```tsx title="examples/validation-modes.tsx"
+const form = useForm({ schema, validationMode: "onBlur", reValidateMode: "onChange" });
+```
+
+Invalid modes throw `createFormError`. Switching modes remounts the form (via `key`) so the new mode takes effect from a clean state (`examples/src/examples/validation-modes.tsx:25-77`).
+
+## Submit wiring
+
+```ts title="package/src/types.ts"
+type UseFormOptions<TSchema, TValues> = {
+  schema: TSchema;
+  onSubmit: (values: TValues) => void | Promise<void>;
+  onInvalid?: (errors: FieldErrors<TValues>) => void;
+  onSubmitError?: (error: unknown) => void;
+  defaultValues?: DefaultValues<TValues>;
+  validationMode?: ValidationMode;
+  reValidateMode?: ReValidateMode;
+};
+```
+
+| Callback | Fires when |
+|---|---|
+| `onSubmit` | Validation passes; receives `TValues` (inferred from Standard Schema `~standard.types.output` via `InferFormValues`) |
+| `onInvalid` | Validation fails; receives `FieldErrors<TValues>` |
+| `onSubmitError` | `onSubmit` itself throws or rejects (e.g. failed fetch); validation failures still go to `onInvalid` |
+
+`<Form form>` renders `<form onSubmit={preventDefault + handleSubmit(onSubmit, onInvalid)}>` (`package/src/core/form.tsx:46`). A throwing `onSubmit` is caught and routed to `onSubmitError` plus a `root.serverError` field error — read it via `useFormState().errors.root?.serverError`. Missing `schema`/`onSubmit` throws `createFormError`; raw Adapter failures gain context while `createFormError` messages pass through (`package/src/core/use-form.ts:45`).
+
+## Deep components
+
+Anything inside `<Form>` can read live state without prop drilling:
+
+```tsx title="examples/form-context.tsx"
+const { watch, fieldMap } = useFormContext();
+const { reset } = useFormContext();
+<SmartField name="name" disabled={disabled} />
+```
+
+`useFormContext` merges RHF context with `{ fieldMap }` and throws outside `<Form>`. `disabled` forwards to `useController` and the widget; `reset()` restores Adapter defaults. Full example in `examples/src/examples/form-context.tsx:23-45`.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `useForm requires a schema` | `schema` null/undefined | Pass the schema matching your Adapter |
+| `useForm requires an onSubmit handler` | `onSubmit` not a function | Pass `(values) => …` |
+| `Invalid validationMode "x"` | Typo | Use one of the five `ValidationMode` values above |
+| Silent server failure | Throwing `onSubmit` without `onSubmitError` | Add `onSubmitError` and check `root.serverError` |
+
+Agent hint: inline `onSubmit`/`onInvalid`/`onSubmitError` are latest-ref stabilized so `form` identity does not churn (`package/src/core/use-form.ts:199`).

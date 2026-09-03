@@ -1,0 +1,67 @@
+---
+title: "Field Kinds"
+description: "Every dispatch Kind, its widget slot, and its default."
+icon: Layers
+---
+
+# Field Kinds
+
+You will pick the right Kind for each field and read its constraints from `def`.
+
+## Known Kinds
+
+15 first-class Kinds (`package/src/types.ts:19-34`):
+
+| Kind | Schema source | Widget slot |
+|---|---|---|
+| `string` | `z.string()` / `v.string()` | `fieldComponents.string` |
+| `email` | `z.email()` / `v.pipe(v.string(), v.email())` | `fieldComponents.email` |
+| `url` | `z.url()` / `v.pipe(v.string(), v.url())` | `fieldComponents.url` |
+| `password` | `meta.component: "password"` | `fieldComponents.password` |
+| `textarea` | `meta.component: "textarea"` | `fieldComponents.textarea` |
+| `combobox` | `meta.component: "combobox"` | `fieldComponents.combobox` |
+| `number` | `z.number()` / `v.number()` | `fieldComponents.number` |
+| `slider` | `meta.component: "slider"` | `fieldComponents.slider` |
+| `boolean` | `z.boolean()` / `v.boolean()` | `fieldComponents.boolean` |
+| `checkbox` | `meta.component: "checkbox"` | `fieldComponents.checkbox` |
+| `switch` | `meta.component: "switch"` | `fieldComponents.switch` |
+| `enum` | `z.enum()` / `v.picklist()`+`v.enum()` | `fieldComponents.enum` |
+| `array` | `z.array()` / `v.array()` | Repeatable rows via `SmartFieldArray` |
+| `object` | `z.object()` / `v.object()` | Nested `elementFields` |
+| `date` | `z.date()` / `v.date()` | `fieldComponents.date` |
+
+Base Kinds come from the Adapter; `password`/`textarea`/`combobox`/`slider`/`checkbox`/`switch` come only from a Component override. Any other non-empty string stays allowed for custom widgets (`FieldKind = KnownFieldKind | (string & {})`). The Adapter never emits `kind: "unknown"` — unknown Kinds resolve at render time (missing component → `devWarn` + `null`).
+
+```tsx title="examples/field-kinds.tsx"
+z.string().min(8).meta({ component: "password", label: "Password" });
+z.number().min(0).max(10).meta({ component: "slider", label: "Rating" });
+z.boolean().meta({ component: "switch", label: "Email notifications" });
+z.string().meta({ component: "combobox", label: "City" });
+```
+
+Full schema in `examples/src/examples/field-kinds.tsx:6-50`. `config` is free-form pass-through — the combobox reads `config.options` (`<SmartField config={{ options: [...] }} name="city" />`).
+
+## What lives on FieldDef
+
+| Property | Type | Meaning |
+|---|---|---|
+| `kind` | `FieldKind` | Dispatch key into FieldComponentMap (already includes any Component override) |
+| `optional` | `boolean` | May be `undefined`. Single source of truth — derive required as `!optional`; there is no stored `required` |
+| `meta` | `FieldMeta` | `label`, `placeholder`, `description`, `component`, plus custom keys |
+| `checks` | `FieldCheck[]` | Normalized constraints (below) |
+| `entries` | `Record<string, string>` | Enum value-label pairs |
+| `elementFields` | `SchemaTree` | Object children; array-element children hoisted for index-less lookup |
+| `elementDef` | `FieldDef` | Array element definition, including primitives |
+| `min` / `max` | `number` | Derived minimum/maximum (length for strings/arrays, value for numbers) |
+
+8 check types (`package/src/types.ts:39-47`): `min` | `max` | `gt` | `lt` | `email` | `url` | `integer` | `safe_integer`.
+
+## Required state
+
+```tsx title="widget.tsx"
+required={!def.optional}
+```
+
+Zod `.optional()` and Valibot `optional`/`nullish`/`exact_optional` flip `def.optional` to `true`; `nullable` alone does not (`null` is a value, not absence). See [Adapters](/adapters).
+
+Agent hint: `resolveKind(baseKind, meta)` lets a non-empty `meta.component` win, else `baseKind` (`package/src/adapters/shared/field-def.ts:8`).

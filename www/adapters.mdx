@@ -1,0 +1,86 @@
+---
+title: "Adapters"
+description: "How Zod and Valibot become a SchemaTree."
+icon: Puzzle
+---
+
+# Adapters
+
+You will trace any SchemaTree claim back to the Adapter that produced it.
+
+## Contract
+
+```ts title="package/src/types.ts"
+type SchemaAdapter<TSchema> = {
+  buildFieldMap(schema: TSchema): SchemaTree;
+  buildDefaults(fieldMap: SchemaTree, overrides?: Record<string, unknown>): DefaultValues<FieldValues>;
+  createResolver(schema: TSchema): Resolver;
+};
+```
+
+The Adapter is the only place that knows a validation library's internals (`package/src/adapters/zod/build-field-map.ts:1`, `package/src/adapters/valibot/build-field-map.ts:1`). Everything downstream operates on normalized output. Full param defaults live in `package/src/adapters/*/build-field-map.ts`.
+
+## Zod
+
+Walks private `schema._zod.def` — intentionally fragile (`package/src/adapters/zod/build-field-map.ts:49`). 7 supported types:
+
+`string`, `number`, `boolean`, `enum`, `array`, `object`, `date`.
+
+| Input | Output |
+|---|---|
+| `z.string()` + `format`/`email`/`url` checks | `string` \| `email` \| `url` |
+| `z.number()` + `greater_than`/`less_than` | `min`/`max` (inclusive) or `{ type: "gt"/"lt" }` checks (exclusive); `format` (e.g. `integer`) passes through |
+| `z.enum()` | `enum` + `entries` |
+| `z.array(el)` | `array` + `elementDef`; object elements also hoist `elementFields` |
+| `z.object()` | `object` + recursive `elementFields` |
+| `.optional()` | Recurses into `innerType` with `optional: true`; outer `meta` wins |
+| `union` | Single non-`literal` branch wins, else throws (empty/all-literal/multi-branch) |
+| `record`, bare `literal`, unknown | Throws `Unsupported Zod type: …`; never emits `kind: "unknown"` |
+
+```ts title="app.ts"
+import { buildFieldMap, zodAdapter } from "@adistack/forms/adapters/zod";
+```
+
+`createResolver` is `zodResolver(schema)` from `@hookform/resolvers/zod` (`package/src/adapters/zod/index.ts:18`).
+
+## Valibot
+
+Walks public-ish `type`/`entries`/`item`/`wrapped`/`pipe`. 8 supported types:
+
+`string`, `number`, `boolean`, `picklist`, `enum`, `array`, `object`, `date` (`picklist`/`enum` both normalize to `enum`).
+
+| Input | Output |
+|---|---|
+| `v.string()` + `email`/`rfc_email`/`url` | `string` \| `email` \| `url` |
+| Length (`min_length`/`max_length`/`length`/`non_empty`) | `min`/`max`/`checks` |
+| `v.number()` + `min_value`/`max_value` | `min`/`max`; `gt_value`/`lt_value` → `{ type: "gt"/"lt" }`; `integer`/`safe_integer` → checks |
+| `optional`/`nullish`/`exact_optional` | Force `optional: true` |
+| `nullable` alone | Preserves outer optionality |
+| Meta | `v.metadata()` merged plus `v.title()` → `label`/`title`, `v.description()` |
+| `union`/`record`/unknown | Same policy as Zod — single non-`literal` wins, else throws |
+
+```tsx title="examples/valibot-form.tsx"
+v.pipe(v.string(), v.minLength(1), v.title("Full name"));
+v.pipe(v.picklist(["admin", "member", "guest"]), v.title("Role"));
+v.pipe(v.boolean(), v.metadata({ component: "switch" }), v.title("Email notifications"));
+```
+
+Full schema in `examples/src/examples/valibot-form.tsx:18-39`. `createResolver` is `valibotResolver(schema)` (`package/src/adapters/valibot/index.ts:14`).
+
+## Defaults
+
+Shared implementation (`package/src/adapters/shared/defaults.ts:5`), re-exported by both Adapters. `buildDefaults(fieldMap, overrides?)` derives per field, then deep-merges `overrides` (nested objects merge, not clobber). Takes no `schema` param.
+
+| Kind | Default |
+|---|---|
+| `string`/`email`/`url`/`password`/`textarea`/`combobox` | `""` |
+| `number`/`slider` | `0` |
+| `boolean`/`checkbox`/`switch` | `false` |
+| `enum` | First entry value (or `undefined`) |
+| `array` | `[]` |
+| `object` | Recursive object (or `undefined` without `elementFields`) |
+| `date`, custom, unknown | `undefined` |
+
+`optional` → `undefined` wins first. `meta.component` variants stay reachable (e.g. `component: "password"` still defaults to `""`).
+
+Agent hint: Zod `SUPPORTED_TYPES` lives at `package/src/adapters/zod/build-field-map.ts:38`; Valibot adds `picklist` and `OPTIONAL_WRAPPERS` at `package/src/adapters/valibot/build-field-map.ts:29-41`.

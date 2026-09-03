@@ -1,0 +1,17 @@
+{
+	"description": "Schema-driven React forms via react-hook-form.",
+	"pages": [
+		"---Start---",
+		"quick-start",
+		"concepts",
+		"---Guides---",
+		"field-kinds",
+		"adapters",
+		"nesting",
+		"custom-component",
+		"validation",
+		"---Reference---",
+		"api"
+	],
+	"title": "@adistack/forms"
+}

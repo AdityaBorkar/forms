@@ -1,0 +1,74 @@
+---
+title: "API"
+description: "Every entrypoint, factory result, and type."
+icon: Braces
+---
+
+# API
+
+You will import from the right entrypoint and type against the right shape.
+
+## Entrypoints
+
+4 exports in `package/package.json:25-30`. Consumed as source TypeScript — no build step, ESM only.
+
+| Entrypoint | Path | Purpose |
+|---|---|---|
+| `@adistack/forms` | `src/index.ts` | Core: `createFormSystem`, `resolveFieldDef`, static `SmartFieldArray`, types |
+| `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | `zodAdapter`, `buildFieldMap(schema)`, `buildDefaults(fieldMap, overrides?)`, `createResolver(schema)` |
+| `@adistack/forms/adapters/valibot` | `src/adapters/valibot/index.ts` | `valibotAdapter`, same shape (`picklist`/`enum` → `enum`) |
+| `@adistack/forms/ui` | `src/ui/index.ts` | Static unbound `SmartFieldArray` plus `SmartFieldProps`, `SmartFieldArrayProps`, `SmartFieldArrayRenderProps` |
+
+`SmartField`/`useForm`/`useFormContext` are factory-returned, not direct imports. `FieldArrayRow` is defined in `ui/smart-field-array.tsx` but not re-exported — infer it from render props.
+
+```ts title="app.ts"
+import { createFormSystem, resolveFieldDef } from "@adistack/forms";
+import { zodAdapter } from "@adistack/forms/adapters/zod";
+import { valibotAdapter } from "@adistack/forms/adapters/valibot";
+import { SmartFieldArray } from "@adistack/forms/ui";
+```
+
+## FormSystem
+
+```ts title="package/src/core/create-form-system.ts"
+createFormSystem({ fieldComponents, schemaResolver, onMissingField }: CreateFormSystemOptions) => {
+  Form, SmartField, SmartFieldArray, useForm, useFormContext
+}
+```
+
+| Member | Shape |
+|---|---|
+| `Form` | `<Form form={formInstance}>` — `FormProvider` + `{ fieldMap }` context; throws without `form` prop |
+| `SmartField` | `{ name: string; disabled?: boolean; config?: Record<string, unknown> }` — `useController` dispatch; throws outside `<Form>` |
+| `SmartFieldArray` | Bound (canonical, context-gated) — `{ name: string; children: (props) => ReactNode }` |
+| `useForm` | `(options: UseFormOptions) => FormInstance` — `fieldMap` via `buildFieldMap`, defaults via `buildDefaults`, resolver via `createResolver` |
+| `useFormContext` | `() => FormContextInstance` — RHF return + `{ fieldMap }`; throws outside `<Form>` |
+
+`onMissingField: "throw" | "warn"` (default `"throw"`): dev throws fast; `"warn"` or production renders `null` with a dev-only deduped `devWarn`. `resetDevWarnings` is tests-only.
+
+## Instance types
+
+Both generic over `TValues extends FieldValues` (default `FieldValues`):
+
+| Type | Meaning |
+|---|---|
+| `FormContextInstance` | `UseFormReturn<TValues> & { fieldMap: SchemaTree }` — what `useFormContext` returns |
+| `FormInstance` | `UseFormReturn<TValues, unknown, TValues> & { fieldMap, onSubmit, onInvalid?, onSubmitError? }` — what `useForm` returns; this is what `<Form>` accepts |
+| `UseFormOptions` | `{ schema, onSubmit, onInvalid?, onSubmitError?, defaultValues?, validationMode?, reValidateMode? }` |
+| `FormProps` | `{ form: FormInstance; className?: string; children?: ReactNode }` |
+
+Helpers: `defineFieldComponent` / `defineFieldComponents` (identity, zero runtime), `InferFormValues` (Standard Schema `~standard` inference), `FieldKindValueMap` (typed `value` per Kind), `ComboboxConfig` (`{ options: string[] }`).
+
+## Constraints
+
+| Dependency | Role | Required? |
+|---|---|---|
+| `react-hook-form@^7.86.0` | Form state, `useController`/`useFieldArray` | Yes (peer) |
+| `react@>=18` | UI runtime | Yes (peer) |
+| `@hookform/resolvers@>=5` | `zodResolver` / `valibotResolver` bridge | Only with an Adapter (optional peer) |
+| `zod@>=4` | Schema + validation | Only with Zod Adapter (optional peer) |
+| `valibot@>=1` | Schema + validation | Only with Valibot Adapter (optional peer) |
+
+Invariants: TypeScript strict + `verbatimModuleSyntax` + `noUncheckedIndexedAccess`; alias `#/* → ./src/*`; tests colocated (`*.test.ts[x]` next to source, never `package/tests/`); `jsdom` via `// @vitest-environment jsdom` first line for component tests. Internal errors use `createFormError` (`[@adistack/forms]` prefix); recoverable misses use dev-only deduped `devWarn`.
+
+Agent hint: file map and Adapter internals live in `docs/ARCHITECTURE.md:259-364`; full type glossary in `docs/GLOSSARY.md`.

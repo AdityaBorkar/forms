@@ -1,0 +1,52 @@
+---
+title: "Concepts"
+description: "The ten terms that drive every form."
+icon: BookOpen
+---
+
+# Concepts
+
+You will name every moving part with the exact term from `docs/CONTEXT.md` so docs, code, and AI stay in sync.
+
+## Canonical terms
+
+| Term | Meaning |
+|---|---|
+| SchemaTree | The metadata tree an Adapter derives from a schema |
+| FieldDef | One field's resolved metadata (Kind, optionality, constraints, nesting) |
+| Kind | The single dispatch string on a FieldDef that selects a UI component |
+| Component override | A `meta.component` value that replaces the Adapter's base Kind |
+| Adapter | The boundary that translates one validation library into a SchemaTree, defaults, and a resolver |
+| FieldComponentMap | The Kind-to-component table supplied once at factory time |
+| SmartField | The component that resolves one dotted path and renders its mapped component |
+| SmartFieldArray | The repeatable-rows wrapper around an array path |
+| Form | The provider component that binds a FormInstance to React context |
+| FormSystem | The closed factory result: Form, SmartField, SmartFieldArray, useForm, useFormContext |
+| FieldMap | The SchemaTree carried in React context (`FormContextValue.fieldMap`) |
+
+Never say `type`/`variant`/`widget` for Kind, `resolver`/`parser`/`bridge` for Adapter, or `field map` for FieldComponentMap — those collide (see `docs/CONTEXT.md:7-58`).
+
+## How they connect
+
+```
+createFormSystem({ fieldComponents, schemaResolver }) → FormSystem
+  useForm({ schema }) → SchemaTree + defaults + resolver (Adapter)
+  <Form form>         → FormProvider + { fieldMap } context
+  <SmartField name>   → resolveFieldDef → FieldComponentMap[Kind] via useController
+  <SmartFieldArray>   → useFieldArray for repeatable rows
+```
+
+`FieldComponentMap` is closed over in the factory, not in context (`package/src/types.ts:132`). `FormContextValue` carries only `{ fieldMap: SchemaTree }` (`package/src/types.ts:178`). The raw schema is never touched downstream of the Adapter.
+
+## Where to go next
+
+| Question | Page |
+|---|---|
+| What Kinds can dispatch? | [Field Kinds](/field-kinds) |
+| How do Zod/Valibot become a SchemaTree? | [Adapters](/adapters) |
+| How do dotted names and arrays resolve? | [Nesting](/nesting) |
+| How do I add my own widget? | [Custom Component](/custom-component) |
+| When does validation run? | [Validation](/validation) |
+| What is exported from where? | [API](/api) |
+
+Agent hint: `meta.component` is applied at Adapter time via `resolveKind` in `package/src/adapters/shared/field-def.ts:8` — `def.kind` already carries the override when `SmartField` dispatches.
