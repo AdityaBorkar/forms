@@ -189,6 +189,12 @@ export type FormInstance<TValues extends FieldValues = FieldValues> =
 		fieldMap: SchemaTree;
 		onSubmit: (values: TValues) => void | Promise<void>;
 		onInvalid?: (errors: FieldErrors<TValues>) => void;
+		/**
+		 * Called when `onSubmit` itself throws or rejects (e.g. a failed server
+		 * request). Validation failures still go to `onInvalid`. `<Form>` also
+		 * records the failure as a `root.serverError` field error.
+		 */
+		onSubmitError?: (error: unknown) => void;
 	};
 
 export type UseFormOptions<
@@ -198,6 +204,8 @@ export type UseFormOptions<
 	schema: TSchema;
 	onSubmit: (values: TValues) => void | Promise<void>;
 	onInvalid?: (errors: FieldErrors<TValues>) => void;
+	/** Called when `onSubmit` throws or rejects. Validation failures still go to `onInvalid`. */
+	onSubmitError?: (error: unknown) => void;
 	defaultValues?: DefaultValues<TValues>;
 	validationMode?: ValidationMode;
 	reValidateMode?: ReValidateMode;

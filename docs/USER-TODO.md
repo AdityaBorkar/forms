@@ -2,20 +2,10 @@
 
 ## Phase 1
 
-Perform the code and API analysis of the entire codebase and write a better-dx.md report with the list of suggestions with examples. Make sure it covers all the aspects for a better Developer Experience while maintaining highly performant code.
+- Component Support with useFormField() to register it
+  - along with Custom Component
 
-- Smart Component Support
-- Custom Smart Component Support
-- Validation & Error Handling
-- Clean and Complete Functionality
-- 
-- dev/adityaborkar
-- Changeset and ensure Publishing on NPM
-  - Publish to NPM
-    - beta
-    - stable
-- Documentation Refresh Hit
-  - Trigger refresh-content.yml if there are changes in www/*
+Write docs
 
 ## Phase 2
 

@@ -88,7 +88,9 @@ export function createFormSystem<TSchema>({
 	const SmartField = createSmartField(FormContext, fieldComponents, {
 		onMissingField,
 	});
-	const SmartFieldArray = createSmartFieldArray(FormContext);
+	const SmartFieldArray = createSmartFieldArray(FormContext, {
+		onMissingField,
+	});
 
 	return {
 		Form,

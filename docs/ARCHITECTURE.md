@@ -58,16 +58,20 @@ the override when `SmartField` dispatches.
    It throws `createFormError` without a `schemaResolver`, with a
    missing/empty `fieldComponents` map, or when any registered value is not a
    function (a React component).
-2. Consumer calls `useForm({ schema, onSubmit, ... })` — the hook calls
-   `adapter.buildFieldMap(schema)` for the `SchemaTree`,
-   `adapter.buildDefaults(fieldMap, defaultValues)` for defaults, and
-   `adapter.createResolver(schema)` for validation, then delegates to RHF's
-   `useForm` with `mode: validationMode` (defaults to `"onBlur"`) and
-   `reValidateMode` (defaults to `"onChange"`).
+2. Consumer calls `useForm({ schema, onSubmit, ... })` — the hook validates
+   its options (missing `schema`/`onSubmit` and invalid modes throw
+   `createFormError`), then calls `adapter.buildFieldMap(schema)` for the
+   `SchemaTree`, `adapter.buildDefaults(fieldMap, defaultValues)` for defaults,
+   and `adapter.createResolver(schema)` for validation (raw adapter failures
+   are wrapped with context; adapter `createFormError`s pass through), then
+   delegates to RHF's `useForm` with `mode: validationMode` (defaults to
+   `"onBlur"`) and `reValidateMode` (defaults to `"onChange"`).
 3. Consumer renders `<Form form={formInstance}>` — this wraps RHF's
    `FormProvider` and sets React context with `{ fieldMap: form.fieldMap }`.
    Submit goes through `form.handleSubmit(form.onSubmit, form.onInvalid)` with
-   `preventDefault`.
+   `preventDefault`; a throwing `onSubmit` is caught and routed to
+   `form.onSubmitError` plus a `root.serverError` field error. A missing
+   `form` prop throws `createFormError`.
 4. Consumer renders `<SmartField name="address.city" />` — reads the
    `SchemaTree` from context (throws `createFormError` outside `<Form>`),
    resolves the def via `resolveFieldDef`, looks up
@@ -143,12 +147,14 @@ the raw schema again. The tree carries:
 - Optionality → `optional` (single source of truth; derive "required" in UI as
   `!optional` — there is no stored `required` field)
 
-### 5. SmartFieldArray is schema-agnostic but context-gated
+### 5. SmartFieldArray validates its target but stays operation-agnostic
 
-The factory-bound `SmartFieldArray` doesn't read the `SchemaTree` — array
-operations (append, remove, update, move) don't need schema knowledge. It still
-requires `<Form>` context so array rows render inside the same form tree. The
-consumer renders the right `SmartField` components inside the render function.
+The factory-bound `SmartFieldArray` checks that `name` resolves to an `array`
+field (dev throw, prod `devWarn`, honoring `onMissingField`) — array
+operations (append, remove, update, move) themselves don't need schema
+knowledge. It still requires `<Form>` context so array rows render inside the
+same form tree. The consumer renders the right `SmartField` components inside
+the render function.
 
 ---
 
@@ -180,8 +186,10 @@ generic over `TValues extends FieldValues` (default `FieldValues`):
 - **`FormInstance<TValues>`** — what `useForm` returns.
   `UseFormReturn<TValues, unknown, TValues> & { fieldMap, onSubmit, onInvalid? }`.
   `onSubmit: (values: TValues) => void`,
-  `onInvalid?: (errors: FieldErrors<TValues>) => void`. This is what `<Form>`
-  accepts as its `form` prop.
+  `onInvalid?: (errors: FieldErrors<TValues>) => void`,
+  `onSubmitError?: (error: unknown) => void` (submit-handler failures only;
+  validation failures go to `onInvalid`). This is what `<Form>` accepts as its
+  `form` prop.
 
 `UseFormOptions<TSchema, TValues>`:
 
@@ -190,6 +198,7 @@ type UseFormOptions<TSchema, TValues extends FieldValues = FieldValues> = {
   schema: TSchema;
   onSubmit: (values: TValues) => void;
   onInvalid?: (errors: FieldErrors<TValues>) => void;
+  onSubmitError?: (error: unknown) => void;
   defaultValues?: DefaultValues<TValues>;
   validationMode?: ValidationMode;    // default "onBlur"
   reValidateMode?: ReValidateMode;    // default "onChange"

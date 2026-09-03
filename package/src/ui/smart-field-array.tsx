@@ -8,8 +8,8 @@ import {
 import { deriveDefault, mergeDefaults } from "#/adapters/shared";
 import { useFormContextValue } from "#/core/form-context";
 import { resolveFieldDef } from "#/core/resolve-field-def";
-import { createFormError } from "#/errors";
-import type { FormContextValue, SchemaTree } from "#/types";
+import { createFormError, devWarn, isProduction } from "#/errors";
+import type { FormContextValue, OnMissingField, SchemaTree } from "#/types";
 
 export type FieldArrayRow = Record<string, unknown> & { id: string };
 
@@ -31,18 +31,61 @@ export type SmartFieldArrayProps = {
 	children: (props: SmartFieldArrayRenderProps) => ReactNode;
 };
 
+/**
+ * Validate that `name` resolves to an array field. Dev throws fast (matching
+ * `SmartField`'s default policy); production warns and lets `useFieldArray`
+ * carry on so a misnamed array never takes down a live form.
+ */
+function assertArrayField(
+	fieldMap: SchemaTree,
+	name: string,
+	onMissingField: OnMissingField,
+): void {
+	let kind: string;
+	try {
+		kind = resolveFieldDef(fieldMap, name).kind;
+	} catch (error) {
+		if (onMissingField === "warn" || isProduction()) {
+			devWarn(`SmartFieldArray: could not find array field "${name}"`, [
+				"The field was not found in the schema or has an unsupported type.",
+				"Check that the name prop matches an array key in your object schema.",
+			]);
+			return;
+		}
+		throw error;
+	}
+	if (kind !== "array") {
+		const message = `SmartFieldArray can only be used with array fields (field "${name}" is kind "${kind}")`;
+		const details = [
+			`Check that "${name}" is an array in your schema.`,
+			"For non-array fields, render a <SmartField> instead.",
+		];
+		if (onMissingField === "warn" || isProduction()) {
+			devWarn(message, details);
+			return;
+		}
+		throw createFormError(message, details);
+	}
+}
+
 function ArrayFieldInner({
 	name,
 	children,
 	fieldMap,
+	onMissingField,
 }: SmartFieldArrayProps & {
 	fieldMap: SchemaTree | null;
+	onMissingField: OnMissingField;
 }): ReactNode {
 	const rhf = useRhfContext();
 	const { fields, append, remove, update, move } = useFieldArray({
 		control: rhf.control,
 		name,
 	});
+
+	if (fieldMap) {
+		assertArrayField(fieldMap, name, onMissingField);
+	}
 
 	// On click only (never on the render hot path): one resolveFieldDef walk +
 	// one deriveDefault recursion over the row shape.
@@ -102,7 +145,7 @@ function BaseSmartFieldArray({
 	children,
 }: SmartFieldArrayProps): ReactNode {
 	return (
-		<ArrayFieldInner fieldMap={null} name={name}>
+		<ArrayFieldInner fieldMap={null} name={name} onMissingField="warn">
 			{children}
 		</ArrayFieldInner>
 	);
@@ -110,14 +153,21 @@ function BaseSmartFieldArray({
 
 export function createSmartFieldArray(
 	FormContext: Context<FormContextValue | null>,
+	options?: { onMissingField?: OnMissingField },
 ): ComponentType<SmartFieldArrayProps> {
+	const onMissingField = options?.onMissingField ?? "throw";
+
 	function BoundSmartFieldArray({
 		name,
 		children,
 	}: SmartFieldArrayProps): ReactElement {
 		const { fieldMap } = useFormContextValue(FormContext, "SmartFieldArray");
 		return (
-			<ArrayFieldInner fieldMap={fieldMap} name={name}>
+			<ArrayFieldInner
+				fieldMap={fieldMap}
+				name={name}
+				onMissingField={onMissingField}
+			>
 				{children}
 			</ArrayFieldInner>
 		);

@@ -181,6 +181,7 @@ type UseFormOptions<TSchema, TValues extends FieldValues = FieldValues> = {
   schema: TSchema;
   onSubmit: (values: TValues) => void;
   onInvalid?: (errors: FieldErrors<TValues>) => void;
+  onSubmitError?: (error: unknown) => void;
   defaultValues?: DefaultValues<TValues>;
   validationMode?: ValidationMode;
   reValidateMode?: ReValidateMode;
@@ -188,6 +189,10 @@ type UseFormOptions<TSchema, TValues extends FieldValues = FieldValues> = {
 ```
 
 `schema` feeds the adapter; `defaultValues` deep-merge over derived defaults.
+`onInvalid` fires on validation failures; `onSubmitError` fires when `onSubmit`
+itself throws or rejects (`<Form>` also records that as a `root.serverError`
+field error). Missing `schema`/`onSubmit` and invalid modes throw
+[`createFormError`](#createformerror).
 
 ---
 
@@ -206,6 +211,8 @@ What [`useFormContext`](#useformcontext) returns. Generic over `TValues`
 
 What [`useForm`](#useform) returns. Extends the RHF return with the
 [SchemaTree](#schematree) plus submit callbacks. This is what `<Form>` accepts.
+`onSubmitError` fires when `onSubmit` throws or rejects (validation failures
+still go to `onInvalid`).
 
 ---
 
@@ -215,7 +222,9 @@ What [`useForm`](#useform) returns. Extends the RHF return with the
 
 Props for `<Form>`. Wraps RHF `FormProvider`, sets `{ fieldMap }` context, and
 renders `<form onSubmit={preventDefault + handleSubmit(onSubmit, onInvalid)}>`.
-
+Throws [`createFormError`](#createformerror) without a `form` prop. A throwing
+`onSubmit` is caught and routed to `onSubmitError` plus a `root.serverError`
+field error (read it via `useFormState().errors.root?.serverError`).
 ---
 
 ## SmartFieldProps
@@ -274,7 +283,9 @@ Miss behavior: `resolveFieldDef` failure or unregistered kind → [`devWarn`](#d
 
 Factory-bound component is canonical
 (`createSmartFieldArray(FormContext)` — requires `<Form>` context, throws
-outside it). Thin wrapper over RHF `useFieldArray`; schema-agnostic. Props:
+outside it). Thin wrapper over RHF `useFieldArray`; validates that `name`
+resolves to an `array` field (dev throw, prod `devWarn`, honoring
+`onMissingField`). Props:
 [SmartFieldArrayProps](#smartfieldarrayprops).
 
 A static unbound `SmartFieldArray` (same render behavior, no context check) is
@@ -356,7 +367,10 @@ Factory-bound hook (`createUseForm(adapter)`):
 Builds `fieldMap` via `buildFieldMap(schema)`, defaults via
 `buildDefaults(fieldMap, defaultValues)`, resolver via `createResolver(schema)`,
 delegates to RHF with `mode: validationMode ?? "onBlur"`,
-`reValidateMode: reValidateMode ?? "onChange"`.
+`reValidateMode: reValidateMode ?? "onChange"`. Throws
+[`createFormError`](#createformerror) without `schema`/`onSubmit`, on invalid
+modes, or when an adapter step fails (raw adapter errors gain context;
+`createFormError` messages pass through).
 
 ---
 

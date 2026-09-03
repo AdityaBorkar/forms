@@ -8,6 +8,7 @@ import {
 	waitFor,
 } from "@testing-library/react";
 import type { FieldValues } from "react-hook-form";
+import { useFormState } from "react-hook-form";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import z from "zod";
 
@@ -397,22 +398,40 @@ describe("createFormSystem — SmartFieldArray", () => {
 		expect(screen.getByTestId("field-string")).toBeTruthy();
 	});
 
-	it("appendDefault throws for a non-array field", () => {
+	it("fails fast at render for a non-array field", () => {
 		const schema = z.object({ name: z.string() });
-		let appendDefault!: (overrides?: Record<string, unknown>) => void;
-		render(
-			<FormHarness onSubmit={vi.fn()} schema={schema}>
-				<SmartFieldArray name="name">
-					{(props) => {
-						appendDefault = props.appendDefault;
-						return null;
-					}}
-				</SmartFieldArray>
-			</FormHarness>,
+		expect(() =>
+			render(
+				<FormHarness onSubmit={vi.fn()} schema={schema}>
+					<SmartFieldArray name="name">{() => null}</SmartFieldArray>
+				</FormHarness>,
+			),
+		).toThrow(
+			'SmartFieldArray can only be used with array fields (field "name" is kind "string")',
 		);
-		expect(() => appendDefault()).toThrow(
-			'appendDefault can only be used with array fields (field "name" is kind "string")',
-		);
+	});
+
+	it("appendDefault still throws when reached (warn mode)", () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			const schema = z.object({ name: z.string() });
+			let appendDefault!: (overrides?: Record<string, unknown>) => void;
+			render(
+				<WarnHarness onSubmit={vi.fn()} schema={schema}>
+					<warnSystem.SmartFieldArray name="name">
+						{(props) => {
+							appendDefault = props.appendDefault;
+							return null;
+						}}
+					</warnSystem.SmartFieldArray>
+				</WarnHarness>,
+			);
+			expect(() => appendDefault()).toThrow(
+				'appendDefault can only be used with array fields (field "name" is kind "string")',
+			);
+		} finally {
+			warn.mockRestore();
+		}
 	});
 });
 
@@ -445,5 +464,231 @@ describe("form-system — typed helpers (zero runtime)", () => {
 		expectTypeOf<InferZod<typeof schema>>().toEqualTypeOf<
 			z.infer<typeof schema>
 		>();
+	});
+});
+
+// biome-ignore lint/style/useComponentExportOnlyModules: test harness, not a real export
+function RootServerError() {
+	const { errors } = useFormState();
+	const message = (errors.root?.serverError as { message?: string } | undefined)
+		?.message;
+	return message ? <span data-testid="root-error">{message}</span> : null;
+}
+
+describe("useForm — input validation", () => {
+	it("throws when schema is missing", () => {
+		function Bad() {
+			const form = useForm({
+				onSubmit: vi.fn(),
+				schema: undefined as never,
+			});
+			return (
+				<Form form={form}>
+					<SmartField name="name" />
+				</Form>
+			);
+		}
+		expect(() => render(<Bad />)).toThrow("useForm requires a schema");
+	});
+
+	it("throws when onSubmit is missing", () => {
+		const schema = z.object({ name: z.string() });
+		function Bad() {
+			const form = useForm({ schema } as never);
+			return (
+				<Form form={form}>
+					<SmartField name="name" />
+				</Form>
+			);
+		}
+		expect(() => render(<Bad />)).toThrow(
+			"useForm requires an onSubmit handler",
+		);
+	});
+
+	it("throws for an invalid validationMode", () => {
+		const schema = z.object({ name: z.string() });
+		function Bad() {
+			const form = useForm({
+				onSubmit: vi.fn(),
+				schema,
+				validationMode: "sometimes" as never,
+			});
+			return (
+				<Form form={form}>
+					<SmartField name="name" />
+				</Form>
+			);
+		}
+		expect(() => render(<Bad />)).toThrow('Invalid validationMode "sometimes"');
+	});
+
+	it("throws for an invalid reValidateMode", () => {
+		const schema = z.object({ name: z.string() });
+		function Bad() {
+			const form = useForm({
+				onSubmit: vi.fn(),
+				reValidateMode: "sometimes" as never,
+				schema,
+			});
+			return (
+				<Form form={form}>
+					<SmartField name="name" />
+				</Form>
+			);
+		}
+		expect(() => render(<Bad />)).toThrow('Invalid reValidateMode "sometimes"');
+	});
+
+	it("wraps raw adapter failures with actionable context", () => {
+		const failingAdapter = {
+			...zodAdapter,
+			buildFieldMap: () => {
+				throw new Error("boom");
+			},
+		};
+		const badSystem = createFormSystem({
+			fieldComponents,
+			schemaResolver: failingAdapter,
+		});
+		function Bad() {
+			const form = badSystem.useForm({
+				onSubmit: vi.fn(),
+				schema: z.object({ name: z.string() }),
+			});
+			return (
+				<badSystem.Form form={form}>
+					<badSystem.SmartField name="name" />
+				</badSystem.Form>
+			);
+		}
+		expect(() => render(<Bad />)).toThrow(
+			"useForm could not build the field map from your schema",
+		);
+	});
+
+	it("lets adapter createFormError messages pass through unwrapped", () => {
+		const schema = z.object({ bad: z.record(z.string(), z.string()) });
+		function Bad() {
+			const form = useForm({ onSubmit: vi.fn(), schema });
+			return (
+				<Form form={form}>
+					<SmartField name="bad" />
+				</Form>
+			);
+		}
+		expect(() => render(<Bad />)).toThrow("Unsupported Zod type: record");
+	});
+});
+
+describe("Form — submit error handling", () => {
+	it("throws when the form prop is missing", () => {
+		expect(() =>
+			render(
+				<Form form={undefined as never}>
+					<div />
+				</Form>,
+			),
+		).toThrow("<Form> requires a form prop");
+	});
+
+	it("routes an async onSubmit rejection to onSubmitError + root.serverError", async () => {
+		const schema = z.object({ name: z.string().min(1) });
+		const onSubmit = vi.fn(async () => {
+			throw new Error("server boom");
+		});
+		const onSubmitError = vi.fn();
+		function Harness() {
+			const form = useForm({ onSubmit, onSubmitError, schema });
+			return (
+				<Form form={form}>
+					<SmartField name="name" />
+					<RootServerError />
+					<button type="submit">submit</button>
+				</Form>
+			);
+		}
+		render(<Harness />);
+		fireEvent.change(screen.getByTestId("field-string"), {
+			target: { value: "Alice" },
+		});
+		fireEvent.click(screen.getByText("submit"));
+		await waitFor(() => {
+			expect(onSubmitError).toHaveBeenCalled();
+		});
+		expect(onSubmitError.mock.calls[0]?.[0]).toEqual(
+			expect.objectContaining({ message: "server boom" }),
+		);
+		await waitFor(() => {
+			expect(screen.getByTestId("root-error").textContent).toBe("server boom");
+		});
+	});
+
+	it("does not call onSubmitError when validation fails", async () => {
+		const schema = z.object({ name: z.string().min(1) });
+		const onSubmit = vi.fn();
+		const onSubmitError = vi.fn();
+		const onInvalid = vi.fn();
+		function Harness() {
+			const form = useForm({ onInvalid, onSubmit, onSubmitError, schema });
+			return (
+				<Form form={form}>
+					<SmartField name="name" />
+					<RootServerError />
+					<button type="submit">submit</button>
+				</Form>
+			);
+		}
+		render(<Harness />);
+		fireEvent.click(screen.getByText("submit"));
+		await waitFor(() => {
+			expect(onInvalid).toHaveBeenCalled();
+		});
+		expect(onSubmit).not.toHaveBeenCalled();
+		expect(onSubmitError).not.toHaveBeenCalled();
+		expect(screen.queryByTestId("root-error")).toBeNull();
+	});
+});
+
+describe("SmartFieldArray — name validation", () => {
+	it("throws in dev for a non-array field", () => {
+		const schema = z.object({ name: z.string() });
+		expect(() =>
+			render(
+				<FormHarness onSubmit={vi.fn()} schema={schema}>
+					<SmartFieldArray name="name">{() => null}</SmartFieldArray>
+				</FormHarness>,
+			),
+		).toThrow(
+			'SmartFieldArray can only be used with array fields (field "name" is kind "string")',
+		);
+	});
+
+	it("throws in dev for an unknown field name", () => {
+		const schema = z.object({ name: z.string() });
+		expect(() =>
+			render(
+				<FormHarness onSubmit={vi.fn()} schema={schema}>
+					<SmartFieldArray name="missing">{() => null}</SmartFieldArray>
+				</FormHarness>,
+			),
+		).toThrow('No field definition found for "missing"');
+	});
+
+	it("warns instead of throwing with onMissingField: warn", () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			const schema = z.object({ name: z.string() });
+			render(
+				<WarnHarness onSubmit={vi.fn()} schema={schema}>
+					<warnSystem.SmartFieldArray name="name">
+						{() => null}
+					</warnSystem.SmartFieldArray>
+				</WarnHarness>,
+			);
+			expect(warn).toHaveBeenCalled();
+		} finally {
+			warn.mockRestore();
+		}
 	});
 });

@@ -5,9 +5,10 @@ import type {
 	SubmitEventHandler,
 } from "react";
 import { useCallback, useMemo } from "react";
-import type { FieldValues } from "react-hook-form";
+import type { FieldPath, FieldValues } from "react-hook-form";
 import { FormProvider } from "react-hook-form";
 
+import { createFormError } from "#/errors";
 import type { FormContextValue, FormInstance } from "#/types";
 
 export type FormProps<TValues extends FieldValues = FieldValues> = {
@@ -26,7 +27,17 @@ export function createForm(
 		className,
 		children,
 	}: FormProps<TValues>): ReactElement {
-		const { fieldMap, onSubmit, onInvalid, ...rhfMethods } = form;
+		// Fail fast on developer misuse instead of destructuring `undefined`.
+		// Deterministic per call site, so hook order is unaffected.
+		// biome-ignore lint/suspicious/noUnnecessaryConditions: runtime guard for developer misuse
+		if (!form) {
+			throw createFormError("<Form> requires a form prop", [
+				"Pass the object returned by useForm(), e.g. <Form form={form}>.",
+				"Make sure <Form> and useForm come from the same createFormSystem() call.",
+			]);
+		}
+		const { fieldMap, onSubmit, onInvalid, onSubmitError, ...rhfMethods } =
+			form;
 
 		const contextValue = useMemo(() => ({ fieldMap }), [fieldMap]);
 
@@ -35,9 +46,27 @@ export function createForm(
 		const handleSubmit: SubmitEventHandler = useCallback(
 			(event) => {
 				event.preventDefault();
-				rhfMethods.handleSubmit(onSubmit, onInvalid)(event);
+				const result = rhfMethods.handleSubmit(onSubmit, onInvalid)(event);
+				// Validation failures resolve via onInvalid; only a throwing
+				// onSubmit rejects. Route that to onSubmitError plus a
+				// root-level field error instead of an unhandled rejection.
+				void Promise.resolve(result).catch((error: unknown) => {
+					const message =
+						error instanceof Error ? error.message : String(error);
+					rhfMethods.setError("root.serverError" as FieldPath<TValues>, {
+						message,
+						type: "server",
+					});
+					onSubmitError?.(error);
+				});
 			},
-			[rhfMethods.handleSubmit, onSubmit, onInvalid],
+			[
+				rhfMethods.handleSubmit,
+				rhfMethods.setError,
+				onSubmit,
+				onInvalid,
+				onSubmitError,
+			],
 		);
 
 		return (
