@@ -1,6 +1,11 @@
 import { useState } from "react";
 import * as v from "valibot";
 
+import {
+	useValibotForm,
+	ValibotForm,
+	ValibotSmartField,
+} from "#/components/form-valibot";
 import { Button } from "#/components/ui/button";
 import {
 	Card,
@@ -9,11 +14,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "#/components/ui/card";
-import {
-	useValibotForm,
-	ValibotForm,
-	ValibotSmartField,
-} from "#/lib/form-valibot";
 
 const schema = v.object({
 	bio: v.pipe(

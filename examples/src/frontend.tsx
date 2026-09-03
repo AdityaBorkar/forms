@@ -22,7 +22,7 @@ import "./styles.css";
 const segments = window.location.pathname.split("/").filter(Boolean);
 const [first] = segments;
 const exampleId =
-	first !== undefined && EXAMPLES.some((ex) => ex.id === first) ? first : null;
+	first !== undefined && EXAMPLES.some((ex) => ex.slug === first) ? first : null;
 
 const app = (
 	<StrictMode>

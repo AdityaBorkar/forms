@@ -3,8 +3,13 @@ import { useState } from "react";
 import type { FieldValues } from "react-hook-form";
 import z from "zod";
 
+import {
+	Form,
+	SmartField,
+	useForm,
+	useFormContext,
+} from "#/components/form-zod";
 import { Button } from "#/components/ui/button";
-import { Form, SmartField, useForm, useFormContext } from "#/lib/form-zod";
 
 const schema = z.object({
 	name: z.string().min(1).meta({ label: "Name", placeholder: "Ada Lovelace" }),

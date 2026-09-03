@@ -1,5 +1,7 @@
 import type { ComponentType } from "react";
 
+import { RootLayout } from "#/components/docs/root-layout.tsx";
+import { SourcePanel } from "#/components/docs/source-layout.tsx";
 import { ArrayForm } from "#/examples/array-form";
 import { CustomComponentForm } from "#/examples/custom-component";
 import { DefaultsOptionalForm } from "#/examples/defaults-optional";
@@ -10,119 +12,113 @@ import { ServerSubmitForm } from "#/examples/server-submit";
 import { SimpleForm } from "#/examples/simple-form";
 import { ValibotFormExample } from "#/examples/valibot-form";
 import { ValidationModesForm } from "#/examples/validation-modes";
-import NotFoundPage from "../not-found";
 
 export type ExampleMeta = {
-	/** Registry id — also the page path (`/<id>`). */
-	id: string;
-	label: string;
-	/** Example component file, served raw by the `/api/sources` route. */
-	file: string;
-	/** Form-system file backing this example (`form.tsx` or `form-valibot.tsx`). */
-	systemFile: string;
+	slug: string;
+	title: string;
+	files: string[];
 	description: string;
 	component: ComponentType;
 };
 
-/**
- * The example registry lives here and only here — this catch-all route
- * is the single place that maps URL → example. The sidebar
- * (`../layout.tsx`), the index (`../page.tsx`) and the entry
- * (`#/frontend.tsx`) all import `EXAMPLES` from this file.
- */
 export const EXAMPLES: ExampleMeta[] = [
 	{
 		component: SimpleForm,
 		description: "Two fields, zero wiring.",
-		file: "simple-form.tsx",
-		id: "simple-form",
-		label: "Simple Form",
-		systemFile: "form.tsx",
+		files: ["examples/simple-form.tsx", "components/form-zod.tsx"],
+		slug: "simple-form",
+		title: "Simple Form",
 	},
 	{
 		component: NestedForm,
 		description: "Dotted names into objects.",
-		file: "nested-form.tsx",
-		id: "nested-form",
-		label: "Nested Fields",
-		systemFile: "form.tsx",
+		files: ["examples/nested-form.tsx", "components/form-zod.tsx"],
+		slug: "nested-form",
+		title: "Nested Fields",
 	},
 	{
 		component: ArrayForm,
 		description: "Append, update, move, remove.",
 		file: "array-form.tsx",
-		id: "array-form",
-		label: "Array Fields",
-		systemFile: "form.tsx",
+		slug: "array-form",
+		title: "Array Fields",
 	},
 	{
 		component: FieldKindsForm,
 		description: "Every widget, one schema.",
 		file: "field-kinds.tsx",
-		id: "field-kinds",
-		label: "Every Field Kind",
-		systemFile: "form.tsx",
+		slug: "field-kinds",
+		title: "Every Field Kind",
 	},
 	{
 		component: CustomComponentForm,
 		description: "Your own widget via meta.component.",
 		file: "custom-component.tsx",
-		id: "custom-component",
-		label: "Custom Component",
-		systemFile: "form.tsx",
+		slug: "custom-component",
+		title: "Custom Component",
 	},
 	{
 		component: ValidationModesForm,
 		description: "Modes + onInvalid.",
 		file: "validation-modes.tsx",
-		id: "validation-modes",
-		label: "Validation Modes",
-		systemFile: "form.tsx",
+		slug: "validation-modes",
+		title: "Validation Modes",
 	},
 	{
 		component: DefaultsOptionalForm,
 		description: "Optional + defaultValues merge.",
 		file: "defaults-optional.tsx",
-		id: "defaults-optional",
-		label: "Defaults & Optional",
-		systemFile: "form.tsx",
+		slug: "defaults-optional",
+		title: "Defaults & Optional",
 	},
 	{
 		component: FormContextForm,
 		description: "watch/reset, disabled, config.",
 		file: "form-context.tsx",
-		id: "form-context",
-		label: "useFormContext",
-		systemFile: "form.tsx",
+		slug: "form-context",
+		title: "useFormContext",
 	},
 	{
 		component: ValibotFormExample,
 		description: "Same UI, Valibot schemas.",
 		file: "valibot-form.tsx",
-		id: "valibot-form",
-		label: "Valibot Adapter",
-		systemFile: "form-valibot.tsx",
+		slug: "valibot-form",
+		title: "Valibot Adapter",
 	},
 	{
 		component: ServerSubmitForm,
 		description: "POST to the API, echo demo.",
 		file: "server-submit.tsx",
-		id: "server-submit",
-		label: "Server Submit",
-		systemFile: "form.tsx",
+		slug: "server-submit",
+		title: "Server Submit",
 	},
 ];
 
-/**
- * Catch-all route — `/<id>` renders the matching example, anything else
- * renders the 404 page. (`params` mirrors the Next.js page signature;
- * `src/frontend.tsx` builds it from `window.location.pathname`.)
- */
 export default function Page({ params }: { params: { id: string[] } }) {
 	const [id] = params.id;
-	const example =
-		params.id.length === 1 ? EXAMPLES.find((ex) => ex.id === id) : undefined;
-	if (!example) return <NotFoundPage />;
-	const Example = example.component;
-	return <Example />;
+	const Example =
+		params.id.length === 1 ? EXAMPLES.find((ex) => ex.slug === id) : undefined;
+
+	if (!Example) {
+		return (
+			<div className="w-full max-w-md text-center">
+				<h1 className="mb-1 font-semibold text-2xl">Page not found</h1>
+				<p className="mb-6 text-muted-foreground text-sm">
+					This route has no `src/app/…/page.tsx`.
+				</p>
+				<a
+					className="rounded-md border border-border bg-card px-4 py-2 text-sm transition-colors hover:border-primary"
+					href="/"
+				>
+					Back to examples
+				</a>
+			</div>
+		);
+	}
+	return (
+		<RootLayout className="w-full max-w-2xl p-8">
+			<Example.component />
+			<SourcePanel exampleId={id} />
+		</RootLayout>
+	);
 }

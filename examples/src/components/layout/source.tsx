@@ -1,5 +1,4 @@
 import { IconBrandGithub, IconExternalLink } from "@tabler/icons-react";
-import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import { GITHUB_EXAMPLES_PREFIX } from "#/lib/utils";
@@ -7,7 +6,7 @@ import { EXAMPLES } from "./[...id]/page";
 
 type SourceTab = { name: string; content: string };
 
-function SourcePanel({ exampleId }: { exampleId: string }) {
+export function SourcePanel({ exampleId }: { exampleId: string }) {
 	const example = EXAMPLES.find((ex) => ex.id === exampleId);
 	const [activeTab, setActiveTab] = useState(0);
 	const [tabs, setTabs] = useState<SourceTab[]>([]);
@@ -45,9 +44,7 @@ function SourcePanel({ exampleId }: { exampleId: string }) {
 	if (!example) return null;
 	const current = tabs[activeTab] ?? tabs[0];
 	const githubPath =
-		current?.name === example.systemFile
-			? `lib/${example.systemFile}`
-			: `examples/${example.file}`;
+		current?.name === "form.tsx" ? `lib/form.tsx` : `examples/${example.file}`;
 	const githubUrl = `${GITHUB_EXAMPLES_PREFIX}/${githubPath}`;
 
 	return (
@@ -85,48 +82,5 @@ function SourcePanel({ exampleId }: { exampleId: string }) {
 				<code>{error ?? current?.content ?? "Loading…"}</code>
 			</pre>
 		</aside>
-	);
-}
-
-/**
- * Root layout — sidebar nav + page + source panel, shared by every route.
- * Links are plain `<a>` tags: the server serves the same shell for every
- * path, and `src/frontend.tsx` renders the matching `./app` page.
- */
-export function RootLayout({
-	children,
-	exampleId,
-}: {
-	children: ReactNode;
-	/** Registry id of the current example page, or null (`/`, 404). */
-	exampleId: string | null;
-}) {
-	return (
-		<div className="flex min-h-screen">
-			<aside className="w-64 shrink-0 border-border border-r bg-sidebar p-4 text-sidebar-foreground">
-				<a className="mb-1 block font-semibold text-lg" href="/">
-					@adistack/forms
-				</a>
-				<p className="mb-6 text-muted-foreground text-xs">Bun + React</p>
-				<nav className="grid gap-1">
-					{EXAMPLES.map((ex) => (
-						<a
-							className={`rounded-md px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
-								ex.id === exampleId
-									? "bg-sidebar-accent text-sidebar-accent-foreground"
-									: ""
-							}`}
-							href={`/${ex.id}`}
-							key={ex.id}
-							title={ex.description}
-						>
-							{ex.label}
-						</a>
-					))}
-				</nav>
-			</aside>
-			<main className="flex min-w-0 flex-1 justify-center p-8">{children}</main>
-			{exampleId === null ? null : <SourcePanel exampleId={exampleId} />}
-		</div>
 	);
 }
