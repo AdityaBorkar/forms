@@ -2,7 +2,7 @@ import type { DefaultValues, FieldValues } from "react-hook-form";
 
 import type { FieldDef, SchemaTree } from "#/types";
 
-function deriveDefault(def: FieldDef): unknown {
+export function deriveDefault(def: FieldDef): unknown {
 	if (def.optional) return undefined;
 	switch (def.kind) {
 		case "string":
@@ -65,4 +65,20 @@ export function buildDefaults(
 		defaults[key] = deriveDefault(def);
 	}
 	return deepMerge(defaults, overrides) as DefaultValues<FieldValues>;
+}
+
+/**
+ * Merge row overrides onto a derived default. Plain-object pairs deep-merge
+ * (consistent with `buildDefaults`); anything else prefers `overrides` when
+ * provided, else the derived `base`. Used by `SmartFieldArray.appendDefault`.
+ */
+export function mergeDefaults(
+	base: unknown,
+	overrides?: Record<string, unknown>,
+): unknown {
+	if (overrides === undefined) return base;
+	if (isPlainObject(base) && isPlainObject(overrides)) {
+		return deepMerge(base, overrides);
+	}
+	return overrides;
 }

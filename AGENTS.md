@@ -2,52 +2,53 @@
 
 ## Project
 
-`@adistack/forms` — schema-driven React forms via `react-hook-form`. Factory `createFormSystem({ fieldComponents, schemaResolver })` — caller supplies `SchemaAdapter` + `FieldComponentMap`.
+`@adistack/forms` — schema-driven React forms via `react-hook-form`. Factory `createFormSystem({ fieldComponents, schemaResolver })`; caller supplies `SchemaAdapter` + `FieldComponentMap`.
 
-## Structure
-
-Bun workspace. Root `package.json` → `workspaces: ["./package","./examples"]`. Library is `package/` (`src/`, `tsconfig.json`, library `package.json`); `examples/` is an Elysia 2 (beta) fullstack demo — Elysia API app + Bun-served React shell in `server.ts`, web root in `public/` (pages in `public/examples/`, no frontend router, no build script). `docs/` → `CONTEXT.md`, `GLOSSARY.md`, `USER-TODO.md`, `adr/` (`TODO.md` was renamed to `USER-TODO.md`). `www/` exists but is empty. `.github/workflows/` is empty — no CI/publish workflows committed.
+Bun workspace: `package/` is the library (`src/`), `examples/` is the demo (`Bun.serve` in `server.ts`, port 4000). `www/` and `.github/workflows/` are empty — no CI.
 
 ## Commands
 
 ```
-bun run check:lint   # biome check --fix .
-bun run check:types  # tsc -b (composite project references)
+bun run check:lint   # biome check --fix . (mutates; run from root)
+bun run check:types  # tsc -b (composite: package/ + examples/)
 bun run format       # biome format --fix .
-bunx vitest run      # all tests (vitest; no `test` script in root package.json)
-bunx vitest run package/src/adapters/zod/build-field-map.test.ts  # single file
+bunx --cwd package vitest run              # all tests (config lives in package/)
+bunx --cwd package vitest run src/adapters/zod/build-field-map.test.ts  # single file
+bun run --cwd examples dev    # demo: bun --hot server.ts
 bun run update:deps  # bun taze -rw --maturity-period 3 && bun install
 ```
 
-Run `check:lint` → `check:types` after changes. No workflows committed (`.github/workflows/` empty). Husky `pre-commit` runs `bun format` (format only, not lint).
+Run `check:lint` → `check:types` after changes. Pre-commit runs `bun format` (format only). Must run vitest with `--cwd package` — tests import via `#/*`, resolved by `package/vitest.config.ts` (`vite-tsconfig-paths`); running from root breaks resolution.
 
 ## Toolchain
 
-- **Bun** only — use `bun` for install/run (not `npm`/`node`).
-- **Biome** (not ESLint/Prettier): `biome.json` domains `react`/`tailwind`/`types` = `all`, nursery `useSortedClasses` enforces Tailwind order (`clsx`/`cva`/`tw`), import groups `Bun/Node → packages → #/* → relative`. Lint disabled for `examples/public/components/ui/**` (generated shadcn).
-- **TypeScript** strict `verbatimModuleSyntax` + `noUncheckedIndexedAccess`, `composite:true` with refs `package/`+`examples/`, alias `#/*` → `./src/*` in `package/tsconfig.json` and `#/*` → `./public/*` in `examples/tsconfig.json`. Package overrides `lib: [ES2022,DOM,DOM.Iterable]` and `types: [react]` (root uses `types: [bun]`).
-- **Vitest** (not Jest): `vitest.config.ts` defaults `environment: "node"` + `vite-tsconfig-paths`. Component tests must set `// @vitest-environment jsdom` as first line.
-- No build — consumed as source TS, ESM only (`"type":"module"`).
-- `bunfig.toml`: `ignore-scripts=true`, `minimumReleaseAge=259200` (3d), `saveTextLockfile=false`.
+- **Bun** only (`bun` for install/run). `bunfig.toml`: `ignore-scripts=true`, `minimumReleaseAge=259200` (3d).
+- **Biome**, not ESLint/Prettier. Test files (`**/*.test.*`) relax `noNonNullAssertion` + `noUnnecessaryConditions`.
+- **TypeScript** strict + `verbatimModuleSyntax` + `noUncheckedIndexedAccess`; alias `#/*` → `./src/*` in both `package/` and `examples/`.
+- **Vitest**, not Jest; default env is `node` — component tests need `// @vitest-environment jsdom` as first line.
+- No build — consumed as source TS, ESM only (`module`/`types` point at `src/index.ts`, `files: ["src"]`).
 
 ## Architecture
 
-3 exports in `package/package.json`:
+4 exports in `package/package.json`: `@adistack/forms` → `src/index.ts`, `.../adapters/zod`, `.../adapters/valibot`, `.../ui`.
 
-- `@adistack/forms` → `package/src/index.ts`: `createFormSystem`, `resolveFieldDef`, `SmartFieldArray`, types. `SmartField`/`useForm`/`useFormContext` are **factory-returned** (not direct imports); `core/use-form.ts` (`createUseForm`) + `core/use-form-context.ts` (`createUseFormContext`) are internal factories.
-- `@adistack/forms/adapters/zod` → `package/src/adapters/zod/index.ts`: `zodAdapter`, `buildFieldMap`, `buildDefaults`, `createResolver`.
-- `@adistack/forms/ui` → `package/src/ui/index.ts`: re-exports `SmartFieldArray` + prop types.
-
-Flow: `createFormSystem` creates context + validates inputs → `useForm({ schema })` calls adapter for `SchemaTree`+defaults+resolver, delegates to `react-hook-form` (`validationMode` option defaults `onBlur`, `reValidateMode: onChange`) → `<Form form={form}>` wraps `FormProvider` + context `{ fieldMap }` → `<SmartField name="address.city">` reads context, `resolveFieldDef` walks `elementFields` (skips empty + numeric segments), dispatches `fieldComponents[def.kind]` via `register(name)` + `getFieldState(name, formState)` (no `<Controller>`; `onChange`/`onBlur` adapt to `{ target: { name, value }, type }` events). No `meta.component` kind override exists.
-
-Zod adapter: introspects `schema._zod.def` (private/fragile — breaks if Zod internals change). `SUPPORTED_TYPES` = `string|number|boolean|enum|array|object|date`. `optional` recurses `innerType` with `optional=true` overlaying outer `meta`; `union` picks first non-`literal`; `record`/`literal`/unknown throws; `required = !optional`. `buildFieldMap(schema, parentPath?)` returns `{}` for non-object/undefined. `build-defaults.ts` derives defaults (private `deriveDefault` not exported): `string|email|url|password|textarea|combobox` → `""`, `number` → `0`, `boolean|checkbox` → `false`, `enum` → first entry, `array` → `[]`, `object` → recursive, `date|unknown|optional` → `undefined`. `zod@>=4` + `@hookform/resolvers@>=5` are optional peers (`peerDependenciesMeta`); `react@>=18` + `react-hook-form@^7.86.0` required.
+- `SmartField` / `useForm` / `useFormContext` are **factory-returned**, not direct imports. Factory-bound `SmartFieldArray` (requires `<Form>` context) is canonical; a static unbound one is also exported from core + `ui`.
+- Flow: `useForm({ schema })` → `buildFieldMap` + `buildDefaults(fieldMap, defaultValues)` + `createResolver` → `<Form form>` (`FormProvider` + `{ fieldMap }` context) → `<SmartField name="a.b">` → `resolveFieldDef` → `fieldComponents[def.kind]` via `useController`. `validationMode` defaults `onBlur`, `reValidateMode` defaults `onChange`.
+- `meta.component` (non-empty string) replaces the dispatch kind **at adapter time** (`adapters/shared/field-def.ts`, outer `meta` wins) — `def.kind` already carries the override.
+- `resolveFieldDef`: numeric segment into an `array` steps into `elementDef`; `arr.city` resolves via `elementFields` without an index (prefer `arr.0.city`); empty names/segments throw; numeric keys on non-arrays look up literally.
+- No stored `required` — `FieldDef.optional` is the source of truth (`!optional` = required).
+- `buildDefaults(fieldMap, overrides?)` takes no `schema` param; overrides deep-merge. Defaults: string-family → `""`, `number|slider` → `0`, boolean-family → `false`, `enum` → first entry, `array` → `[]`, `object` → recursive, `date`/custom → `undefined`; `optional` → `undefined` wins first.
+- Zod adapter walks private `schema._zod.def` (fragile). Both adapters: `union` keeps the single non-`literal` branch else throws; `record`/unknown throws; never emits `kind: "unknown"`. Valibot: `optional`/`nullish`/`exact_optional` force optional but `nullable` alone does not; `picklist`/`enum` → `enum` kind.
+- Missing def/component renders `null` + deduped dev-only `devWarn` (`resetDevWarnings` is tests-only). Peers: `react@>=18` + `react-hook-form@^7.86.0` required; `zod@>=4`, `valibot@>=1`, `@hookform/resolvers@>=5` optional.
 
 ## Testing
 
-- Colocated `*.test.ts`/`*.test.tsx` next to source — never create `package/tests/`.
-- `biome.json` overrides relax `noNonNullAssertion` + `noUnnecessaryConditions` in `**/*.test.*`.
+Colocated `*.test.ts(x)` next to source — never create `package/tests/`.
 
 ## Git & Release
 
-- Conventional Commits enforced by `commitlint` via Husky `commit-msg` (`bunx commitlint --edit $1`). Types: `build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|wip`.
-- Changesets: `baseBranch: main`, `ignore: ["examples","www"]`, only `package/` published (`examples` is `private`). No release workflows committed yet.
+Conventional Commits via Husky `commit-msg` (`build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|wip`). Changesets: `baseBranch: main`, `ignore: ["examples","www"]`, only `package/` publishes.
+
+## Docs
+
+`docs/ARCHITECTURE.md` is the implementation reference (diagram, file map, adapter internals); `docs/GLOSSARY.md` is the API reference; `docs/CONTEXT.md` is glossary-only. Check `ARCHITECTURE.md` before inferring behavior from leaf files.

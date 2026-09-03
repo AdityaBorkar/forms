@@ -1,14 +1,16 @@
 import type { ComponentType, Context, ReactElement } from "react";
+import { useMemo } from "react";
 import { useController } from "react-hook-form";
 
 import { useFormContextValue } from "#/core/form-context";
 import { resolveFieldDef } from "#/core/resolve-field-def";
-import { devWarn } from "#/errors";
+import { createFormError, devWarn, isProduction } from "#/errors";
 import type {
 	FieldComponentMap,
 	FieldComponentProps,
 	FieldDef,
 	FormContextValue,
+	OnMissingField,
 } from "#/types";
 
 export type SmartFieldProps = {
@@ -20,7 +22,10 @@ export type SmartFieldProps = {
 export function createSmartField(
 	FormContext: Context<FormContextValue | null>,
 	fieldComponents: FieldComponentMap,
+	options?: { onMissingField?: OnMissingField },
 ): ComponentType<SmartFieldProps> {
+	const onMissingField = options?.onMissingField ?? "throw";
+
 	function SmartField({
 		name,
 		disabled,
@@ -28,22 +33,49 @@ export function createSmartField(
 	}: SmartFieldProps): ReactElement | null {
 		const { fieldMap } = useFormContextValue(FormContext, "SmartField");
 
-		let def: FieldDef;
-		try {
-			def = resolveFieldDef(fieldMap, name);
-		} catch {
-			devWarn(`SmartField: could not render field "${name}"`, [
-				"The field was not found in the schema or has an unsupported type.",
-				"SmartField will render nothing for this field.",
-				"Check that the name prop matches a key in your object schema.",
-			]);
-			return null;
+		// Hot path: split + regex + tree walk once per (fieldMap, name).
+		const resolved = useMemo((): { def: FieldDef } | { error: Error } => {
+			try {
+				return { def: resolveFieldDef(fieldMap, name) };
+			} catch (error) {
+				return {
+					error:
+						error instanceof Error
+							? error
+							: createFormError(`No field definition found for "${name}"`),
+				};
+			}
+		}, [fieldMap, name]);
+
+		if ("error" in resolved) {
+			if (onMissingField === "warn" || isProduction()) {
+				devWarn(`SmartField: could not render field "${name}"`, [
+					"The field was not found in the schema or has an unsupported type.",
+					"SmartField will render nothing for this field.",
+					"Check that the name prop matches a key in your object schema.",
+				]);
+				return null;
+			}
+			throw resolved.error;
 		}
 
+		const def = resolved.def;
 		const Component = fieldComponents[def.kind];
 		if (!Component) {
 			const availableKinds = Object.keys(fieldComponents);
-			devWarn(
+			if (onMissingField === "warn" || isProduction()) {
+				devWarn(
+					`No component registered for field kind "${def.kind}" (field "${name}")`,
+					[
+						availableKinds.length
+							? `Available component kinds: ${availableKinds.join(", ")}`
+							: "No components have been registered.",
+						`Add a component for kind "${def.kind}" to the fieldComponents map passed to createFormSystem().`,
+					],
+				);
+				return null;
+			}
+			throw createFormError(
 				`No component registered for field kind "${def.kind}" (field "${name}")`,
 				[
 					availableKinds.length
@@ -52,7 +84,6 @@ export function createSmartField(
 					`Add a component for kind "${def.kind}" to the fieldComponents map passed to createFormSystem().`,
 				],
 			);
-			return null;
 		}
 
 		return (
@@ -66,7 +97,7 @@ export function createSmartField(
 		);
 	}
 
-	return SmartField;
+	return Object.assign(SmartField, { displayName: "SmartField" });
 }
 
 function ControlledField({

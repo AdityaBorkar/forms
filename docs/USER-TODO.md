@@ -2,18 +2,14 @@
 
 ## Phase 1
 
-How can I simplify the entire API setup and usage pattern of this library for a better Developer Experience. Create a better-dx.md report with the list of suggestions with examples.
+Perform the code and API analysis of the entire codebase and write a better-dx.md report with the list of suggestions with examples. Make sure it covers all the aspects for a better Developer Experience while maintaining highly performant code.
 
 - Smart Component Support
 - Custom Smart Component Support
 - Validation & Error Handling
 - Clean and Complete Functionality
 - 
-- thermo-nuclear of ./package
-- 
-- never, any ts types
 - dev/adityaborkar
-- 
 - Changeset and ensure Publishing on NPM
   - Publish to NPM
     - beta

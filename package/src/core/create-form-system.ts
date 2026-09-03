@@ -8,6 +8,8 @@ import type {
 	FormContextInstance,
 	FormContextValue,
 	FormInstance,
+	InferFormValues,
+	OnMissingField,
 	SchemaAdapter,
 	UseFormOptions,
 } from "#/types";
@@ -23,6 +25,12 @@ import { createUseFormContext } from "./use-form-context";
 export type CreateFormSystemOptions<TSchema> = {
 	fieldComponents: FieldComponentMap;
 	schemaResolver: SchemaAdapter<TSchema>;
+	/**
+	 * Missing field/kind policy. `"throw"` (default) throws in dev for fast
+	 * debugging; `"warn"` renders `null` with a dev warning. Production always
+	 * warns + renders `null` for the same safety as before.
+	 */
+	onMissingField?: OnMissingField;
 };
 
 export type FormSystem<TSchema> = {
@@ -31,8 +39,13 @@ export type FormSystem<TSchema> = {
 	) => ReactElement;
 	SmartField: ComponentType<SmartFieldProps>;
 	SmartFieldArray: ComponentType<SmartFieldArrayProps>;
-	useForm: <TValues extends FieldValues = FieldValues>(
-		options: UseFormOptions<TSchema, TValues>,
+	useForm: <
+		const S extends TSchema,
+		TValues extends FieldValues = InferFormValues<S> extends FieldValues
+			? InferFormValues<S>
+			: FieldValues,
+	>(
+		options: UseFormOptions<S, TValues>,
 	) => FormInstance<TValues>;
 	useFormContext: <
 		TValues extends FieldValues = FieldValues,
@@ -42,6 +55,7 @@ export type FormSystem<TSchema> = {
 export function createFormSystem<TSchema>({
 	fieldComponents,
 	schemaResolver,
+	onMissingField = "throw",
 }: CreateFormSystemOptions<TSchema>): FormSystem<TSchema> {
 	// biome-ignore lint/suspicious/noUnnecessaryConditions: runtime guard for developer misuse
 	if (!schemaResolver) {
@@ -71,7 +85,9 @@ export function createFormSystem<TSchema>({
 	const FormContext = createContext<FormContextValue | null>(null);
 	const useFormContext = createUseFormContext(FormContext);
 	const Form = createForm(FormContext);
-	const SmartField = createSmartField(FormContext, fieldComponents);
+	const SmartField = createSmartField(FormContext, fieldComponents, {
+		onMissingField,
+	});
 	const SmartFieldArray = createSmartFieldArray(FormContext);
 
 	return {

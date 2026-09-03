@@ -20,6 +20,10 @@ function getNodeEnv(): string | undefined {
 
 const warnedMessages = new Set<string>();
 
+export function isProduction(): boolean {
+	return getNodeEnv() === "production";
+}
+
 export function devWarn(message: string, details?: string[]): void {
 	if (getNodeEnv() === "production") return;
 	const key = formatMessage(message, details);

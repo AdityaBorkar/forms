@@ -26,16 +26,18 @@ export function createForm(
 		className,
 		children,
 	}: FormProps<TValues>): ReactElement {
-		const { fieldMap, onSubmit, onInvalid: _onInvalid, ...rhfMethods } = form;
+		const { fieldMap, onSubmit, onInvalid, ...rhfMethods } = form;
 
 		const contextValue = useMemo(() => ({ fieldMap }), [fieldMap]);
 
+		// Bound to stable callbacks — not [form] — so inline onSubmit/onInvalid
+		// in useForm no longer rebinds this handler every render.
 		const handleSubmit: SubmitEventHandler = useCallback(
 			(event) => {
 				event.preventDefault();
-				form.handleSubmit(form.onSubmit, form.onInvalid)(event);
+				rhfMethods.handleSubmit(onSubmit, onInvalid)(event);
 			},
-			[form],
+			[rhfMethods.handleSubmit, onSubmit, onInvalid],
 		);
 
 		return (
@@ -49,7 +51,9 @@ export function createForm(
 		);
 	}
 
-	return Form as <TValues extends FieldValues = FieldValues>(
+	return Object.assign(Form, { displayName: "Form" }) as <
+		TValues extends FieldValues = FieldValues,
+	>(
 		props: FormProps<TValues>,
 	) => ReactElement;
 }

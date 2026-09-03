@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -7,14 +8,20 @@ import {
 	waitFor,
 } from "@testing-library/react";
 import type { FieldValues } from "react-hook-form";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import z from "zod";
 
+import type { InferZod } from "#/adapters/zod/index";
 import { zodAdapter } from "#/adapters/zod/index";
 import { createFormSystem } from "#/core/create-form-system";
-import type { FieldComponentProps } from "#/types";
+import { resetDevWarnings } from "#/errors";
+import type { FieldComponentProps, InferFormValues } from "#/types";
+import { defineFieldComponent, defineFieldComponents } from "#/types";
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	resetDevWarnings();
+});
 
 function makeStub(kind: string) {
 	return function StubField({
@@ -39,16 +46,24 @@ function makeStub(kind: string) {
 	};
 }
 
+const fieldComponents = {
+	array: makeStub("array"),
+	combobox: makeStub("combobox"),
+	email: makeStub("email"),
+	number: makeStub("number"),
+	object: makeStub("object"),
+	string: makeStub("string"),
+	unknown: makeStub("unknown"),
+};
+
 const { Form, SmartField, SmartFieldArray, useForm } = createFormSystem({
-	fieldComponents: {
-		array: makeStub("array"),
-		combobox: makeStub("combobox"),
-		email: makeStub("email"),
-		number: makeStub("number"),
-		object: makeStub("object"),
-		string: makeStub("string"),
-		unknown: makeStub("unknown"),
-	},
+	fieldComponents,
+	schemaResolver: zodAdapter,
+});
+
+const warnSystem = createFormSystem({
+	fieldComponents,
+	onMissingField: "warn",
 	schemaResolver: zodAdapter,
 });
 
@@ -66,6 +81,22 @@ function FormHarness({
 }) {
 	const form = useForm({ defaultValues, onSubmit, schema });
 	return <Form form={form}>{children}</Form>;
+}
+
+// biome-ignore lint/style/useComponentExportOnlyModules: test harness, not a real export
+function WarnHarness({
+	schema,
+	onSubmit,
+	defaultValues,
+	children,
+}: {
+	schema: z.ZodType<FieldValues, FieldValues>;
+	onSubmit: (values: Record<string, unknown>) => void;
+	defaultValues?: Record<string, unknown>;
+	children: React.ReactNode;
+}) {
+	const form = warnSystem.useForm({ defaultValues, onSubmit, schema });
+	return <warnSystem.Form form={form}>{children}</warnSystem.Form>;
 }
 
 describe("createFormSystem — component resolution", () => {
@@ -99,14 +130,58 @@ describe("createFormSystem — component resolution", () => {
 		expect(screen.getByTestId("field-combobox")).toBeTruthy();
 	});
 
-	it("renders nothing for an unknown field name", () => {
+	it("throws in dev for an unknown field name", () => {
 		const schema = z.object({ name: z.string() });
-		render(
-			<FormHarness onSubmit={vi.fn()} schema={schema}>
-				<SmartField name="missing" />
-			</FormHarness>,
-		);
-		expect(screen.queryByTestId("field-string")).toBeNull();
+		expect(() =>
+			render(
+				<FormHarness onSubmit={vi.fn()} schema={schema}>
+					<SmartField name="missing" />
+				</FormHarness>,
+			),
+		).toThrow('No field definition found for "missing"');
+	});
+
+	it("renders nothing (warn) for an unknown field name with onMissingField: warn", () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			const schema = z.object({ name: z.string() });
+			render(
+				<WarnHarness onSubmit={vi.fn()} schema={schema}>
+					<warnSystem.SmartField name="missing" />
+				</WarnHarness>,
+			);
+			expect(screen.queryByTestId("field-string")).toBeNull();
+			expect(warn).toHaveBeenCalled();
+		} finally {
+			warn.mockRestore();
+		}
+	});
+
+	it("throws in dev for a field kind with no registered component", () => {
+		const schema = z.object({ when: z.date() });
+		expect(() =>
+			render(
+				<FormHarness onSubmit={vi.fn()} schema={schema}>
+					<SmartField name="when" />
+				</FormHarness>,
+			),
+		).toThrow('No component registered for field kind "date"');
+	});
+
+	it("renders nothing (warn) for a missing kind with onMissingField: warn", () => {
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			const schema = z.object({ when: z.date() });
+			render(
+				<WarnHarness onSubmit={vi.fn()} schema={schema}>
+					<warnSystem.SmartField name="when" />
+				</WarnHarness>,
+			);
+			expect(screen.queryByTestId("field-string")).toBeNull();
+			expect(warn).toHaveBeenCalled();
+		} finally {
+			warn.mockRestore();
+		}
 	});
 });
 
@@ -195,6 +270,25 @@ describe("createFormSystem — submission & validation", () => {
 		});
 		expect(onSubmit).not.toHaveBeenCalled();
 	});
+
+	it("supports async onSubmit handlers", async () => {
+		const schema = z.object({ name: z.string().min(1) });
+		const onSubmit = vi.fn(async (_values: Record<string, unknown>) => {});
+		render(
+			<FormHarness onSubmit={onSubmit} schema={schema}>
+				<SmartField name="name" />
+				<button type="submit">submit</button>
+			</FormHarness>,
+		);
+		fireEvent.change(screen.getByTestId("field-string"), {
+			target: { value: "Alice" },
+		});
+		fireEvent.click(screen.getByText("submit"));
+		await waitFor(() => {
+			expect(onSubmit).toHaveBeenCalled();
+		});
+		expect(onSubmit.mock.calls[0]?.[0]).toEqual({ name: "Alice" });
+	});
 });
 
 describe("createFormSystem — SmartFieldArray", () => {
@@ -232,5 +326,124 @@ describe("createFormSystem — SmartFieldArray", () => {
 		expect(screen.queryAllByTestId("field-string")).toHaveLength(2);
 		fireEvent.click(screen.getByText("remove-0"));
 		expect(screen.queryAllByTestId("field-string")).toHaveLength(1);
+	});
+
+	it("appendDefault derives a row from the schema without shape duplication", () => {
+		const schema = z.object({
+			tasks: z.array(
+				z.object({
+					done: z.boolean(),
+					title: z.string().min(1),
+				}),
+			),
+		});
+		let appendDefaultRef!: (overrides?: Record<string, unknown>) => void;
+		render(
+			<FormHarness onSubmit={vi.fn()} schema={schema}>
+				<SmartFieldArray name="tasks">
+					{({ appendDefault, fields }) => {
+						appendDefaultRef = appendDefault;
+						return (
+							<>
+								{fields.map((f, i) => (
+									<SmartField key={f.id} name={`tasks.${i}.title`} />
+								))}
+								{/* biome-ignore lint/performance/noJsxPropsBind: test — render perf is irrelevant */}
+								<button onClick={() => appendDefault()} type="button">
+									add-default
+								</button>
+							</>
+						);
+					}}
+				</SmartFieldArray>
+			</FormHarness>,
+		);
+		expect(screen.queryAllByTestId("field-string")).toHaveLength(0);
+		fireEvent.click(screen.getByText("add-default"));
+		expect(screen.queryAllByTestId("field-string")).toHaveLength(1);
+		expect((screen.getByTestId("field-string") as HTMLInputElement).value).toBe(
+			"",
+		);
+		act(() => {
+			appendDefaultRef({ title: "Named" });
+		});
+		expect(screen.queryAllByTestId("field-string")).toHaveLength(2);
+		const inputs = screen.getAllByTestId("field-string") as Array<
+			HTMLInputElement & { value: string }
+		>;
+		expect(inputs[1]?.value).toBe("Named");
+	});
+
+	it("appendDefault derives a primitive element default", () => {
+		const schema = z.object({ tags: z.array(z.string()) });
+		render(
+			<FormHarness onSubmit={vi.fn()} schema={schema}>
+				<SmartFieldArray name="tags">
+					{({ appendDefault, fields }) => (
+						<>
+							{fields.map((f, i) => (
+								<SmartField key={f.id} name={`tags.${i}`} />
+							))}
+							{/* biome-ignore lint/performance/noJsxPropsBind: test — render perf is irrelevant */}
+							<button onClick={() => appendDefault()} type="button">
+								add-tag
+							</button>
+						</>
+					)}
+				</SmartFieldArray>
+			</FormHarness>,
+		);
+		fireEvent.click(screen.getByText("add-tag"));
+		expect(screen.getByTestId("field-string")).toBeTruthy();
+	});
+
+	it("appendDefault throws for a non-array field", () => {
+		const schema = z.object({ name: z.string() });
+		let appendDefault!: (overrides?: Record<string, unknown>) => void;
+		render(
+			<FormHarness onSubmit={vi.fn()} schema={schema}>
+				<SmartFieldArray name="name">
+					{(props) => {
+						appendDefault = props.appendDefault;
+						return null;
+					}}
+				</SmartFieldArray>
+			</FormHarness>,
+		);
+		expect(() => appendDefault()).toThrow(
+			'appendDefault can only be used with array fields (field "name" is kind "string")',
+		);
+	});
+});
+
+describe("form-system — typed helpers (zero runtime)", () => {
+	it("defineFieldComponent returns the component unchanged", () => {
+		function NumberInput(props: FieldComponentProps<number>) {
+			return <input readOnly value={props.value ?? 0} />;
+		}
+		expect(defineFieldComponent<number>(NumberInput)).toBe(NumberInput);
+	});
+
+	it("defineFieldComponents returns the map unchanged", () => {
+		function StringInput(props: FieldComponentProps<string>) {
+			return <input readOnly value={props.value ?? ""} />;
+		}
+		const map = defineFieldComponents({ string: StringInput });
+		expect(map.string).toBe(StringInput);
+	});
+
+	it("InferFormValues resolves Standard Schema output", () => {
+		const schema = z.object({ age: z.number(), name: z.string() });
+		expectTypeOf<InferFormValues<typeof schema>>().toEqualTypeOf<{
+			age: number;
+			name: string;
+		}>();
+	});
+
+	it("InferZod matches z.infer", () => {
+		const schema = z.object({ name: z.string() });
+		expectTypeOf<InferZod<typeof schema>>().toEqualTypeOf<
+			z.infer<typeof schema>
+		>();
 	});
 });
