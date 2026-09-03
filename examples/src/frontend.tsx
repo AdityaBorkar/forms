@@ -1,8 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import ExamplePage from "./app/$id.tsx";
-import HomePage from "./app/index.tsx";
+import ExamplePage from "./routes/$id.tsx";
+import HomePage from "./routes/index.tsx";
 import "./styles.css";
 
 const segments = window.location.pathname.split("/").filter(Boolean);

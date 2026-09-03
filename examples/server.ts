@@ -1,6 +1,6 @@
-import { GET as getSource } from "./src/app/api.sources.$.ts";
-import { POST as submitEcho } from "./src/app/api.submit.ts";
 import index from "./src/frontend.html";
+import { GET as getSource } from "./src/routes/api.sources.$.ts";
+import { POST as submitForm } from "./src/routes/api.submit.ts";
 
 const server = Bun.serve({
 	development: process.env.NODE_ENV !== "production" && {
@@ -11,7 +11,7 @@ const server = Bun.serve({
 	routes: {
 		"/*": index,
 		"/api/sources/*": getSource,
-		"/api/submit": submitEcho,
+		"/api/submit": submitForm,
 	},
 });
 
