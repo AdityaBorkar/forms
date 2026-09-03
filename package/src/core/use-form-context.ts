@@ -1,23 +1,25 @@
 import type { Context } from "react";
-import { useContext } from "react";
+import type { FieldValues, UseFormReturn } from "react-hook-form";
 import { useFormContext as useRhfContext } from "react-hook-form";
 
-import { createFormError } from "@/errors";
-import type { FormContextValue } from "@/types";
-import type { FormContextInstance } from "./use-form";
+import type { FormContextValue, SchemaTree } from "@/types";
+import { useFormContextValue } from "./form-context";
+
+export type FormContextInstance<TValues extends FieldValues = FieldValues> =
+	UseFormReturn<TValues> & {
+		fieldMap: SchemaTree;
+	};
 
 export function createUseFormContext(
 	FormContext: Context<FormContextValue | null>,
-): () => FormContextInstance {
-	return function useFormContext(): FormContextInstance {
-		const rhf = useRhfContext();
-		const ctx = useContext(FormContext);
-		if (!ctx) {
-			throw createFormError("useFormContext must be used within a <Form>", [
-				"Wrap your component with the <Form> component returned by createFormSystem().",
-				"Make sure both useFormContext and <Form> come from the same createFormSystem() call.",
-			]);
-		}
+): <
+	TValues extends FieldValues = FieldValues,
+>() => FormContextInstance<TValues> {
+	return function useFormContext<
+		TValues extends FieldValues = FieldValues,
+	>(): FormContextInstance<TValues> {
+		const rhf = useRhfContext<TValues>();
+		const ctx = useFormContextValue(FormContext, "useFormContext");
 		return {
 			...rhf,
 			fieldMap: ctx.fieldMap,

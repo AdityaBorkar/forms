@@ -5,20 +5,20 @@ import { Switch } from "@/components/ui/switch";
 import { FieldShell } from "./field-shell";
 
 export function SwitchField({
+	def,
 	name,
 	value,
 	onChange,
 	error,
 	disabled,
-	meta,
-	required,
 }: FieldComponentProps) {
+	const meta = def.meta;
 	return (
 		<FieldShell
 			description={meta?.description}
 			error={error}
 			name={name}
-			required={required}
+			required={!def.optional}
 		>
 			<div className="flex items-center gap-3">
 				<Switch

@@ -1,14 +1,11 @@
+import {
+	createConstraintAcc,
+	finalizeConstraints,
+} from "@/adapters/shared/constraints";
+import { makeFieldDef, mergeMeta } from "@/adapters/shared/field-def";
+import type { ValibotPipeItem } from "@/adapters/shared/valibot-types";
 import { createFormError } from "@/errors";
 import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "@/types";
-
-type ValibotPipeItem = {
-	kind?: string;
-	type?: string;
-	requirement?: unknown;
-	metadata?: unknown;
-	title?: unknown;
-	description?: unknown;
-};
 
 type ValibotSchema = {
 	type?: string;
@@ -31,12 +28,8 @@ const SUPPORTED_TYPES = [
 	"date",
 ] as const;
 
-const OPTIONAL_WRAPPERS = [
-	"optional",
-	"nullable",
-	"nullish",
-	"exact_optional",
-] as const;
+/** Only these wrappers allow `undefined`. `nullable` alone does not. */
+const OPTIONAL_WRAPPERS = ["optional", "nullish", "exact_optional"] as const;
 
 function getType(schema: ValibotSchema): string {
 	return schema.type ?? "";
@@ -68,22 +61,19 @@ function getMeta(schema: ValibotSchema): FieldMeta | undefined {
 	return meta && Object.keys(meta).length ? meta : undefined;
 }
 
-type ConstraintAcc = { min?: number; max?: number; checks: FieldCheck[] };
-
 function collectConstraints(
 	pipe: readonly ValibotPipeItem[],
-	process: (action: ValibotPipeItem, acc: ConstraintAcc) => void,
+	process: (
+		action: ValibotPipeItem,
+		acc: ReturnType<typeof createConstraintAcc>,
+	) => void,
 ): { checks?: FieldCheck[]; max?: number; min?: number } {
-	const acc: ConstraintAcc = { checks: [] };
+	const acc = createConstraintAcc();
 	for (const action of pipe) {
 		if (action?.kind !== "validation") continue;
 		process(action, acc);
 	}
-	return {
-		checks: acc.checks.length ? acc.checks : undefined,
-		max: acc.max,
-		min: acc.min,
-	};
+	return finalizeConstraints(acc);
 }
 
 function deriveLengthConstraints(pipe: readonly ValibotPipeItem[]): {
@@ -173,7 +163,7 @@ function resolveEnumEntries(
 	return undefined;
 }
 
-type Resolved = Omit<FieldDef, "optional" | "meta" | "required">;
+type Resolved = Omit<FieldDef, "optional" | "meta">;
 
 function resolveType(
 	schema: ValibotSchema,
@@ -197,18 +187,24 @@ function resolveType(
 			return { kind: "enum", ...(entries && { entries }) };
 		}
 		case "array": {
-			const elementFields = schema.item
-				? buildFieldMap(schema.item, fieldPath)
-				: undefined;
+			if (!schema.item) return { kind: "array" };
+			const elementDef = buildFieldDefInner(
+				schema.item,
+				false,
+				`${fieldPath}[]`,
+			);
 			return {
 				...deriveLengthConstraints(pipe),
-				...(elementFields && { elementFields }),
+				elementDef,
+				...(elementDef.elementFields && {
+					elementFields: elementDef.elementFields,
+				}),
 				kind: "array",
 			};
 		}
 		case "object":
 			return {
-				elementFields: buildFieldMap(schema, fieldPath),
+				elementFields: buildFieldMapInner(schema, fieldPath),
 				kind: "object",
 			};
 		case "date":
@@ -234,7 +230,25 @@ function isSchema(value: unknown): value is ValibotSchema {
 	return typeof value === "object" && value !== null;
 }
 
-function buildFieldDef(
+function pickUnionOption(
+	schemas: ValibotSchema[],
+	fieldPath: string,
+): ValibotSchema {
+	const nonLiteral = schemas.filter((o) => getType(o) !== "literal");
+	if (nonLiteral.length === 1) return nonLiteral[0] as ValibotSchema;
+	if (nonLiteral.length === 0) {
+		throw createFormError(`Unsupported union in field "${fieldPath}"`, [
+			`The union has no non-literal option to render as a field.`,
+			`Use a single field type with an optional literal, or pick one branch.`,
+		]);
+	}
+	throw createFormError(`Ambiguous union in field "${fieldPath}"`, [
+		`The union has ${nonLiteral.length} non-literal options; the form builder cannot guess which one to render.`,
+		`Narrow the schema to a single branch for this field.`,
+	]);
+}
+
+function buildFieldDefInner(
 	schema: ValibotSchema,
 	optional = false,
 	fieldPath = "<root>",
@@ -243,7 +257,13 @@ function buildFieldDef(
 	const meta = getMeta(schema);
 
 	let result: FieldDef;
-	if (OPTIONAL_WRAPPERS.includes(type as (typeof OPTIONAL_WRAPPERS)[number])) {
+	if (
+		(OPTIONAL_WRAPPERS as readonly string[]).includes(type) ||
+		type === "nullable"
+	) {
+		const forcesOptional = (OPTIONAL_WRAPPERS as readonly string[]).includes(
+			type,
+		);
 		if (!schema.wrapped) {
 			throw createFormError(
 				`Optional wrapper has no wrapped schema (field "${fieldPath}")`,
@@ -253,12 +273,19 @@ function buildFieldDef(
 				],
 			);
 		}
-		result = buildFieldDef(schema.wrapped, true, fieldPath);
+		const inner = buildFieldDefInner(
+			schema.wrapped,
+			forcesOptional ? true : optional,
+			fieldPath,
+		);
+		// `nullable` alone preserves outer optionality (`null` is a value, not
+		// absence); optional wrappers force `optional: true`.
+		const mergedOptional = forcesOptional ? true : optional || inner.optional;
+		result = makeFieldDef(inner, mergedOptional, mergeMeta(inner.meta, meta));
 	} else if (type === "union") {
 		const options = Array.isArray(schema.options) ? schema.options : [];
 		const schemas = options.filter(isSchema);
-		const picked = schemas.find((o) => getType(o) !== "literal") ?? schemas[0];
-		if (!picked) {
+		if (schemas.length === 0) {
 			throw createFormError(
 				`Union type has no options (field "${fieldPath}")`,
 				[
@@ -267,29 +294,35 @@ function buildFieldDef(
 				],
 			);
 		}
-		result = buildFieldDef(picked, optional, fieldPath);
+		const picked = pickUnionOption(schemas, fieldPath);
+		const inner = buildFieldDefInner(picked, optional, fieldPath);
+		const mergedOptional = optional || inner.optional;
+		result = makeFieldDef(inner, mergedOptional, mergeMeta(inner.meta, meta));
 	} else {
-		result = {
-			...resolveType(schema, type, getPipe(schema), fieldPath),
+		result = makeFieldDef(
+			resolveType(schema, type, getPipe(schema), fieldPath),
 			optional,
-			required: !optional,
-		};
+			meta,
+		);
 	}
 
-	if (meta) result.meta = meta;
 	return result;
 }
 
-export function buildFieldMap(
+function buildFieldMapInner(
 	schema: ValibotSchema | undefined,
-	parentPath = "",
+	parentPath: string,
 ): SchemaTree {
 	const entries = schema?.entries;
 	if (!entries || typeof entries !== "object") return {};
 	const map: SchemaTree = {};
 	for (const [key, fieldSchema] of Object.entries(entries)) {
 		const fieldPath = parentPath ? `${parentPath}.${key}` : key;
-		map[key] = buildFieldDef(fieldSchema, false, fieldPath);
+		map[key] = buildFieldDefInner(fieldSchema, false, fieldPath);
 	}
 	return map;
+}
+
+export function buildFieldMap(schema: ValibotSchema | undefined): SchemaTree {
+	return buildFieldMapInner(schema, "");
 }

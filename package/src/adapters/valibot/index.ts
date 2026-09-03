@@ -1,4 +1,3 @@
-export { valibotAdapter } from "./adapter";
-export { buildDefaults } from "./build-defaults";
+export { buildDefaults } from "@/adapters/shared/defaults";
+export { createResolver, valibotAdapter } from "./adapter";
 export { buildFieldMap } from "./build-field-map";
-export { createResolver } from "./create-resolver";

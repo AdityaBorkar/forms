@@ -4,7 +4,7 @@ import z from "zod";
 import { buildFieldMap } from "@/adapters/zod/build-field-map";
 
 describe("buildFieldMap — string kinds", () => {
-	it("maps a plain string to kind string with min/max/required", () => {
+	it("maps a plain string to kind string with min/max/optional", () => {
 		const map = buildFieldMap(z.object({ name: z.string().min(1).max(10) }));
 		expect(map.name!).toEqual({
 			checks: [
@@ -13,16 +13,14 @@ describe("buildFieldMap — string kinds", () => {
 			],
 			kind: "string",
 			max: 10,
-			meta: undefined,
 			min: 1,
 			optional: false,
-			required: true,
 		});
 	});
 
-	it("maps a string with no min as required", () => {
+	it("maps a string with no min as required (optional: false)", () => {
 		const map = buildFieldMap(z.object({ note: z.string() }));
-		expect(map.note?.required).toBe(true);
+		expect(map.note?.optional).toBe(false);
 		expect(map.note?.min).toBeUndefined();
 	});
 
@@ -31,6 +29,16 @@ describe("buildFieldMap — string kinds", () => {
 			z.object({ name: z.string().meta({ label: "Name", placeholder: "x" }) }),
 		);
 		expect(map.name?.meta).toEqual({ label: "Name", placeholder: "x" });
+	});
+
+	it("honors meta.component as a kind override", () => {
+		const map = buildFieldMap(
+			z.object({
+				bio: z.string().meta({ component: "textarea", label: "Bio" }),
+			}),
+		);
+		expect(map.bio?.kind).toBe("textarea");
+		expect(map.bio?.meta?.label).toBe("Bio");
 	});
 });
 
@@ -60,7 +68,7 @@ describe("buildFieldMap — number", () => {
 		expect(map.age?.kind).toBe("number");
 		expect(map.age?.min).toBe(0);
 		expect(map.age?.max).toBe(100);
-		expect(map.age?.required).toBe(true);
+		expect(map.age?.optional).toBe(false);
 	});
 });
 
@@ -70,7 +78,6 @@ describe("buildFieldMap — boolean / enum / date", () => {
 		expect(map.active!).toEqual({
 			kind: "boolean",
 			optional: false,
-			required: true,
 		});
 	});
 
@@ -108,8 +115,15 @@ describe("buildFieldMap — array / object", () => {
 		expect(map.locations?.min).toBe(1);
 		expect(map.locations?.max).toBe(5);
 		expect(map.locations?.elementFields?.city?.kind).toBe("string");
-		expect(map.locations?.elementFields?.city?.required).toBe(true);
+		expect(map.locations?.elementFields?.city?.optional).toBe(false);
 		expect(map.locations?.elementFields?.country?.kind).toBe("string");
+		expect(map.locations?.elementDef?.kind).toBe("object");
+	});
+
+	it("maps z.array(z.string()) with a primitive elementDef", () => {
+		const map = buildFieldMap(z.object({ tags: z.array(z.string()) }));
+		expect(map.tags?.kind).toBe("array");
+		expect(map.tags?.elementDef?.kind).toBe("string");
 	});
 
 	it("maps z.object() with nested fields", () => {
@@ -128,21 +142,21 @@ describe("buildFieldMap — optional / union", () => {
 		expect(map.name?.kind).toBe("string");
 		expect(map.name?.optional).toBe(true);
 		expect(map.name?.min).toBe(1);
-		expect(map.name?.required).toBe(false);
 	});
 
-	it("unwraps optional and preserves wrapper meta over inner meta", () => {
+	it("unwraps optional and merges wrapper meta over inner meta", () => {
 		const map = buildFieldMap(
 			z.object({
 				name: z
 					.string()
-					.meta({ label: "Inner" })
+					.meta({ label: "Inner", placeholder: "x" })
 					.optional()
 					.meta({ label: "Wrapper" }),
 			}),
 		);
 		expect(map.name?.optional).toBe(true);
 		expect(map.name?.meta?.label).toBe("Wrapper");
+		expect(map.name?.meta?.placeholder).toBe("x");
 	});
 
 	it("resolves a union of optional(email) | literal() to email, optional", () => {
@@ -151,6 +165,12 @@ describe("buildFieldMap — optional / union", () => {
 		);
 		expect(map.email?.kind).toBe("email");
 		expect(map.email?.optional).toBe(true);
+	});
+
+	it("throws for an ambiguous union with two non-literal branches", () => {
+		expect(() =>
+			buildFieldMap(z.object({ value: z.union([z.string(), z.number()]) })),
+		).toThrow("Ambiguous union");
 	});
 
 	it("throws for a bare literal", () => {

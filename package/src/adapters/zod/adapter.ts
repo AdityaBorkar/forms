@@ -1,10 +1,16 @@
-import type { FieldValues } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type { FieldValues, Resolver } from "react-hook-form";
 import type { ZodType } from "zod";
 
+import { buildDefaults } from "@/adapters/shared/defaults";
 import type { SchemaAdapter } from "@/types";
-import { buildDefaults } from "./build-defaults";
 import { buildFieldMap } from "./build-field-map";
-import { createResolver } from "./create-resolver";
+
+export function createResolver(
+	schema: ZodType<FieldValues, FieldValues>,
+): Resolver {
+	return zodResolver(schema);
+}
 
 export const zodAdapter: SchemaAdapter<ZodType<FieldValues, FieldValues>> = {
 	buildDefaults,

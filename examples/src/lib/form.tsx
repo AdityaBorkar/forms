@@ -1,5 +1,11 @@
-import { createFormSystem, type FieldComponentMap } from "@adistack/forms";
+import {
+	createFormSystem,
+	type FieldComponentMap,
+	type FormSystem,
+} from "@adistack/forms";
 import { zodAdapter } from "@adistack/forms/adapters/zod";
+import type { FieldValues } from "react-hook-form";
+import type { ZodType } from "zod";
 
 import {
 	CheckboxField,
@@ -26,8 +32,10 @@ const fieldComponents: FieldComponentMap = {
 	url: TextField,
 };
 
+const system: FormSystem<ZodType<FieldValues, FieldValues>> = createFormSystem({
+	fieldComponents,
+	schemaResolver: zodAdapter,
+});
+
 export const { SmartField, SmartFieldArray, Form, useForm, useFormContext } =
-	createFormSystem({
-		fieldComponents,
-		schemaResolver: zodAdapter,
-	});
+	system;

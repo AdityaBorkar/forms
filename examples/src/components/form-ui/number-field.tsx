@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { FieldShell } from "./field-shell";
 
 export function NumberField({
+	def,
 	name,
 	value,
 	onChange,
@@ -12,8 +13,6 @@ export function NumberField({
 	ref,
 	error,
 	disabled,
-	meta,
-	required,
 }: FieldComponentProps) {
 	const handleChange = useCallback(
 		(event: ChangeEvent<HTMLInputElement>) =>
@@ -22,13 +21,14 @@ export function NumberField({
 			),
 		[onChange],
 	);
+	const meta = def.meta;
 	return (
 		<FieldShell
 			description={meta?.description}
 			error={error}
 			label={meta?.label}
 			name={name}
-			required={required}
+			required={!def.optional}
 		>
 			<Input
 				disabled={disabled}

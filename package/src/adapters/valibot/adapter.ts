@@ -1,9 +1,14 @@
+import { valibotResolver } from "@hookform/resolvers/valibot";
+import type { FieldValues, Resolver } from "react-hook-form";
 import type { GenericSchema } from "valibot";
 
+import { buildDefaults } from "@/adapters/shared/defaults";
 import type { SchemaAdapter } from "@/types";
-import { buildDefaults } from "./build-defaults";
 import { buildFieldMap } from "./build-field-map";
-import { createResolver } from "./create-resolver";
+
+export function createResolver(schema: GenericSchema): Resolver {
+	return valibotResolver(schema as GenericSchema<FieldValues, FieldValues>);
+}
 
 export const valibotAdapter: SchemaAdapter<GenericSchema> = {
 	buildDefaults,

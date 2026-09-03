@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { buildFieldMap } from "@/adapters/valibot/build-field-map";
 
 describe("buildFieldMap — string kinds", () => {
-	it("maps a piped string to kind string with min/max/required", () => {
+	it("maps a piped string to kind string with min/max/optional", () => {
 		const map = buildFieldMap(
 			v.object({
 				name: v.pipe(v.string(), v.minLength(1), v.maxLength(10)),
@@ -17,16 +17,14 @@ describe("buildFieldMap — string kinds", () => {
 			],
 			kind: "string",
 			max: 10,
-			meta: undefined,
 			min: 1,
 			optional: false,
-			required: true,
 		});
 	});
 
-	it("maps a string with no min as required", () => {
+	it("maps a string with no min as required (optional: false)", () => {
 		const map = buildFieldMap(v.object({ note: v.string() }));
-		expect(map.note?.required).toBe(true);
+		expect(map.note?.optional).toBe(false);
 		expect(map.note?.min).toBeUndefined();
 	});
 
@@ -40,6 +38,15 @@ describe("buildFieldMap — string kinds", () => {
 			}),
 		);
 		expect(map.name?.meta).toEqual({ label: "Name", placeholder: "x" });
+	});
+
+	it("honors metadata component as a kind override", () => {
+		const map = buildFieldMap(
+			v.object({
+				bio: v.pipe(v.string(), v.metadata({ component: "textarea" })),
+			}),
+		);
+		expect(map.bio?.kind).toBe("textarea");
 	});
 });
 
@@ -68,7 +75,7 @@ describe("buildFieldMap — number", () => {
 		expect(map.age?.kind).toBe("number");
 		expect(map.age?.min).toBe(0);
 		expect(map.age?.max).toBe(100);
-		expect(map.age?.required).toBe(true);
+		expect(map.age?.optional).toBe(false);
 	});
 
 	it("maps gt/lt bounds to checks", () => {
@@ -90,7 +97,6 @@ describe("buildFieldMap — boolean / enum / date", () => {
 		expect(map.active!).toEqual({
 			kind: "boolean",
 			optional: false,
-			required: true,
 		});
 	});
 
@@ -142,8 +148,15 @@ describe("buildFieldMap — array / object", () => {
 		expect(map.locations?.min).toBe(1);
 		expect(map.locations?.max).toBe(5);
 		expect(map.locations?.elementFields?.city?.kind).toBe("string");
-		expect(map.locations?.elementFields?.city?.required).toBe(true);
+		expect(map.locations?.elementFields?.city?.optional).toBe(false);
 		expect(map.locations?.elementFields?.country?.kind).toBe("string");
+		expect(map.locations?.elementDef?.kind).toBe("object");
+	});
+
+	it("maps v.array(v.string()) with a primitive elementDef", () => {
+		const map = buildFieldMap(v.object({ tags: v.array(v.string()) }));
+		expect(map.tags?.kind).toBe("array");
+		expect(map.tags?.elementDef?.kind).toBe("string");
 	});
 
 	it("maps v.object() with nested fields", () => {
@@ -164,26 +177,36 @@ describe("buildFieldMap — optional / union", () => {
 		expect(map.name?.kind).toBe("string");
 		expect(map.name?.optional).toBe(true);
 		expect(map.name?.min).toBe(1);
-		expect(map.name?.required).toBe(false);
 	});
 
 	it("treats nullish as optional", () => {
 		const map = buildFieldMap(v.object({ name: v.nullish(v.string()) }));
 		expect(map.name?.optional).toBe(true);
-		expect(map.name?.required).toBe(false);
 	});
 
-	it("unwraps optional and preserves wrapper meta over inner meta", () => {
+	it("treats nullable alone as required (null is a value)", () => {
+		const map = buildFieldMap(v.object({ name: v.nullable(v.string()) }));
+		expect(map.name?.optional).toBe(false);
+		expect(map.name?.kind).toBe("string");
+	});
+
+	it("unwraps optional and merges wrapper meta over inner meta", () => {
 		const map = buildFieldMap(
 			v.object({
 				name: v.pipe(
-					v.optional(v.pipe(v.string(), v.metadata({ label: "Inner" }))),
+					v.optional(
+						v.pipe(
+							v.string(),
+							v.metadata({ label: "Inner", placeholder: "x" }),
+						),
+					),
 					v.metadata({ label: "Wrapper" }),
 				),
 			}),
 		);
 		expect(map.name?.optional).toBe(true);
 		expect(map.name?.meta?.label).toBe("Wrapper");
+		expect(map.name?.meta?.placeholder).toBe("x");
 	});
 
 	it("resolves a union of optional(email) | literal() to email, optional", () => {
@@ -197,6 +220,12 @@ describe("buildFieldMap — optional / union", () => {
 		);
 		expect(map.email?.kind).toBe("email");
 		expect(map.email?.optional).toBe(true);
+	});
+
+	it("throws for an ambiguous union with two non-literal branches", () => {
+		expect(() =>
+			buildFieldMap(v.object({ value: v.union([v.string(), v.number()]) })),
+		).toThrow("Ambiguous union");
 	});
 
 	it("throws for a bare literal", () => {

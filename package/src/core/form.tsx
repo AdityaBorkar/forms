@@ -1,34 +1,47 @@
 import type {
-	ComponentType,
 	Context,
 	ReactElement,
 	ReactNode,
 	SubmitEventHandler,
 } from "react";
+import { useCallback, useMemo } from "react";
+import type { FieldValues } from "react-hook-form";
 import { FormProvider } from "react-hook-form";
 
 import type { FormContextValue } from "@/types";
 import type { FormInstance } from "./use-form";
 
-export type FormProps = {
-	form: FormInstance;
+export type FormProps<TValues extends FieldValues = FieldValues> = {
+	form: FormInstance<TValues>;
 	className?: string;
 	children?: ReactNode;
 };
 
 export function createForm(
 	FormContext: Context<FormContextValue | null>,
-): ComponentType<FormProps> {
-	function Form({ form, className, children }: FormProps): ReactElement {
-		const handleSubmit: SubmitEventHandler = (event) => {
-			event.preventDefault();
-			form.handleSubmit(form.onSubmit, form.onInvalid)(event);
-		};
+): <TValues extends FieldValues = FieldValues>(
+	props: FormProps<TValues>,
+) => ReactElement {
+	function Form<TValues extends FieldValues = FieldValues>({
+		form,
+		className,
+		children,
+	}: FormProps<TValues>): ReactElement {
+		const { fieldMap, onSubmit, onInvalid: _onInvalid, ...rhfMethods } = form;
+
+		const contextValue = useMemo(() => ({ fieldMap }), [fieldMap]);
+
+		const handleSubmit: SubmitEventHandler = useCallback(
+			(event) => {
+				event.preventDefault();
+				form.handleSubmit(form.onSubmit, form.onInvalid)(event);
+			},
+			[form],
+		);
 
 		return (
-			<FormContext value={{ fieldMap: form.fieldMap }}>
-				<FormProvider {...form}>
-					{/* biome-ignore lint/performance/noJsxPropsBind: handler closes over the per-render form instance, so useCallback would not stabilize it */}
+			<FormContext value={contextValue}>
+				<FormProvider {...rhfMethods}>
 					<form className={className} onSubmit={handleSubmit}>
 						{children}
 					</form>
@@ -37,5 +50,7 @@ export function createForm(
 		);
 	}
 
-	return Form;
+	return Form as <TValues extends FieldValues = FieldValues>(
+		props: FormProps<TValues>,
+	) => ReactElement;
 }

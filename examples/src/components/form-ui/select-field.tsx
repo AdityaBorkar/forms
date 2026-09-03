@@ -10,16 +10,16 @@ import {
 import { FieldShell } from "./field-shell";
 
 export function SelectField({
+	def,
 	name,
 	value,
 	onChange,
 	onBlur,
 	error,
 	disabled,
-	meta,
-	required,
-	entries,
 }: FieldComponentProps) {
+	const meta = def.meta;
+	const entries = def.entries;
 	const options = entries ? Object.entries(entries) : [];
 	return (
 		<FieldShell
@@ -27,12 +27,12 @@ export function SelectField({
 			error={error}
 			label={meta?.label}
 			name={name}
-			required={required}
+			required={!def.optional}
 		>
 			<Select
 				disabled={disabled}
 				onValueChange={onChange}
-				value={String(value ?? "")}
+				value={typeof value === "string" ? value : String(value ?? "")}
 			>
 				<SelectTrigger className="w-full" id={name} onBlur={onBlur}>
 					<SelectValue placeholder={meta?.placeholder ?? "Select…"} />
@@ -40,7 +40,7 @@ export function SelectField({
 				<SelectContent>
 					{options.map(([key, label]) => (
 						<SelectItem key={key} value={key}>
-							{label}
+							{String(label)}
 						</SelectItem>
 					))}
 				</SelectContent>

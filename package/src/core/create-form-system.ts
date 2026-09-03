@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, ReactElement } from "react";
 import { createContext } from "react";
 import type { FieldValues } from "react-hook-form";
 
@@ -11,11 +11,13 @@ import type {
 } from "@/types";
 import type { SmartFieldProps } from "@/ui/smart-field";
 import { createSmartField } from "@/ui/smart-field";
-import { SmartFieldArray } from "@/ui/smart-field-array";
+import type { SmartFieldArrayProps } from "@/ui/smart-field-array";
+import { createSmartFieldArray } from "@/ui/smart-field-array";
 import type { FormProps } from "./form";
 import { createForm } from "./form";
-import type { FormContextInstance, FormInstance } from "./use-form";
+import type { FormInstance } from "./use-form";
 import { createUseForm } from "./use-form";
+import type { FormContextInstance } from "./use-form-context";
 import { createUseFormContext } from "./use-form-context";
 
 export type CreateFormSystemOptions<TSchema> = {
@@ -24,13 +26,17 @@ export type CreateFormSystemOptions<TSchema> = {
 };
 
 export type FormSystem<TSchema> = {
-	Form: ComponentType<FormProps>;
+	Form: <TValues extends FieldValues = FieldValues>(
+		props: FormProps<TValues>,
+	) => ReactElement;
 	SmartField: ComponentType<SmartFieldProps>;
-	SmartFieldArray: typeof SmartFieldArray;
+	SmartFieldArray: ComponentType<SmartFieldArrayProps>;
 	useForm: <TValues extends FieldValues = FieldValues>(
 		options: UseFormOptions<TSchema, TValues>,
 	) => FormInstance<TValues>;
-	useFormContext: () => FormContextInstance;
+	useFormContext: <
+		TValues extends FieldValues = FieldValues,
+	>() => FormContextInstance<TValues>;
 };
 
 export function createFormSystem<TSchema>({
@@ -52,12 +58,21 @@ export function createFormSystem<TSchema>({
 			],
 		);
 	}
+	for (const [kind, Component] of Object.entries(fieldComponents)) {
+		if (typeof Component !== "function") {
+			throw createFormError(`Invalid component registered for kind "${kind}"`, [
+				`Expected a React component, received ${typeof Component}.`,
+				`Check the fieldComponents map passed to createFormSystem().`,
+			]);
+		}
+	}
 
 	const useForm = createUseForm<TSchema>(schemaResolver);
 	const FormContext = createContext<FormContextValue | null>(null);
 	const useFormContext = createUseFormContext(FormContext);
 	const Form = createForm(FormContext);
 	const SmartField = createSmartField(FormContext, fieldComponents);
+	const SmartFieldArray = createSmartFieldArray(FormContext);
 
 	return {
 		Form,

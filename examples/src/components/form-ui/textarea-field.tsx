@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FieldShell } from "./field-shell";
 
 export function TextareaField({
+	def,
 	name,
 	value,
 	onChange,
@@ -12,20 +13,19 @@ export function TextareaField({
 	ref,
 	error,
 	disabled,
-	meta,
-	required,
 }: FieldComponentProps) {
 	const handleChange = useCallback(
 		(event: ChangeEvent<HTMLTextAreaElement>) => onChange(event.target.value),
 		[onChange],
 	);
+	const meta = def.meta;
 	return (
 		<FieldShell
 			description={meta?.description}
 			error={error}
 			label={meta?.label}
 			name={name}
-			required={required}
+			required={!def.optional}
 		>
 			<Textarea
 				disabled={disabled}

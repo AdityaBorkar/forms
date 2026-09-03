@@ -31,7 +31,7 @@ const fieldComponents: FieldComponentMap = {
 };
 ```
 
-Each component receives [`FieldComponentProps`](./src/types.ts) — `value`, `onChange`, `onBlur`, `ref`, `error`, plus the resolved `FieldDef` (`kind`, `meta`, `required`, `min`/`max`, `entries`, …).
+Each component receives [`FieldComponentProps`](./package/src/types.ts) — `def`, `name`, `value`, `onChange`, `onBlur`, `ref`, `error`, `disabled`, `config`. Read schema-derived data from `def` (`def.kind`, `def.meta`, `def.min`/`def.max`, `def.entries`, `def.optional`, …).
 
 **2. Wire the factory once** with your components and a schema adapter:
 
@@ -81,7 +81,7 @@ createFormSystem({ fieldComponents, schemaResolver })
         │
         ├── useForm(schema)      → builds SchemaTree + defaults + resolver, delegates to react-hook-form
         ├── <Form>               → wraps FormProvider + the context that carries fieldMap
-        ├── <SmartField name>    → resolves FieldDef, renders your component via register()
+        ├── <SmartField name>    → resolves FieldDef, renders your component via useController()
         └── <SmartFieldArray>    → wraps useFieldArray for repeatable rows
 ```
 
@@ -105,8 +105,11 @@ z.string().min(8).meta({
 })
 ```
 
-`meta` is passthrough only — dispatch is always `fieldComponents[def.kind]` and
-the Zod adapter only emits `string|number|boolean|date|email|url|object|array|enum`.
+`meta` is passthrough, plus an optional `component` override — when
+`meta.component` is a non-empty string it becomes the dispatch kind
+(e.g. `z.string().meta({ component: "textarea" })` renders
+`fieldComponents.textarea`). Without the override, dispatch is
+`fieldComponents[def.kind]` and required state derives as `!def.optional`.
 
 ## Nested objects & arrays
 

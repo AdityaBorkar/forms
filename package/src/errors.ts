@@ -18,7 +18,17 @@ function getNodeEnv(): string | undefined {
 	return typeof nodeEnv === "string" ? nodeEnv : undefined;
 }
 
+const warnedMessages = new Set<string>();
+
 export function devWarn(message: string, details?: string[]): void {
 	if (getNodeEnv() === "production") return;
-	console.warn(formatMessage(message, details));
+	const key = formatMessage(message, details);
+	if (warnedMessages.has(key)) return;
+	warnedMessages.add(key);
+	console.warn(key);
+}
+
+/** Reset deduped warnings. Intended for tests only. */
+export function resetDevWarnings(): void {
+	warnedMessages.clear();
 }

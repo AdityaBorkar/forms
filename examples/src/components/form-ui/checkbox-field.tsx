@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { FieldShell } from "./field-shell";
 
 export function CheckboxField({
+	def,
 	name,
 	value,
 	onChange,
@@ -12,19 +13,18 @@ export function CheckboxField({
 	ref,
 	error,
 	disabled,
-	meta,
-	required,
 }: FieldComponentProps) {
 	const handleChange = useCallback(
 		(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.checked),
 		[onChange],
 	);
+	const meta = def.meta;
 	return (
 		<FieldShell
 			description={meta?.description}
 			error={error}
 			name={name}
-			required={required}
+			required={!def.optional}
 		>
 			<div className="flex items-center gap-2">
 				<input

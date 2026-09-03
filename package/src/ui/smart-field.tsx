@@ -1,9 +1,9 @@
 import type { ComponentType, Context, ReactElement } from "react";
-import { useContext } from "react";
-import { useFormContext as useRhfContext } from "react-hook-form";
+import { useController } from "react-hook-form";
 
+import { useFormContextValue } from "@/core/form-context";
 import { resolveFieldDef } from "@/core/resolve-field-def";
-import { createFormError, devWarn } from "@/errors";
+import { devWarn } from "@/errors";
 import type {
 	FieldComponentMap,
 	FieldComponentProps,
@@ -26,24 +26,16 @@ export function createSmartField(
 		disabled,
 		config,
 	}: SmartFieldProps): ReactElement | null {
-		const rhf = useRhfContext();
-		const ctx = useContext(FormContext);
-
-		if (!ctx) {
-			throw createFormError("SmartField must be used within a <Form>", [
-				"Wrap your component with the <Form> component returned by createFormSystem().",
-				"Make sure both <SmartField> and <Form> come from the same createFormSystem() call.",
-			]);
-		}
+		const { fieldMap } = useFormContextValue(FormContext, "SmartField");
 
 		let def: FieldDef;
 		try {
-			def = resolveFieldDef(ctx.fieldMap, name);
+			def = resolveFieldDef(fieldMap, name);
 		} catch {
 			devWarn(`SmartField: could not render field "${name}"`, [
 				"The field was not found in the schema or has an unsupported type.",
 				"SmartField will render nothing for this field.",
-				"Check that the name prop matches a key in your Zod object schema.",
+				"Check that the name prop matches a key in your object schema.",
 			]);
 			return null;
 		}
@@ -63,24 +55,49 @@ export function createSmartField(
 			return null;
 		}
 
-		const { ref, onChange, onBlur } = rhf.register(name);
-		const { error } = rhf.getFieldState(name, rhf.formState);
-
-		const renderProps: FieldComponentProps = {
-			...def,
-			config,
-			disabled,
-			error: error?.message,
-			name,
-			onBlur: () =>
-				onBlur({ target: { name, value: rhf.getValues(name) }, type: "blur" }),
-			onChange: (value: unknown) =>
-				onChange({ target: { name, value }, type: "change" }),
-			ref,
-		};
-
-		return <Component {...renderProps} />;
+		return (
+			<ControlledField
+				Component={Component}
+				config={config}
+				def={def}
+				disabled={disabled}
+				name={name}
+			/>
+		);
 	}
 
 	return SmartField;
+}
+
+function ControlledField({
+	Component,
+	def,
+	name,
+	disabled,
+	config,
+}: {
+	Component: FieldComponentMap[string];
+	def: FieldDef;
+	name: string;
+	disabled?: boolean;
+	config?: Record<string, unknown>;
+}): ReactElement {
+	const {
+		field: { value, onChange, onBlur, ref },
+		fieldState: { error },
+	} = useController({ disabled, name });
+
+	const renderProps: FieldComponentProps = {
+		config,
+		def,
+		disabled,
+		error: error?.message,
+		name,
+		onBlur,
+		onChange,
+		ref,
+		...(value !== undefined && { value: value as unknown }),
+	};
+
+	return <Component {...renderProps} />;
 }

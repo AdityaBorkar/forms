@@ -1,8 +1,11 @@
-import type { ReactNode } from "react";
+import type { ComponentType, Context, ReactElement, ReactNode } from "react";
 import {
 	useFieldArray,
 	useFormContext as useRhfContext,
 } from "react-hook-form";
+
+import { useFormContextValue } from "@/core/form-context";
+import type { FormContextValue } from "@/types";
 
 export type FieldArrayRow = Record<string, unknown> & { id: string };
 
@@ -19,7 +22,7 @@ export type SmartFieldArrayProps = {
 	children: (props: SmartFieldArrayRenderProps) => ReactNode;
 };
 
-export function SmartFieldArray({
+function BaseSmartFieldArray({
 	name,
 	children,
 }: SmartFieldArrayProps): ReactNode {
@@ -31,9 +34,30 @@ export function SmartFieldArray({
 
 	return children({
 		append,
-		fields,
+		fields: fields as FieldArrayRow[],
 		move,
 		remove,
 		update,
 	});
+}
+
+export function createSmartFieldArray(
+	FormContext: Context<FormContextValue | null>,
+): ComponentType<SmartFieldArrayProps> {
+	function BoundSmartFieldArray({
+		name,
+		children,
+	}: SmartFieldArrayProps): ReactElement {
+		useFormContextValue(FormContext, "SmartFieldArray");
+		return <BaseSmartFieldArray name={name}>{children}</BaseSmartFieldArray>;
+	}
+
+	return BoundSmartFieldArray;
+}
+
+export function SmartFieldArray({
+	name,
+	children,
+}: SmartFieldArrayProps): ReactNode {
+	return <BaseSmartFieldArray name={name}>{children}</BaseSmartFieldArray>;
 }

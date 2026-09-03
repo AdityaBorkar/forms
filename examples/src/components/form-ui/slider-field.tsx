@@ -5,21 +5,21 @@ import { Slider } from "@/components/ui/slider";
 import { FieldShell } from "./field-shell";
 
 export function SliderField({
+	def,
 	name,
 	value,
 	onChange,
 	error,
 	disabled,
-	meta,
-	required,
-	min,
-	max,
 }: FieldComponentProps) {
 	const handleChange = useCallback(
 		(value: number | readonly number[]) =>
 			onChange(Array.isArray(value) ? value[0] : value),
 		[onChange],
 	);
+	const meta = def.meta;
+	const min = def.min;
+	const max = def.max;
 	const numeric = typeof value === "number" ? value : 0;
 	return (
 		<FieldShell
@@ -27,7 +27,7 @@ export function SliderField({
 			error={error}
 			label={meta?.label}
 			name={name}
-			required={required}
+			required={!def.optional}
 		>
 			<div className="flex items-center gap-4">
 				<Slider

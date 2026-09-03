@@ -87,6 +87,18 @@ describe("createFormSystem — component resolution", () => {
 		expect(screen.getByTestId("field-number")).toBeTruthy();
 	});
 
+	it("SmartField honors meta.component overrides", () => {
+		const schema = z.object({
+			bio: z.string().meta({ component: "combobox" }),
+		});
+		render(
+			<FormHarness onSubmit={vi.fn()} schema={schema}>
+				<SmartField name="bio" />
+			</FormHarness>,
+		);
+		expect(screen.getByTestId("field-combobox")).toBeTruthy();
+	});
+
 	it("renders nothing for an unknown field name", () => {
 		const schema = z.object({ name: z.string() });
 		render(
@@ -122,6 +134,28 @@ describe("createFormSystem — nested paths", () => {
 		);
 		expect(screen.queryByTestId("field-string")).toBeNull();
 		fireEvent.click(screen.getByText("add"));
+		expect(screen.getByTestId("field-string")).toBeTruthy();
+	});
+
+	it("SmartField resolves a primitive array element path", () => {
+		const schema = z.object({ tags: z.array(z.string()) });
+		render(
+			<FormHarness
+				defaultValues={{ tags: ["hello"] }}
+				onSubmit={vi.fn()}
+				schema={schema}
+			>
+				<SmartFieldArray name="tags">
+					{({ fields }) => (
+						<>
+							{fields.map((f, i) => (
+								<SmartField key={f.id} name={`tags.${i}`} />
+							))}
+						</>
+					)}
+				</SmartFieldArray>
+			</FormHarness>,
+		);
 		expect(screen.getByTestId("field-string")).toBeTruthy();
 	});
 });

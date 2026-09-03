@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { FieldShell } from "./field-shell";
 
 export function TextField({
+	def,
 	name,
 	value,
 	onChange,
@@ -12,14 +13,13 @@ export function TextField({
 	ref,
 	error,
 	disabled,
-	meta,
-	required,
-	kind,
 }: FieldComponentProps) {
 	const handleChange = useCallback(
 		(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value),
 		[onChange],
 	);
+	const meta = def.meta;
+	const kind = def.kind;
 	const type =
 		kind === "email"
 			? "email"
@@ -34,7 +34,7 @@ export function TextField({
 			error={error}
 			label={meta?.label}
 			name={name}
-			required={required}
+			required={!def.optional}
 		>
 			<Input
 				disabled={disabled}

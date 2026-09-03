@@ -5,17 +5,20 @@ export type {
 export { createFormSystem } from "@/core/create-form-system";
 export type { FormProps } from "@/core/form";
 export { resolveFieldDef } from "@/core/resolve-field-def";
-export type {
-	FormContextInstance,
-	FormInstance,
-} from "@/core/use-form";
+export type { FormInstance } from "@/core/use-form";
+export type { FormContextInstance } from "@/core/use-form-context";
 export type {
 	FieldCheck,
+	FieldCheckType,
 	FieldComponentMap,
 	FieldComponentProps,
 	FieldDef,
+	FieldKind,
 	FieldMeta,
 	FormContextValue,
+	KnownFieldCheckType,
+	KnownFieldKind,
+	ReValidateMode,
 	SchemaAdapter,
 	SchemaTree,
 	UseFormOptions,
