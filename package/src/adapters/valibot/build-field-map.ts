@@ -1,3 +1,34 @@
+import type {
+	ArraySchema,
+	DescriptionAction,
+	Enum,
+	EnumSchema,
+	ExactOptionalSchema,
+	GenericPipeItem,
+	GenericSchema,
+	GtValueAction,
+	LengthAction,
+	LengthInput,
+	LtValueAction,
+	MaxLengthAction,
+	MaxValueAction,
+	MetadataAction,
+	MinLengthAction,
+	MinValueAction,
+	NullableSchema,
+	NullishSchema,
+	ObjectEntries,
+	ObjectSchema,
+	OptionalSchema,
+	PicklistOptions,
+	PicklistSchema,
+	SchemaWithPipe,
+	TitleAction,
+	UnionOptions,
+	UnionSchema,
+	ValueInput,
+} from "valibot";
+
 import {
 	createConstraintAcc,
 	finalizeConstraints,
@@ -6,25 +37,6 @@ import {
 } from "#/adapters/shared";
 import { createFormError } from "#/errors";
 import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "#/types";
-
-type ValibotPipeItem = {
-	kind?: string;
-	type?: string;
-	requirement?: unknown;
-	metadata?: unknown;
-	title?: unknown;
-	description?: unknown;
-};
-
-type ValibotSchema = {
-	type?: string;
-	entries?: { readonly [key: string]: ValibotSchema };
-	item?: ValibotSchema;
-	options?: readonly unknown[];
-	wrapped?: ValibotSchema;
-	enum?: { readonly [key: string]: unknown };
-	pipe?: readonly ValibotPipeItem[];
-};
 
 const SUPPORTED_TYPES = [
 	"string",
@@ -40,72 +52,92 @@ const SUPPORTED_TYPES = [
 /** Only these wrappers allow `undefined`. `nullable` alone does not. */
 const OPTIONAL_WRAPPERS = ["optional", "nullish", "exact_optional"] as const;
 
-function getType(schema: ValibotSchema): string {
-	return schema.type ?? "";
+function getType(schema: GenericSchema): string {
+	return schema.type;
 }
 
 function isFieldMeta(value: unknown): value is FieldMeta {
 	return typeof value === "object" && value !== null;
 }
 
-function getPipe(schema: ValibotSchema): readonly ValibotPipeItem[] {
-	return Array.isArray(schema.pipe) ? schema.pipe : [];
+function getPipe(schema: GenericSchema): readonly GenericPipeItem[] {
+	if (!("pipe" in schema)) return [];
+	const piped = schema as SchemaWithPipe<
+		readonly [GenericSchema, ...GenericPipeItem[]]
+	>;
+	return Array.isArray(piped.pipe) ? piped.pipe : [];
 }
 
-function getMeta(schema: ValibotSchema): FieldMeta | undefined {
+function getMeta(schema: GenericSchema): FieldMeta | undefined {
 	let meta: FieldMeta | undefined;
 	for (const item of getPipe(schema)) {
-		if (item?.kind !== "metadata") continue;
-		if (item.type === "metadata" && isFieldMeta(item.metadata)) {
-			meta = { ...(meta ?? {}), ...item.metadata };
-		} else if (item.type === "title" && typeof item.title === "string") {
-			meta = { ...(meta ?? {}), label: item.title, title: item.title };
-		} else if (
-			item.type === "description" &&
-			typeof item.description === "string"
-		) {
-			meta = { ...(meta ?? {}), description: item.description };
+		if (item.kind !== "metadata") continue;
+		if (item.type === "metadata") {
+			const metadata = (
+				item as MetadataAction<unknown, Record<string, unknown>>
+			).metadata;
+			if (isFieldMeta(metadata)) meta = { ...(meta ?? {}), ...metadata };
+		} else if (item.type === "title") {
+			const title = (item as TitleAction<unknown, string>).title;
+			if (typeof title === "string")
+				meta = { ...(meta ?? {}), label: title, title };
+		} else if (item.type === "description") {
+			const description = (item as DescriptionAction<unknown, string>)
+				.description;
+			if (typeof description === "string")
+				meta = { ...(meta ?? {}), description };
 		}
 	}
 	return meta && Object.keys(meta).length ? meta : undefined;
 }
 
 function collectConstraints(
-	pipe: readonly ValibotPipeItem[],
+	pipe: readonly GenericPipeItem[],
 	process: (
-		action: ValibotPipeItem,
+		action: GenericPipeItem,
 		acc: ReturnType<typeof createConstraintAcc>,
 	) => void,
 ): { checks?: FieldCheck[]; max?: number; min?: number } {
 	const acc = createConstraintAcc();
 	for (const action of pipe) {
-		if (action?.kind !== "validation") continue;
+		if (action.kind !== "validation") continue;
 		process(action, acc);
 	}
 	return finalizeConstraints(acc);
 }
 
-function deriveLengthConstraints(pipe: readonly ValibotPipeItem[]): {
+function deriveLengthConstraints(pipe: readonly GenericPipeItem[]): {
 	checks?: FieldCheck[];
 	max?: number;
 	min?: number;
 } {
 	return collectConstraints(pipe, (action, acc) => {
-		const requirement = action.requirement;
-		if (action.type === "min_length" && typeof requirement === "number") {
-			acc.min = requirement;
-			acc.checks.push({ type: "min", value: requirement });
-		} else if (
-			action.type === "max_length" &&
-			typeof requirement === "number"
-		) {
-			acc.max = requirement;
-			acc.checks.push({ type: "max", value: requirement });
-		} else if (action.type === "length" && typeof requirement === "number") {
-			acc.min = requirement;
-			acc.max = requirement;
-			acc.checks.push({ type: "min", value: requirement });
-			acc.checks.push({ type: "max", value: requirement });
+		if (action.type === "min_length") {
+			const requirement = (
+				action as MinLengthAction<LengthInput, number, undefined>
+			).requirement;
+			if (typeof requirement === "number") {
+				acc.min = requirement;
+				acc.checks.push({ type: "min", value: requirement });
+			}
+		} else if (action.type === "max_length") {
+			const requirement = (
+				action as MaxLengthAction<LengthInput, number, undefined>
+			).requirement;
+			if (typeof requirement === "number") {
+				acc.max = requirement;
+				acc.checks.push({ type: "max", value: requirement });
+			}
+		} else if (action.type === "length") {
+			const requirement = (
+				action as LengthAction<LengthInput, number, undefined>
+			).requirement;
+			if (typeof requirement === "number") {
+				acc.min = requirement;
+				acc.max = requirement;
+				acc.checks.push({ type: "min", value: requirement });
+				acc.checks.push({ type: "max", value: requirement });
+			}
 		} else if (action.type === "non_empty") {
 			if (acc.min === undefined) {
 				acc.min = 1;
@@ -119,30 +151,43 @@ function deriveLengthConstraints(pipe: readonly ValibotPipeItem[]): {
 	});
 }
 
-function deriveNumberConstraints(pipe: readonly ValibotPipeItem[]): {
+function deriveNumberConstraints(pipe: readonly GenericPipeItem[]): {
 	checks?: FieldCheck[];
 	max?: number;
 	min?: number;
 } {
 	return collectConstraints(pipe, (action, acc) => {
-		const requirement = action.requirement;
-		if (action.type === "min_value" && typeof requirement === "number") {
-			acc.min = requirement;
-		} else if (action.type === "max_value" && typeof requirement === "number") {
-			acc.max = requirement;
-		} else if (action.type === "gt_value" && typeof requirement === "number") {
-			acc.checks.push({ type: "gt", value: requirement });
-		} else if (action.type === "lt_value" && typeof requirement === "number") {
-			acc.checks.push({ type: "lt", value: requirement });
+		if (action.type === "min_value") {
+			const requirement = (
+				action as MinValueAction<ValueInput, ValueInput, undefined>
+			).requirement;
+			if (typeof requirement === "number") acc.min = requirement;
+		} else if (action.type === "max_value") {
+			const requirement = (
+				action as MaxValueAction<ValueInput, ValueInput, undefined>
+			).requirement;
+			if (typeof requirement === "number") acc.max = requirement;
+		} else if (action.type === "gt_value") {
+			const requirement = (
+				action as GtValueAction<ValueInput, ValueInput, undefined>
+			).requirement;
+			if (typeof requirement === "number")
+				acc.checks.push({ type: "gt", value: requirement });
+		} else if (action.type === "lt_value") {
+			const requirement = (
+				action as LtValueAction<ValueInput, ValueInput, undefined>
+			).requirement;
+			if (typeof requirement === "number")
+				acc.checks.push({ type: "lt", value: requirement });
 		} else if (action.type === "integer" || action.type === "safe_integer") {
 			acc.checks.push({ type: action.type });
 		}
 	});
 }
 
-function resolveStringKind(pipe: readonly ValibotPipeItem[]): string {
+function resolveStringKind(pipe: readonly GenericPipeItem[]): string {
 	const formats = pipe
-		.filter((action) => action?.kind === "validation")
+		.filter((action) => action.kind === "validation")
 		.map((action) => action.type);
 	if (formats.includes("email") || formats.includes("rfc_email"))
 		return "email";
@@ -151,23 +196,30 @@ function resolveStringKind(pipe: readonly ValibotPipeItem[]): string {
 }
 
 function resolveEnumEntries(
-	schema: ValibotSchema,
+	schema: GenericSchema,
 ): Record<string, string> | undefined {
-	if (schema.enum && typeof schema.enum === "object") {
-		const entries: Record<string, string> = {};
-		for (const [key, value] of Object.entries(schema.enum)) {
-			entries[key] = String(value);
-		}
-		return entries;
-	}
-	if (Array.isArray(schema.options)) {
-		const entries: Record<string, string> = {};
-		for (const option of schema.options) {
-			if (typeof option === "string" || typeof option === "number") {
-				entries[String(option)] = String(option);
+	if ("enum" in schema) {
+		const enumObj = (schema as EnumSchema<Enum, undefined>).enum;
+		if (enumObj && typeof enumObj === "object") {
+			const entries: Record<string, string> = {};
+			for (const [key, value] of Object.entries(enumObj)) {
+				entries[key] = String(value);
 			}
+			return entries;
 		}
-		if (Object.keys(entries).length) return entries;
+	}
+	if ("options" in schema) {
+		const options = (schema as PicklistSchema<PicklistOptions, undefined>)
+			.options;
+		if (Array.isArray(options)) {
+			const entries: Record<string, string> = {};
+			for (const option of options) {
+				if (typeof option === "string" || typeof option === "number") {
+					entries[String(option)] = String(option);
+				}
+			}
+			if (Object.keys(entries).length) return entries;
+		}
 	}
 	return undefined;
 }
@@ -175,9 +227,9 @@ function resolveEnumEntries(
 type Resolved = Omit<FieldDef, "optional" | "meta">;
 
 function resolveType(
-	schema: ValibotSchema,
+	schema: GenericSchema,
 	type: string,
-	pipe: readonly ValibotPipeItem[],
+	pipe: readonly GenericPipeItem[],
 	fieldPath: string,
 ): Resolved {
 	switch (type) {
@@ -196,12 +248,12 @@ function resolveType(
 			return { kind: "enum", ...(entries && { entries }) };
 		}
 		case "array": {
-			if (!schema.item) return { kind: "array" };
-			const elementDef = buildFieldDefInner(
-				schema.item,
-				false,
-				`${fieldPath}[]`,
-			);
+			const item =
+				"item" in schema
+					? (schema as ArraySchema<GenericSchema, undefined>).item
+					: undefined;
+			if (!item) return { kind: "array" };
+			const elementDef = buildFieldDefInner(item, false, `${fieldPath}[]`);
 			return {
 				...deriveLengthConstraints(pipe),
 				elementDef,
@@ -235,16 +287,16 @@ function resolveType(
 	}
 }
 
-function isSchema(value: unknown): value is ValibotSchema {
+function isSchema(value: unknown): value is GenericSchema {
 	return typeof value === "object" && value !== null;
 }
 
 function pickUnionOption(
-	schemas: ValibotSchema[],
+	schemas: GenericSchema[],
 	fieldPath: string,
-): ValibotSchema {
+): GenericSchema {
 	const nonLiteral = schemas.filter((o) => getType(o) !== "literal");
-	if (nonLiteral.length === 1) return nonLiteral[0] as ValibotSchema;
+	if (nonLiteral.length === 1) return nonLiteral[0] as GenericSchema;
 	if (nonLiteral.length === 0) {
 		throw createFormError(`Unsupported union in field "${fieldPath}"`, [
 			`The union has no non-literal option to render as a field.`,
@@ -258,7 +310,7 @@ function pickUnionOption(
 }
 
 function buildFieldDefInner(
-	schema: ValibotSchema,
+	schema: GenericSchema,
 	optional = false,
 	fieldPath = "<root>",
 ): FieldDef {
@@ -273,7 +325,17 @@ function buildFieldDefInner(
 		const forcesOptional = (OPTIONAL_WRAPPERS as readonly string[]).includes(
 			type,
 		);
-		if (!schema.wrapped) {
+		const wrapped =
+			"wrapped" in schema
+				? (
+						schema as
+							| OptionalSchema<GenericSchema, undefined>
+							| NullishSchema<GenericSchema, undefined>
+							| NullableSchema<GenericSchema, undefined>
+							| ExactOptionalSchema<GenericSchema, undefined>
+					).wrapped
+				: undefined;
+		if (!wrapped) {
 			throw createFormError(
 				`Optional wrapper has no wrapped schema (field "${fieldPath}")`,
 				[
@@ -283,7 +345,7 @@ function buildFieldDefInner(
 			);
 		}
 		const inner = buildFieldDefInner(
-			schema.wrapped,
+			wrapped,
 			forcesOptional ? true : optional,
 			fieldPath,
 		);
@@ -292,8 +354,11 @@ function buildFieldDefInner(
 		const mergedOptional = forcesOptional ? true : optional || inner.optional;
 		result = makeFieldDef(inner, mergedOptional, mergeMeta(inner.meta, meta));
 	} else if (type === "union") {
-		const options = Array.isArray(schema.options) ? schema.options : [];
-		const schemas = options.filter(isSchema);
+		const options =
+			"options" in schema
+				? (schema as UnionSchema<UnionOptions, undefined>).options
+				: [];
+		const schemas = (Array.isArray(options) ? options : []).filter(isSchema);
 		if (schemas.length === 0) {
 			throw createFormError(
 				`Union type has no options (field "${fieldPath}")`,
@@ -319,19 +384,24 @@ function buildFieldDefInner(
 }
 
 function buildFieldMapInner(
-	schema: ValibotSchema | undefined,
+	schema: GenericSchema | undefined,
 	parentPath: string,
 ): SchemaTree {
-	const entries = schema?.entries;
+	if (!schema || !("entries" in schema)) return {};
+	const entries = (schema as ObjectSchema<ObjectEntries, undefined>).entries;
 	if (!entries || typeof entries !== "object") return {};
 	const map: SchemaTree = {};
 	for (const [key, fieldSchema] of Object.entries(entries)) {
 		const fieldPath = parentPath ? `${parentPath}.${key}` : key;
-		map[key] = buildFieldDefInner(fieldSchema, false, fieldPath);
+		map[key] = buildFieldDefInner(
+			fieldSchema as GenericSchema,
+			false,
+			fieldPath,
+		);
 	}
 	return map;
 }
 
-export function buildFieldMap(schema: ValibotSchema | undefined): SchemaTree {
+export function buildFieldMap(schema: GenericSchema | undefined): SchemaTree {
 	return buildFieldMapInner(schema, "");
 }

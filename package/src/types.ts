@@ -11,7 +11,6 @@ export type FieldMeta = {
 	label?: string;
 	placeholder?: string;
 	description?: string;
-	/** Override the resolved kind to dispatch a custom component. */
 	component?: string;
 	[key: string]: unknown;
 };
@@ -33,7 +32,6 @@ export type KnownFieldKind =
 	| "object"
 	| "date";
 
-/** Resolved field kind. Known kinds get autocomplete; custom kinds stay allowed. */
 export type FieldKind = KnownFieldKind | (string & {});
 
 export type KnownFieldCheckType =
@@ -55,18 +53,11 @@ export type FieldCheck = {
 
 export type FieldDef = {
 	kind: FieldKind;
-	/** True when the value may be `undefined`. Single source of truth — derive "required" as `!optional`. */
 	optional: boolean;
 	meta?: FieldMeta;
 	checks?: Array<FieldCheck>;
 	entries?: Record<string, string>;
-	/** Child fields for `object` kinds and for `array` kinds whose element is an object. */
 	elementFields?: SchemaTree;
-	/**
-	 * Element definition for `array` kinds.
-	 * Present whenever the array element type is known, including primitives
-	 * (e.g. `z.array(z.string())` yields an `elementDef` of kind `string`).
-	 */
 	elementDef?: FieldDef;
 	min?: number;
 	max?: number;
@@ -89,10 +80,6 @@ export type FieldComponentProps<
 	config?: TConfig;
 };
 
-/**
- * Value type per known field kind. Used with `defineFieldComponent` so widgets
- * get a typed `value`/`onChange` instead of `unknown` casts.
- */
 export type FieldKindValueMap = {
 	string: string;
 	email: string;
@@ -111,15 +98,10 @@ export type FieldKindValueMap = {
 	object: Record<string, unknown>;
 };
 
-/** Config shape for the conventional `combobox` widget. */
 export type ComboboxConfig = {
 	options: string[];
 };
 
-/**
- * Identity helper that types a widget's `value`/`onChange`/`config` with zero
- * runtime cost. Returns the component unchanged.
- */
 export function defineFieldComponent<
 	TValue = unknown,
 	TConfig = Record<string, unknown>,
@@ -135,10 +117,6 @@ export type FieldComponentMap = Record<
 	React.ComponentType<FieldComponentProps<any, any>>
 >;
 
-/**
- * Identity helper that type-checks a `fieldComponents` map with zero runtime
- * cost. Presets live in examples or a UI-kit package, not the headless lib.
- */
 export function defineFieldComponents<T extends FieldComponentMap>(map: T): T {
 	return map;
 }

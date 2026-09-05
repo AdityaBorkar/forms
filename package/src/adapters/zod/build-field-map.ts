@@ -1,3 +1,21 @@
+import type { ZodType } from "zod";
+import type {
+	$ZodArrayDef,
+	$ZodCheckDef,
+	$ZodCheckGreaterThanDef,
+	$ZodCheckLessThanDef,
+	$ZodCheckMaxLengthDef,
+	$ZodCheckMinLengthDef,
+	$ZodCheckNumberFormatDef,
+	$ZodCheckStringFormatDef,
+	$ZodEnumDef,
+	$ZodObjectDef,
+	$ZodOptionalDef,
+	$ZodStringFormatDef,
+	$ZodTypeDef,
+	$ZodUnionDef,
+} from "zod/v4/core";
+
 import type { ConstraintAcc } from "#/adapters/shared";
 import {
 	createConstraintAcc,
@@ -7,33 +25,6 @@ import {
 } from "#/adapters/shared";
 import { createFormError } from "#/errors";
 import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "#/types";
-
-type ZodCheckDef = {
-	check?: string;
-	format?: string;
-	minimum?: number;
-	maximum?: number;
-	value?: unknown;
-	inclusive?: boolean;
-};
-
-type ZodCheck = { _zod?: { def?: ZodCheckDef } };
-
-type ZodDef = {
-	type?: string;
-	format?: string;
-	checks?: ZodCheck[];
-	innerType?: ZodSchema;
-	element?: ZodSchema;
-	entries?: Record<string, string>;
-	shape?: Record<string, ZodSchema>;
-	options?: readonly ZodSchema[];
-	keyType?: ZodSchema;
-	valueType?: ZodSchema;
-	values?: unknown[];
-};
-
-type ZodSchema = { _zod?: { def?: ZodDef }; meta?: () => unknown };
 
 const SUPPORTED_TYPES = [
 	"string",
@@ -46,11 +37,11 @@ const SUPPORTED_TYPES = [
 ] as const;
 
 /** Single choke point for Zod's private internals. */
-function getZodDef(schema: ZodSchema): ZodDef | undefined {
-	return schema._zod?.def;
+function getZodDef(schema: ZodType): $ZodTypeDef | undefined {
+	return schema._zod.def;
 }
 
-function getType(schema: ZodSchema): string {
+function getType(schema: ZodType): string {
 	return getZodDef(schema)?.type ?? "";
 }
 
@@ -58,72 +49,94 @@ function isFieldMeta(value: unknown): value is FieldMeta {
 	return typeof value === "object" && value !== null;
 }
 
-function getMeta(schema: ZodSchema): FieldMeta | undefined {
+function getMeta(schema: ZodType): FieldMeta | undefined {
 	const result = typeof schema.meta === "function" ? schema.meta() : undefined;
 	return isFieldMeta(result) ? result : undefined;
 }
 
+function getDefFormat(def: $ZodTypeDef): string | undefined {
+	if (!("format" in def)) return undefined;
+	const format = (def as $ZodStringFormatDef).format;
+	return typeof format === "string" ? format : undefined;
+}
+
+function getCheckFormat(cd: $ZodCheckDef): string | undefined {
+	if (!("format" in cd)) return undefined;
+	const format = (cd as $ZodCheckStringFormatDef | $ZodCheckNumberFormatDef)
+		.format;
+	return typeof format === "string" ? format : undefined;
+}
+
 function collectConstraints(
-	def: ZodDef | undefined,
-	process: (cd: ZodCheckDef, acc: ConstraintAcc) => void,
+	def: $ZodTypeDef | undefined,
+	process: (cd: $ZodCheckDef, acc: ConstraintAcc) => void,
 ): { checks?: FieldCheck[]; max?: number; min?: number } {
 	const acc = createConstraintAcc();
 	for (const check of def?.checks ?? []) {
-		const cd = check._zod?.def;
+		const cd = check._zod.def;
 		if (cd) process(cd, acc);
 	}
 	return finalizeConstraints(acc);
 }
 
-function deriveLengthConstraints(def: ZodDef | undefined): {
+function deriveLengthConstraints(def: $ZodTypeDef | undefined): {
 	checks?: FieldCheck[];
 	max?: number;
 	min?: number;
 } {
 	return collectConstraints(def, (cd, acc) => {
-		if (cd.check === "min_length" && cd.minimum != null) {
-			acc.min = cd.minimum;
-			acc.checks.push({ type: "min", value: cd.minimum });
-		} else if (cd.check === "max_length" && cd.maximum != null) {
-			acc.max = cd.maximum;
-			acc.checks.push({ type: "max", value: cd.maximum });
-		} else if (cd.format) {
-			acc.checks.push({ type: cd.format });
+		if (cd.check === "min_length") {
+			const minimum = (cd as $ZodCheckMinLengthDef).minimum;
+			if (minimum != null) {
+				acc.min = minimum;
+				acc.checks.push({ type: "min", value: minimum });
+			}
+		} else if (cd.check === "max_length") {
+			const maximum = (cd as $ZodCheckMaxLengthDef).maximum;
+			if (maximum != null) {
+				acc.max = maximum;
+				acc.checks.push({ type: "max", value: maximum });
+			}
+		} else {
+			const format = getCheckFormat(cd);
+			if (format) acc.checks.push({ type: format });
 		}
 	});
 }
 
-function deriveNumberConstraints(def: ZodDef | undefined): {
+function deriveNumberConstraints(def: $ZodTypeDef | undefined): {
 	checks?: FieldCheck[];
 	max?: number;
 	min?: number;
 } {
 	return collectConstraints(def, (cd, acc) => {
 		if (cd.check === "greater_than") {
-			if (cd.inclusive && typeof cd.value === "number") acc.min = cd.value;
-			else if (typeof cd.value === "number")
-				acc.checks.push({ type: "gt", value: cd.value });
-		} else if (
-			cd.check === "greater_than_equal" &&
-			typeof cd.value === "number"
-		) {
-			acc.min = cd.value;
+			const { inclusive, value } = cd as $ZodCheckGreaterThanDef;
+			if (inclusive && typeof value === "number") acc.min = value;
+			else if (typeof value === "number")
+				acc.checks.push({ type: "gt", value });
+		} else if (cd.check === "greater_than_equal") {
+			const { value } = cd as $ZodCheckGreaterThanDef;
+			if (typeof value === "number") acc.min = value;
 		} else if (cd.check === "less_than") {
-			if (cd.inclusive && typeof cd.value === "number") acc.max = cd.value;
-			else if (typeof cd.value === "number")
-				acc.checks.push({ type: "lt", value: cd.value });
-		} else if (cd.check === "less_than_equal" && typeof cd.value === "number") {
-			acc.max = cd.value;
-		} else if (cd.format) {
-			acc.checks.push({ type: cd.format });
+			const { inclusive, value } = cd as $ZodCheckLessThanDef;
+			if (inclusive && typeof value === "number") acc.max = value;
+			else if (typeof value === "number")
+				acc.checks.push({ type: "lt", value });
+		} else if (cd.check === "less_than_equal") {
+			const { value } = cd as $ZodCheckLessThanDef;
+			if (typeof value === "number") acc.max = value;
+		} else {
+			const format = getCheckFormat(cd);
+			if (format) acc.checks.push({ type: format });
 		}
 	});
 }
 
-function resolveStringKind(def: ZodDef | undefined): string {
+function resolveStringKind(def: $ZodTypeDef | undefined): string {
 	const formats = [
-		def?.format,
-		...(def?.checks ?? []).map((c) => c._zod?.def?.format),
+		def ? getDefFormat(def) : undefined,
+		...(def?.checks ?? []).map((c) => getCheckFormat(c._zod.def)),
 	];
 	if (formats.includes("email")) return "email";
 	if (formats.includes("url")) return "url";
@@ -133,9 +146,9 @@ function resolveStringKind(def: ZodDef | undefined): string {
 type Resolved = Omit<FieldDef, "optional" | "meta">;
 
 function resolveType(
-	schema: ZodSchema,
+	schema: ZodType,
 	type: string,
-	def: ZodDef | undefined,
+	def: $ZodTypeDef | undefined,
 	fieldPath: string,
 ): Resolved {
 	switch (type) {
@@ -145,10 +158,18 @@ function resolveType(
 			return { ...deriveNumberConstraints(def), kind: "number" };
 		case "boolean":
 			return { kind: "boolean" };
-		case "enum":
-			return { kind: "enum", ...(def?.entries && { entries: def.entries }) };
+		case "enum": {
+			const entries =
+				def && "entries" in def
+					? ((def as $ZodEnumDef).entries as unknown as Record<string, string>)
+					: undefined;
+			return { kind: "enum", ...(entries && { entries }) };
+		}
 		case "array": {
-			const element = def?.element;
+			const element =
+				def && "element" in def
+					? (((def as $ZodArrayDef).element as unknown as ZodType) ?? undefined)
+					: undefined;
 			if (!element) return { kind: "array" };
 			const elementDef = buildFieldDefInner(element, false, `${fieldPath}[]`);
 			return {
@@ -185,11 +206,11 @@ function resolveType(
 }
 
 function pickUnionOption(
-	options: readonly ZodSchema[],
+	options: readonly ZodType[],
 	fieldPath: string,
-): ZodSchema {
+): ZodType {
 	const nonLiteral = options.filter((o) => getType(o) !== "literal");
-	if (nonLiteral.length === 1) return nonLiteral[0] as ZodSchema;
+	if (nonLiteral.length === 1) return nonLiteral[0] as ZodType;
 	if (nonLiteral.length === 0) {
 		throw createFormError(`Unsupported union in field "${fieldPath}"`, [
 			`The union has no non-literal option to render as a field.`,
@@ -203,7 +224,7 @@ function pickUnionOption(
 }
 
 function buildFieldDefInner(
-	schema: ZodSchema,
+	schema: ZodType,
 	optional = false,
 	fieldPath = "<root>",
 ): FieldDef {
@@ -213,7 +234,12 @@ function buildFieldDefInner(
 
 	let result: FieldDef;
 	if (type === "optional") {
-		if (!def?.innerType) {
+		const innerType =
+			def && "innerType" in def
+				? (((def as $ZodOptionalDef).innerType as unknown as ZodType) ??
+					undefined)
+				: undefined;
+		if (!innerType) {
 			throw createFormError(
 				`Optional type has no inner type (field "${fieldPath}")`,
 				[
@@ -222,10 +248,14 @@ function buildFieldDefInner(
 				],
 			);
 		}
-		const inner = buildFieldDefInner(def.innerType, true, fieldPath);
+		const inner = buildFieldDefInner(innerType, true, fieldPath);
 		result = makeFieldDef(inner, true, mergeMeta(inner.meta, meta));
 	} else if (type === "union") {
-		const options = def?.options ?? [];
+		const options =
+			def && "options" in def
+				? (((def as $ZodUnionDef).options as unknown as readonly ZodType[]) ??
+					[])
+				: [];
 		if (options.length === 0) {
 			throw createFormError(
 				`Union type has no options (field "${fieldPath}")`,
@@ -253,10 +283,14 @@ function buildFieldDefInner(
 }
 
 function buildFieldMapInner(
-	schema: ZodSchema | undefined,
+	schema: ZodType | undefined,
 	parentPath: string,
 ): SchemaTree {
-	const shape = schema ? getZodDef(schema)?.shape : undefined;
+	const def = schema ? getZodDef(schema) : undefined;
+	const shape =
+		def && "shape" in def
+			? ((def as $ZodObjectDef).shape as unknown as Record<string, ZodType>)
+			: undefined;
 	if (!shape) return {};
 	const map: SchemaTree = {};
 	for (const [key, fieldSchema] of Object.entries(shape)) {
@@ -266,6 +300,6 @@ function buildFieldMapInner(
 	return map;
 }
 
-export function buildFieldMap(schema: ZodSchema | undefined): SchemaTree {
+export function buildFieldMap(schema: ZodType | undefined): SchemaTree {
 	return buildFieldMapInner(schema, "");
 }

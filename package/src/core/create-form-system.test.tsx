@@ -10,13 +10,19 @@ import {
 import type { FieldValues } from "react-hook-form";
 import { useFormState } from "react-hook-form";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
-import z from "zod";
+import z, { type ZodType } from "zod";
 
-import type { InferZod } from "#/adapters/zod/index";
 import { zodAdapter } from "#/adapters/zod/index";
 import { createFormSystem } from "#/core/create-form-system";
 import type { FieldComponentProps, InferFormValues } from "#/types";
 import { defineFieldComponent, defineFieldComponents } from "#/types";
+
+/** Output type of a Zod schema (`z.infer` equivalent, zero runtime). */
+type InferZod<TSchema extends ZodType> = TSchema extends {
+	_zod: { output: infer TOut };
+}
+	? TOut
+	: never;
 
 afterEach(() => {
 	cleanup();
