@@ -1,7 +1,7 @@
 # Forms Context
 
-Schema-driven React forms: the validation schema drives validation, default
-values, and rendering. Details live in [ARCHITECTURE.md](./ARCHITECTURE.md);
+Schema-driven React forms: the validation schema drives validation and
+rendering. Initial values come from caller-supplied `defaultValues` (RHF-owned). Details live in [ARCHITECTURE.md](./ARCHITECTURE.md);
 the full API reference lives in [GLOSSARY.md](./GLOSSARY.md).
 
 ## Language
@@ -25,8 +25,8 @@ A `meta.component` value that replaces the adapter's base kind.
 _Avoid_: custom kind, kind override (ambiguous)
 
 **Adapter**:
-The boundary that translates one validation library into a SchemaTree,
-defaults, and a resolver.
+The boundary that translates one validation library into a SchemaTree
+and a resolver.
 _Avoid_: resolver (too narrow), parser, bridge
 
 ### UI dispatch

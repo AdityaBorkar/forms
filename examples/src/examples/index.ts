@@ -64,7 +64,7 @@ export const EXAMPLES: ExampleMeta[] = [
 	},
 	{
 		component: DefaultsOptionalForm,
-		description: "Optional + defaultValues merge.",
+		description: "Optional + explicit defaultValues.",
 		files: ["examples/defaults-optional.tsx", "components/form-zod.tsx"],
 		slug: "defaults-optional",
 		title: "Defaults & Optional",

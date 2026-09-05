@@ -123,10 +123,6 @@ export function defineFieldComponents<T extends FieldComponentMap>(map: T): T {
 
 export type SchemaAdapter<TSchema, TValues = unknown> = {
 	buildFieldMap(schema: TSchema): SchemaTree;
-	buildDefaults(
-		fieldMap: SchemaTree,
-		overrides?: Record<string, unknown>,
-	): DefaultValues<FieldValues>;
 	createResolver(schema: TSchema): Resolver;
 	/** Phantom output type — never read at runtime. Enables `useForm` inference. */
 	readonly _infer?: TValues;

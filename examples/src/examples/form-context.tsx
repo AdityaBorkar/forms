@@ -34,7 +34,7 @@ function LivePreview() {
 	);
 }
 
-/** Reset needs the same context — `reset()` restores adapter defaults. */
+/** Reset needs the same context — `reset()` restores your `defaultValues`. */
 function ResetButton() {
 	const { reset } = useFormContext();
 	return (

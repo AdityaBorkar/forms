@@ -171,22 +171,15 @@ export function createUseForm<TSchema>(
 			() => getCachedFieldMap(schemaResolver, fieldMapCache, schema),
 			[schema],
 		);
-		const defaults = useMemo(
-			() =>
-				runAdapterStep(
-					"useForm could not derive default values from the field map",
-					"Check that defaultValues matches the shape of your schema.",
-					() => schemaResolver.buildDefaults(fieldMap, defaultValues),
-				),
-			[fieldMap, defaultValues],
-		);
 		const resolver = useMemo(
 			() => getCachedResolver(schemaResolver, resolverCache, schema),
 			[schema],
 		);
 
 		const methods = useRhfForm<TValues, unknown, TValues>({
-			defaultValues: defaults as DefaultValues<TValues>,
+			...(defaultValues !== undefined && {
+				defaultValues: defaultValues as DefaultValues<TValues>,
+			}),
 			mode: validationMode,
 			resolver: resolver as Resolver<TValues, unknown, TValues>,
 			reValidateMode,

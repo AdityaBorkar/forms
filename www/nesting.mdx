@@ -56,8 +56,7 @@ Render props (`package/src/ui/smart-field-array.tsx:16-27`):
 | Prop | Meaning |
 |---|---|
 | `fields` | Current rows (`FieldArrayRow[]` — row values plus RHF stable `id` for `key`) |
-| `append` | `(value: Record<string, unknown>) => void` |
-| `appendDefault` | Derive a default row from the array's `elementDef`, optionally merged with `overrides` |
+| `append` | `(value: Record<string, unknown>) => void` — pass an explicit row value |
 | `remove` | `(index: number) => void` |
 | `update` | `(index: number, value: Record<string, unknown>) => void` |
 | `move` | `(from: number, to: number) => void` |

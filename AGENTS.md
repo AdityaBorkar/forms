@@ -33,11 +33,11 @@ Run `check:lint` → `check:types` after changes. Pre-commit runs `bun format` (
 4 exports in `package/package.json`: `@adistack/forms` → `src/index.ts`, `.../adapters/zod`, `.../adapters/valibot`, `.../ui`.
 
 - `SmartField` / `useForm` / `useFormContext` are **factory-returned**, not direct imports. Factory-bound `SmartFieldArray` (requires `<Form>` context) is canonical; a static unbound one is also exported from core + `ui`.
-- Flow: `useForm({ schema })` → `buildFieldMap` + `buildDefaults(fieldMap, defaultValues)` + `createResolver` → `<Form form>` (`FormProvider` + `{ fieldMap }` context) → `<SmartField name="a.b">` → `resolveFieldDef` → `fieldComponents[def.kind]` via `useController`. `validationMode` defaults `onBlur`, `reValidateMode` defaults `onChange`.
+- Flow: `useForm({ schema })` → `buildFieldMap` + `createResolver` (plus your `defaultValues` straight to RHF) → `<Form form>` (`FormProvider` + `{ fieldMap }` context) → `<SmartField name="a.b">` → `resolveFieldDef` → `fieldComponents[def.kind]` via `useController`. `validationMode` defaults `onBlur`, `reValidateMode` defaults `onChange`.
 - `meta.component` (non-empty string) replaces the dispatch kind **at adapter time** (`adapters/shared/field-def.ts`, outer `meta` wins) — `def.kind` already carries the override.
 - `resolveFieldDef`: numeric segment into an `array` steps into `elementDef`; `arr.city` resolves via `elementFields` without an index (prefer `arr.0.city`); empty names/segments throw; numeric keys on non-arrays look up literally.
 - No stored `required` — `FieldDef.optional` is the source of truth (`!optional` = required).
-- `buildDefaults(fieldMap, overrides?)` takes no `schema` param; overrides deep-merge. Defaults: string-family → `""`, `number|slider` → `0`, boolean-family → `false`, `enum` → first entry, `array` → `[]`, `object` → recursive, `date`/custom → `undefined`; `optional` → `undefined` wins first.
+- No auto-defaults — `defaultValues` pass straight through to RHF (no `buildDefaults`/`deriveDefault`/`mergeDefaults`/`appendDefault`; array rows use explicit `append(value)`). Field components must handle `undefined`.
 - Zod adapter walks private `schema._zod.def` (fragile). Both adapters: `union` keeps the single non-`literal` branch else throws; `record`/unknown throws; never emits `kind: "unknown"`. Valibot: `optional`/`nullish`/`exact_optional` force optional but `nullable` alone does not; `picklist`/`enum` → `enum` kind.
 - Missing def/component renders `null` + deduped dev-only `devWarn` (`resetDevWarnings` is tests-only). Peers: `react@>=18` + `react-hook-form@^7.86.0` required; `zod@>=4`, `valibot@>=1`, `@hookform/resolvers@>=5` optional.
 

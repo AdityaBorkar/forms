@@ -73,7 +73,7 @@ function SimpleForm() {
 }
 ```
 
-Flow: `useForm({ schema })` → `buildFieldMap` + `buildDefaults(fieldMap, defaultValues)` + `createResolver` → `<Form form>` (`FormProvider` + `{ fieldMap }` context) → `<SmartField name>` → `resolveFieldDef` → `fieldComponents[def.kind]` via `useController` (`package/src/core/use-form.ts:116`, `package/src/core/form.tsx:25`, `package/src/ui/smart-field.tsx:29`).
+Flow: `useForm({ schema })` → `buildFieldMap` + `createResolver` (plus your `defaultValues` straight to RHF) → `<Form form>` (`FormProvider` + `{ fieldMap }` context) → `<SmartField name>` → `resolveFieldDef` → `fieldComponents[def.kind]` via `useController` (`package/src/core/use-form.ts:116`, `package/src/core/form.tsx:25`, `package/src/ui/smart-field.tsx:29`).
 
 ## 5. Run the demo
 

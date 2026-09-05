@@ -25,12 +25,12 @@ that knowledge.**
                  ┌────────────┼────────────┐
                  ▼            ▼            ▼
           FieldComponentMap  SchemaAdapter<TSchema>
-          (kind → component) (schema → SchemaTree + defaults + resolver)
+          (kind → component) (schema → SchemaTree + resolver)
                  │            │
                  │     ┌──────┼──────┐
                  │     ▼      ▼      ▼
                  │   SchemaTree  Defaults  Resolver
-                 │  (metadata) (values)  (RHF)
+                 │  (metadata) (RHF)     (RHF)
                  │     │
                  ▼     ▼
               SmartField ──reads──▶ SchemaTree
@@ -61,8 +61,7 @@ the override when `SmartField` dispatches.
 2. Consumer calls `useForm({ schema, onSubmit, ... })` — the hook validates
    its options (missing `schema`/`onSubmit` and invalid modes throw
    `createFormError`), then calls `adapter.buildFieldMap(schema)` for the
-   `SchemaTree`, `adapter.buildDefaults(fieldMap, defaultValues)` for defaults,
-   and `adapter.createResolver(schema)` for validation (raw adapter failures
+   `SchemaTree` and `adapter.createResolver(schema)` for validation (raw adapter failures
    are wrapped with context; adapter `createFormError`s pass through), then
    delegates to RHF's `useForm` with `mode: validationMode` (defaults to
    `"onBlur"`) and `reValidateMode` (defaults to `"onChange"`).
@@ -114,13 +113,13 @@ Current signature (`src/types.ts`):
 ```ts
 type SchemaAdapter<TSchema> = {
   buildFieldMap(schema: TSchema): SchemaTree;
-  buildDefaults(fieldMap: SchemaTree, overrides?: Record<string, unknown>): DefaultValues<FieldValues>;
   createResolver(schema: TSchema): Resolver;
 };
 ```
 
-`buildDefaults` takes only the `SchemaTree` plus overrides (deep-merged). There
-is no `schema` parameter.
+There is no auto-default derivation — `defaultValues` pass straight through
+to RHF. Guessing `0` for numbers or the first entry for enums masked
+required-field UX, so the adapter no longer derives defaults.
 
 ### 3. Flat `kind` plus `meta.component` override
 
@@ -165,7 +164,7 @@ Four exports in `package/package.json`:
 | Entrypoint | Path | Purpose |
 |---|---|---|
 | `@adistack/forms` | `src/index.ts` | Core: `createFormSystem`, `resolveFieldDef`, `SmartFieldArray` (static unbound), types (`FieldDef`, `SchemaTree`, `FieldComponentMap`, `FieldComponentProps` with nested `def`, `FormInstance`, `FormContextInstance`, `UseFormOptions`, `ValidationMode`, `ReValidateMode`, `FieldKind`, `KnownFieldKind`, `FieldCheck`, `KnownFieldCheckType`, `FormSystem`, `CreateFormSystemOptions`). `SmartField`/`useForm`/`useFormContext` are **not** direct exports — they're factory-returned. `FieldArrayRow` is defined in `ui/smart-field-array.tsx` but not re-exported. |
-| `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | Zod v4 adapter: `zodAdapter`, `buildFieldMap(schema)`, `buildDefaults(fieldMap, overrides?)`, `createResolver(schema)` |
+| `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | Zod v4 adapter: `zodAdapter`, `buildFieldMap(schema)`, `createResolver(schema)` |
 | `@adistack/forms/adapters/valibot` | `src/adapters/valibot/index.ts` | Valibot adapter: `valibotAdapter`, same shape (`picklist`/`enum` normalize to `enum`) |
 | `@adistack/forms/ui` | `src/ui/index.ts` | `SmartFieldArray` (static unbound) plus prop types (`SmartFieldProps`, `SmartFieldArrayProps`, `SmartFieldArrayRenderProps` — `FieldArrayRow` is not re-exported) |
 
@@ -248,11 +247,14 @@ option name now matches its type (`FieldComponentMap`).
 `!optional`. It is now gone from `FieldDef` — `optional: boolean` is the single
 source of truth. Derive "required" in UI as `!optional`.
 
-### ~~`buildDefaults` ignores its schema parameter~~ — resolved (removed)
+### ~~Auto-derived defaults~~ — resolved (removed)
 
-`SchemaAdapter.buildDefaults` used to accept `(schema, fieldMap, overrides?)`
-with the schema unused. The signature is now
-`buildDefaults(fieldMap, overrides?)` (deep-merges overrides).
+`SchemaAdapter.buildDefaults` (plus `deriveDefault`/`mergeDefaults` and
+`SmartFieldArray.appendDefault`) used to guess per-kind defaults (`""`, `0`,
+`false`, first enum entry, `[]`). `0` vs `undefined` and auto-selecting the
+first enum entry were wrong UX and masked required validation, so the whole
+subsystem was removed. `useForm({ defaultValues })` now passes straight
+through to RHF.
 
 ---
 
@@ -283,11 +285,11 @@ package/src/
 └── adapters/
     ├── shared/
     │   ├── field-def.ts              # resolveKind (meta.component), mergeMeta (outer wins), makeFieldDef
-    │   ├── defaults.ts               # buildDefaults (deep-merge) + deriveDefault (private)
+    │   ├── (removed) defaults.ts      # auto-defaults removed — RHF owns defaultValues
     │   ├── constraints.ts            # ConstraintAcc helpers
     │   └── index.ts
     ├── zod/
-    │   ├── index.ts                  # zodAdapter, buildFieldMap, buildDefaults, createResolver
+    │   ├── index.ts                  # zodAdapter, buildFieldMap, createResolver
     │   ├── build-field-map.ts        # Zod → SchemaTree via _zod.def (+ SUPPORTED_TYPES)
     │   ├── build-field-map.test.ts
     │   └── build-defaults.test.ts
@@ -346,21 +348,15 @@ Walks Valibot's public-ish `type`/`entries`/`item`/`wrapped`/`pipe` shape.
 - **Union/record/unknown:** same policy as Zod — single non-`literal` branch
   wins, otherwise throw; `record` and unknown types throw.
 
-### Defaults (`adapters/shared/defaults.ts`)
+### Defaults — intentionally absent (RHF owns `defaultValues`)
 
-`deriveDefault` (private) checks `optional` first, then kind:
-
-- `string`/`email`/`url`/`password`/`textarea`/`combobox` → `""`
-- `number`/`slider` → `0`
-- `boolean`/`checkbox`/`switch` → `false`
-- `enum` → first entry value (or `undefined` without entries)
-- `array` → `[]`
-- `object` → recursive object (or `undefined` without `elementFields`)
-- `date`, `unknown`, custom kinds → `undefined`
-
-`meta.component` variants are reachable (e.g. `component: "password"` still
-defaults to `""`). `buildDefaults(fieldMap, overrides?)` derives per field,
-then deep-merges `overrides` (nested objects merge instead of clobbering).
+No auto-defaults are derived. Guessing `""`/`0`/`false`/first-enum-entry hid
+required-field UX (`0` and a pre-selected enum pass validation without user
+input), so `deriveDefault`/`buildDefaults`/`mergeDefaults` and
+`SmartFieldArray.appendDefault` were removed. `useForm({ defaultValues })`
+passes straight through to RHF; array rows use explicit `append(value)`.
+Field components must handle `undefined` (omitted `value` prop) — the demo
+widgets already do via `value ?? ""` / `checked === true` fallbacks.
 
 ---
 

@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import {
-	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -333,75 +332,6 @@ describe("createFormSystem — SmartFieldArray", () => {
 		expect(screen.queryAllByTestId("field-string")).toHaveLength(1);
 	});
 
-	it("appendDefault derives a row from the schema without shape duplication", () => {
-		const schema = z.object({
-			tasks: z.array(
-				z.object({
-					done: z.boolean(),
-					title: z.string().min(1),
-				}),
-			),
-		});
-		let appendDefaultRef!: (overrides?: Record<string, unknown>) => void;
-		render(
-			<FormHarness onSubmit={vi.fn()} schema={schema}>
-				<SmartFieldArray name="tasks">
-					{({ appendDefault, fields }) => {
-						appendDefaultRef = appendDefault;
-						return (
-							<>
-								{fields.map((f, i) => (
-									<SmartField key={f.id} name={`tasks.${i}.title`} />
-								))}
-								{/* biome-ignore lint/performance/noJsxPropsBind: test — render perf is irrelevant */}
-								<button onClick={() => appendDefault()} type="button">
-									add-default
-								</button>
-							</>
-						);
-					}}
-				</SmartFieldArray>
-			</FormHarness>,
-		);
-		expect(screen.queryAllByTestId("field-string")).toHaveLength(0);
-		fireEvent.click(screen.getByText("add-default"));
-		expect(screen.queryAllByTestId("field-string")).toHaveLength(1);
-		expect((screen.getByTestId("field-string") as HTMLInputElement).value).toBe(
-			"",
-		);
-		act(() => {
-			appendDefaultRef({ title: "Named" });
-		});
-		expect(screen.queryAllByTestId("field-string")).toHaveLength(2);
-		const inputs = screen.getAllByTestId("field-string") as Array<
-			HTMLInputElement & { value: string }
-		>;
-		expect(inputs[1]?.value).toBe("Named");
-	});
-
-	it("appendDefault derives a primitive element default", () => {
-		const schema = z.object({ tags: z.array(z.string()) });
-		render(
-			<FormHarness onSubmit={vi.fn()} schema={schema}>
-				<SmartFieldArray name="tags">
-					{({ appendDefault, fields }) => (
-						<>
-							{fields.map((f, i) => (
-								<SmartField key={f.id} name={`tags.${i}`} />
-							))}
-							{/* biome-ignore lint/performance/noJsxPropsBind: test — render perf is irrelevant */}
-							<button onClick={() => appendDefault()} type="button">
-								add-tag
-							</button>
-						</>
-					)}
-				</SmartFieldArray>
-			</FormHarness>,
-		);
-		fireEvent.click(screen.getByText("add-tag"));
-		expect(screen.getByTestId("field-string")).toBeTruthy();
-	});
-
 	it("fails fast at render for a non-array field", () => {
 		const schema = z.object({ name: z.string() });
 		expect(() =>
@@ -413,29 +343,6 @@ describe("createFormSystem — SmartFieldArray", () => {
 		).toThrow(
 			'SmartFieldArray can only be used with array fields (field "name" is kind "string")',
 		);
-	});
-
-	it("appendDefault still throws when reached (warn mode)", () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-		try {
-			const schema = z.object({ name: z.string() });
-			let appendDefault!: (overrides?: Record<string, unknown>) => void;
-			render(
-				<WarnHarness onSubmit={vi.fn()} schema={schema}>
-					<warnSystem.SmartFieldArray name="name">
-						{(props) => {
-							appendDefault = props.appendDefault;
-							return null;
-						}}
-					</warnSystem.SmartFieldArray>
-				</WarnHarness>,
-			);
-			expect(() => appendDefault()).toThrow(
-				'appendDefault can only be used with array fields (field "name" is kind "string")',
-			);
-		} finally {
-			warn.mockRestore();
-		}
 	});
 });
 

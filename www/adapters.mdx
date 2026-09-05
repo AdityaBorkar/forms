@@ -13,7 +13,6 @@ You will trace any SchemaTree claim back to the Adapter that produced it.
 ```ts title="package/src/types.ts"
 type SchemaAdapter<TSchema> = {
   buildFieldMap(schema: TSchema): SchemaTree;
-  buildDefaults(fieldMap: SchemaTree, overrides?: Record<string, unknown>): DefaultValues<FieldValues>;
   createResolver(schema: TSchema): Resolver;
 };
 ```
@@ -67,20 +66,8 @@ v.pipe(v.boolean(), v.metadata({ component: "switch" }), v.title("Email notifica
 
 Full schema in `examples/src/examples/valibot-form.tsx:18-39`. `createResolver` is `valibotResolver(schema)` (`package/src/adapters/valibot/index.ts:14`).
 
-## Defaults
+## Defaults — intentionally absent
 
-Shared implementation (`package/src/adapters/shared/defaults.ts:5`), re-exported by both Adapters. `buildDefaults(fieldMap, overrides?)` derives per field, then deep-merges `overrides` (nested objects merge, not clobber). Takes no `schema` param.
-
-| Kind | Default |
-|---|---|
-| `string`/`email`/`url`/`password`/`textarea`/`combobox` | `""` |
-| `number`/`slider` | `0` |
-| `boolean`/`checkbox`/`switch` | `false` |
-| `enum` | First entry value (or `undefined`) |
-| `array` | `[]` |
-| `object` | Recursive object (or `undefined` without `elementFields`) |
-| `date`, custom, unknown | `undefined` |
-
-`optional` → `undefined` wins first. `meta.component` variants stay reachable (e.g. `component: "password"` still defaults to `""`).
+No auto-defaults are derived. Guessing `""` / `0` / `false` / first-enum-entry hid required-field UX (`0` and a pre-selected enum pass validation without user input), so `buildDefaults` / `deriveDefault` / `mergeDefaults` and `SmartFieldArray.appendDefault` were removed. `useForm({ defaultValues })` passes straight through to RHF; array rows use explicit `append(value)`.
 
 Agent hint: Zod `SUPPORTED_TYPES` lives at `package/src/adapters/zod/build-field-map.ts:38`; Valibot adds `picklist` and `OPTIONAL_WRAPPERS` at `package/src/adapters/valibot/build-field-map.ts:29-41`.

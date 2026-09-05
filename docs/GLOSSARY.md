@@ -17,12 +17,11 @@ The adapter contract. Bridges one validation library to the form system:
 
 1. **`buildFieldMap(schema)`** — Introspects the schema, produces a
    [SchemaTree](#schematree).
-2. **`buildDefaults(fieldMap, overrides?)`** — Derives
-   `DefaultValues<FieldValues>` from the [SchemaTree](#schematree), deep-merging
-   `overrides`. Takes no `schema` parameter (see
-   [buildDefaults](#builddefaults-shared)).
-3. **`createResolver(schema)`** — Creates an RHF-compatible `Resolver` for
+2. **`createResolver(schema)`** — Creates an RHF-compatible `Resolver` for
    schema-level validation.
+
+No auto-defaults — `defaultValues` pass straight through to RHF (see
+[Defaults](#defaults-removed)).
 
 The adapter is the **only** place that knows about a validation library's
 internals. Everything downstream operates on normalized output.
@@ -188,7 +187,8 @@ type UseFormOptions<TSchema, TValues extends FieldValues = FieldValues> = {
 };
 ```
 
-`schema` feeds the adapter; `defaultValues` deep-merge over derived defaults.
+`schema` feeds the adapter; `defaultValues` pass straight through to RHF —
+no per-kind defaults are derived.
 `onInvalid` fires on validation failures; `onSubmitError` fires when `onSubmit`
 itself throws or rejects (`<Form>` also records that as a `root.serverError`
 field error). Missing `schema`/`onSubmit` and invalid modes throw
@@ -311,7 +311,7 @@ re-exported from any entrypoint — infer from render props.
 | Property | Meaning |
 |---|---|
 | `fields` | Current rows |
-| `append` | `(value: Record<string, unknown>) => void` |
+| `append` | `(value: Record<string, unknown>) => void` — pass an explicit row value |
 | `remove` | `(index: number) => void` |
 | `update` | `(index: number, value: Record<string, unknown>) => void` |
 | `move` | `(from: number, to: number) => void` |
@@ -364,8 +364,8 @@ No `"unknown"`-kind rejection — custom kinds are render-time concerns. Lives i
 
 Factory-bound hook (`createUseForm(adapter)`):
 `<TValues>(options: UseFormOptions<TSchema, TValues>) => FormInstance<TValues>`.
-Builds `fieldMap` via `buildFieldMap(schema)`, defaults via
-`buildDefaults(fieldMap, defaultValues)`, resolver via `createResolver(schema)`,
+Builds `fieldMap` via `buildFieldMap(schema)`, resolver via `createResolver(schema)`,
+passes `defaultValues` straight through to RHF,
 delegates to RHF with `mode: validationMode ?? "onBlur"`,
 `reValidateMode: reValidateMode ?? "onChange"`. Throws
 [`createFormError`](#createformerror) without `schema`/`onSubmit`, on invalid
@@ -382,22 +382,13 @@ Factory-bound hook (`createUseFormContext(FormContext)`):
 
 ---
 
-## buildDefaults (shared)
+## Defaults (removed)
 
-**Signature:** `buildDefaults(fieldMap: SchemaTree, overrides?: Record<string, unknown>) => DefaultValues<FieldValues>`
-
-Shared implementation (`adapters/shared/defaults.ts`), re-exported by both
-adapters. Derives per-field defaults via private `deriveDefault`, then
-deep-merges `overrides` (nested objects merge, not clobber).
-
-## deriveDefault
-
-Private helper in `adapters/shared/defaults.ts`. `optional` → `undefined`
-first, then: `string/email/url/password/textarea/combobox` → `""`;
-`number/slider` → `0`; `boolean/checkbox/switch` → `false`; `enum` → first entry
-value; `array` → `[]`; `object` → recursive (or `undefined` without
-`elementFields`); `date`/custom/`unknown` → `undefined`. `meta.component`
-variants are reachable (e.g. `component: "password"` still defaults to `""`).
+No auto-defaults are derived. `buildDefaults` / `deriveDefault` /
+`mergeDefaults` and `SmartFieldArray.appendDefault` were removed: guessing
+`""` / `0` / `false` / first-enum-entry hid required-field UX (`0` and a
+pre-selected enum pass validation without user input). `useForm({ defaultValues })`
+passes straight through to RHF; array rows use explicit `append(value)`.
 
 ---
 
@@ -442,7 +433,6 @@ Dev-only `console.warn` (`[@adistack/forms]` prefix, skipped when
 - **`buildFieldMap(schema)`** — Zod → [SchemaTree](#schematree) via
   `schema._zod.def.shape`; `{}` for non-object/`undefined`. See
   [ARCHITECTURE.md](./ARCHITECTURE.md#zod-adapter-internals).
-- **`buildDefaults(fieldMap, overrides?)`** — shared (above).
 - **`createResolver(schema)`** — `zodResolver(schema)` typed as `Resolver`.
 
 ---
@@ -456,7 +446,6 @@ Dev-only `console.warn` (`[@adistack/forms]` prefix, skipped when
   `type`/`entries`/`item`/`wrapped`/`pipe`. `picklist`/`enum` → `enum`.
   `optional`/`nullish`/`exact_optional` force optional; `nullable` alone does
   not.
-- **`buildDefaults(fieldMap, overrides?)`** — shared.
 - **`createResolver(schema)`** — `valibotResolver(schema)` typed as `Resolver`.
 
 ---

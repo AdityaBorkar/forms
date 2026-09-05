@@ -6,9 +6,9 @@ import { SmartField } from "#/components/form-zod";
 const schema = z.object({
 	name: z.string().min(1).meta({ label: "Name" }),
 	// `.optional()` flips `def.optional` — the `*` marker disappears and the
-	// adapter emits `undefined` as the default instead of `""`.
+	// field stays `undefined` until typed (no auto-derived `""`).
 	nickname: z.string().optional().meta({
-		description: "Optional — omit it and the default stays undefined.",
+		description: "Optional — omit it and the value stays undefined.",
 		label: "Nickname",
 		placeholder: "Ada",
 	}),
@@ -16,16 +16,15 @@ const schema = z.object({
 });
 
 /**
- * 7 · Optional fields & defaults — `buildDefaults` derives a default per
- * kind (`""`, `0`, `false`, first enum entry, `[]`, …) and deep-merges your
- * `defaultValues` over them. Here `name` arrives pre-filled while
- * `nickname` stays `undefined` until typed.
+ * 7 · Optional fields & defaults — no per-kind defaults are derived.
+ * `defaultValues` pass straight through to RHF. Here `name` arrives
+ * pre-filled while `nickname` stays `undefined` until typed.
  */
 export function DefaultsOptionalForm() {
 	return (
 		<ExampleForm
 			defaultValues={{ name: "Ada Lovelace" }}
-			description="Optional fields lose the * marker; defaultValues merge over adapter-derived defaults."
+			description="Optional fields lose the * marker; defaultValues pass straight through to RHF."
 			schema={schema}
 			title="7 · Optional fields & defaults"
 		>
