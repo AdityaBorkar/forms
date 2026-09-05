@@ -2,10 +2,10 @@
 
 ## Phase 1
 
+- GitHub Workflows Review and Actual Publishing
+- Manual Code Review
 - Component Support with useFormField() to register it
   - along with Custom Component
-
-Write docs
 
 ## Phase 2
 

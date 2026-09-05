@@ -136,7 +136,6 @@ export function createUseForm<TSchema>(
 			reValidateMode = "onChange",
 		} = options;
 
-		// biome-ignore lint/suspicious/noUnnecessaryConditions: runtime guard for developer misuse
 		if (schema === null || schema === undefined) {
 			throw createFormError("useForm requires a schema", [
 				"Pass the validation schema, e.g. useForm({ schema: mySchema, onSubmit }).",

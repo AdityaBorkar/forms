@@ -1,0 +1,119 @@
+name: Release (beta)
+
+on:
+  push:
+    branches: [beta]
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write
+  contents: write
+  id-token: write
+
+concurrency:
+  group: release-beta
+  cancel-in-progress: false
+
+env:
+  DOCS_OWNER: adityaborkar
+  DOCS_REPO: adistack-docs
+  DOCS_WORKFLOW: refresh-content.yml
+  DOCS_REF: main
+
+jobs:
+  release:
+    name: Version or publish (beta)
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node (npm publish + provenance)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Ensure prerelease mode (beta)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f .changeset/pre.json ]; then
+            bunx changeset pre enter beta
+          else
+            echo "Already in prerelease mode:"
+            cat .changeset/pre.json
+          fi
+
+      - name: Version packages or publish
+        id: changesets
+        uses: changesets/action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version-script: bunx changeset version
+          publish-script: bunx changeset publish --tag beta
+          commit-message: "chore: version packages (beta)"
+          pr-title: "chore: version packages (beta)"
+          create-github-releases: true
+        env:
+          NPM_CONFIG_PROVENANCE: "true"
+
+  sync-docs:
+    name: Refresh docs content
+    needs: release
+    if: success()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Detect www/ changes
+        id: www
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ] && [ -n "${{ github.event.before }}" ]; then
+            RANGE="${{ github.event.before }} ${{ github.sha }}"
+          else
+            RANGE="HEAD~1 HEAD"
+          fi
+          # shellcheck disable=SC2086
+          CHANGED=$(git diff --name-only $RANGE -- 'www/' || true)
+          if [ -n "$CHANGED" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "www/ changes detected:"
+            echo "$CHANGED"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No www/ changes — skipping docs refresh."
+          fi
+
+      - name: Trigger refresh-content.yml in adistack-docs
+        if: steps.www.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.DOCS_SYNC_TOKEN || github.token }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: process.env.DOCS_OWNER,
+              repo: process.env.DOCS_REPO,
+              workflow_id: process.env.DOCS_WORKFLOW,
+              ref: process.env.DOCS_REF,
+            });
+            core.info(`Dispatched ${process.env.DOCS_WORKFLOW} on ${process.env.DOCS_OWNER}/${process.env.DOCS_REPO}@${process.env.DOCS_REF}`);

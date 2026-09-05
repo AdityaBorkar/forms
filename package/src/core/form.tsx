@@ -29,7 +29,6 @@ export function createForm(
 	}: FormProps<TValues>): ReactElement {
 		// Fail fast on developer misuse instead of destructuring `undefined`.
 		// Deterministic per call site, so hook order is unaffected.
-		// biome-ignore lint/suspicious/noUnnecessaryConditions: runtime guard for developer misuse
 		if (!form) {
 			throw createFormError("<Form> requires a form prop", [
 				"Pass the object returned by useForm(), e.g. <Form form={form}>.",

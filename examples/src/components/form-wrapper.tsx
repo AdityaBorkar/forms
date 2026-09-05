@@ -86,7 +86,10 @@ export function ExampleForm({
 				<Form className="grid gap-4" form={form}>
 					{children}
 					<Button disabled={pending} type="submit">
-						{pending ? "Sending…" : submitLabel}
+						{
+							// biome-ignore lint/suspicious/noLeakedRender: Exception
+							pending ? "Sending…" : submitLabel
+						}
 					</Button>
 				</Form>
 				{outcome !== null ? (
