@@ -6,12 +6,9 @@ import type {
 	$ZodCheckLessThanDef,
 	$ZodCheckMaxLengthDef,
 	$ZodCheckMinLengthDef,
-	$ZodCheckNumberFormatDef,
-	$ZodCheckStringFormatDef,
 	$ZodEnumDef,
 	$ZodObjectDef,
 	$ZodOptionalDef,
-	$ZodStringFormatDef,
 	$ZodTypeDef,
 	$ZodUnionDef,
 } from "zod/v4/core";
@@ -20,6 +17,7 @@ import type { ConstraintAcc } from "#/adapters/shared";
 import {
 	createConstraintAcc,
 	finalizeConstraints,
+	isFieldMeta,
 	makeFieldDef,
 	mergeMeta,
 } from "#/adapters/shared";
@@ -45,32 +43,29 @@ function getType(schema: ZodType): string {
 	return getZodDef(schema)?.type ?? "";
 }
 
-function isFieldMeta(value: unknown): value is FieldMeta {
-	return typeof value === "object" && value !== null;
-}
-
 function getMeta(schema: ZodType): FieldMeta | undefined {
 	const result = typeof schema.meta === "function" ? schema.meta() : undefined;
 	return isFieldMeta(result) ? result : undefined;
 }
 
-function getDefFormat(def: $ZodTypeDef): string | undefined {
-	if (!("format" in def)) return undefined;
-	const format = (def as $ZodStringFormatDef).format;
+function getFormat(
+	def: $ZodTypeDef | $ZodCheckDef | undefined,
+): string | undefined {
+	if (!def || !("format" in def)) return undefined;
+	const format = (def as { format?: unknown }).format;
 	return typeof format === "string" ? format : undefined;
 }
 
-function getCheckFormat(cd: $ZodCheckDef): string | undefined {
-	if (!("format" in cd)) return undefined;
-	const format = (cd as $ZodCheckStringFormatDef | $ZodCheckNumberFormatDef)
-		.format;
-	return typeof format === "string" ? format : undefined;
-}
+type Constraints = {
+	checks?: FieldCheck[];
+	max?: number;
+	min?: number;
+};
 
 function collectConstraints(
 	def: $ZodTypeDef | undefined,
 	process: (cd: $ZodCheckDef, acc: ConstraintAcc) => void,
-): { checks?: FieldCheck[]; max?: number; min?: number } {
+): Constraints {
 	const acc = createConstraintAcc();
 	for (const check of def?.checks ?? []) {
 		const cd = check._zod.def;
@@ -79,11 +74,7 @@ function collectConstraints(
 	return finalizeConstraints(acc);
 }
 
-function deriveLengthConstraints(def: $ZodTypeDef | undefined): {
-	checks?: FieldCheck[];
-	max?: number;
-	min?: number;
-} {
+function deriveLengthConstraints(def: $ZodTypeDef | undefined): Constraints {
 	return collectConstraints(def, (cd, acc) => {
 		if (cd.check === "min_length") {
 			const minimum = (cd as $ZodCheckMinLengthDef).minimum;
@@ -101,11 +92,7 @@ function deriveLengthConstraints(def: $ZodTypeDef | undefined): {
 	});
 }
 
-function deriveNumberConstraints(def: $ZodTypeDef | undefined): {
-	checks?: FieldCheck[];
-	max?: number;
-	min?: number;
-} {
+function deriveNumberConstraints(def: $ZodTypeDef | undefined): Constraints {
 	return collectConstraints(def, (cd, acc) => {
 		if (cd.check === "greater_than") {
 			const { inclusive, value } = cd as $ZodCheckGreaterThanDef;
@@ -124,16 +111,15 @@ function deriveNumberConstraints(def: $ZodTypeDef | undefined): {
 			const { value } = cd as $ZodCheckLessThanDef;
 			if (typeof value === "number") acc.max = value;
 		} else {
-			const format = getCheckFormat(cd);
+			const format = getFormat(cd);
 			if (format) acc.checks.push({ type: format });
 		}
 	});
 }
 
 function resolveStringKind(def: $ZodTypeDef | undefined): string {
-	const format = def ? getDefFormat(def) : undefined;
-	if (format === "email") return "email";
-	if (format === "url") return "url";
+	const format = getFormat(def);
+	if (format === "email" || format === "url") return format;
 	return "string";
 }
 

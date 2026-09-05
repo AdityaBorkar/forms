@@ -1,5 +1,9 @@
 import type { FieldDef, FieldMeta } from "#/types";
 
+export function isFieldMeta(value: unknown): value is FieldMeta {
+	return typeof value === "object" && value !== null;
+}
+
 /**
  * Resolve the dispatch kind. `meta.component` wins when it is a non-empty
  * string, letting schemas opt into custom UI variants (e.g. `password`,

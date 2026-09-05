@@ -29,9 +29,11 @@ import type {
 	ValueInput,
 } from "valibot";
 
+import type { ConstraintAcc } from "#/adapters/shared";
 import {
 	createConstraintAcc,
 	finalizeConstraints,
+	isFieldMeta,
 	makeFieldDef,
 	mergeMeta,
 } from "#/adapters/shared";
@@ -52,13 +54,11 @@ const SUPPORTED_TYPES = [
 /** Only these wrappers allow `undefined`. `nullable` alone does not. */
 const OPTIONAL_WRAPPERS = ["optional", "nullish", "exact_optional"] as const;
 
-function getType(schema: GenericSchema): string {
-	return schema.type;
-}
-
-function isFieldMeta(value: unknown): value is FieldMeta {
-	return typeof value === "object" && value !== null;
-}
+type Constraints = {
+	checks?: FieldCheck[];
+	max?: number;
+	min?: number;
+};
 
 function getPipe(schema: GenericSchema): readonly GenericPipeItem[] {
 	if (!("pipe" in schema)) return [];
@@ -93,11 +93,8 @@ function getMeta(schema: GenericSchema): FieldMeta | undefined {
 
 function collectConstraints(
 	pipe: readonly GenericPipeItem[],
-	process: (
-		action: GenericPipeItem,
-		acc: ReturnType<typeof createConstraintAcc>,
-	) => void,
-): { checks?: FieldCheck[]; max?: number; min?: number } {
+	process: (action: GenericPipeItem, acc: ConstraintAcc) => void,
+): Constraints {
 	const acc = createConstraintAcc();
 	for (const action of pipe) {
 		if (action.kind !== "validation") continue;
@@ -106,11 +103,9 @@ function collectConstraints(
 	return finalizeConstraints(acc);
 }
 
-function deriveLengthConstraints(pipe: readonly GenericPipeItem[]): {
-	checks?: FieldCheck[];
-	max?: number;
-	min?: number;
-} {
+function deriveLengthConstraints(
+	pipe: readonly GenericPipeItem[],
+): Constraints {
 	return collectConstraints(pipe, (action, acc) => {
 		if (action.type === "min_length") {
 			const requirement = (
@@ -151,11 +146,9 @@ function deriveLengthConstraints(pipe: readonly GenericPipeItem[]): {
 	});
 }
 
-function deriveNumberConstraints(pipe: readonly GenericPipeItem[]): {
-	checks?: FieldCheck[];
-	max?: number;
-	min?: number;
-} {
+function deriveNumberConstraints(
+	pipe: readonly GenericPipeItem[],
+): Constraints {
 	return collectConstraints(pipe, (action, acc) => {
 		if (action.type === "min_value") {
 			const requirement = (
@@ -295,7 +288,7 @@ function pickUnionOption(
 	schemas: GenericSchema[],
 	fieldPath: string,
 ): GenericSchema {
-	const nonLiteral = schemas.filter((o) => getType(o) !== "literal");
+	const nonLiteral = schemas.filter((o) => o.type !== "literal");
 	if (nonLiteral.length === 1) return nonLiteral[0] as GenericSchema;
 	if (nonLiteral.length === 0) {
 		throw createFormError(`Unsupported union in field "${fieldPath}"`, [
@@ -314,17 +307,14 @@ function buildFieldDefInner(
 	optional = false,
 	fieldPath = "<root>",
 ): FieldDef {
-	const type = getType(schema);
+	const type = schema.type;
 	const meta = getMeta(schema);
 
 	let result: FieldDef;
-	if (
-		(OPTIONAL_WRAPPERS as readonly string[]).includes(type) ||
-		type === "nullable"
-	) {
-		const forcesOptional = (OPTIONAL_WRAPPERS as readonly string[]).includes(
-			type,
-		);
+	const forcesOptional = (OPTIONAL_WRAPPERS as readonly string[]).includes(
+		type,
+	);
+	if (forcesOptional || type === "nullable") {
 		const wrapped =
 			"wrapped" in schema
 				? (
@@ -346,12 +336,12 @@ function buildFieldDefInner(
 		}
 		const inner = buildFieldDefInner(
 			wrapped,
-			forcesOptional ? true : optional,
+			forcesOptional || optional,
 			fieldPath,
 		);
 		// `nullable` alone preserves outer optionality (`null` is a value, not
 		// absence); optional wrappers force `optional: true`.
-		const mergedOptional = forcesOptional ? true : optional || inner.optional;
+		const mergedOptional = forcesOptional || optional || inner.optional;
 		result = makeFieldDef(inner, mergedOptional, mergeMeta(inner.meta, meta));
 	} else if (type === "union") {
 		const options =

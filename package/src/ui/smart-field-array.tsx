@@ -34,11 +34,12 @@ function assertArrayField(
 	name: string,
 	onMissingField: OnMissingField,
 ): void {
+	const shouldWarn = onMissingField === "warn" || isProduction();
 	let kind: string;
 	try {
 		kind = resolveFieldDef(fieldMap, name).kind;
 	} catch (error) {
-		if (onMissingField === "warn" || isProduction()) {
+		if (shouldWarn) {
 			devWarn(`SmartFieldArray: could not find array field "${name}"`, [
 				"The field was not found in the schema or has an unsupported type.",
 				"Check that the name prop matches an array key in your object schema.",
@@ -53,7 +54,7 @@ function assertArrayField(
 			`Check that "${name}" is an array in your schema.`,
 			"For non-array fields, render a <SmartField> instead.",
 		];
-		if (onMissingField === "warn" || isProduction()) {
+		if (shouldWarn) {
 			devWarn(message, details);
 			return;
 		}

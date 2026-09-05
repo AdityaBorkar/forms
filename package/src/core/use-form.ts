@@ -56,26 +56,32 @@ function runAdapterStep<T>(stage: string, hint: string, fn: () => T): T {
 	}
 }
 
+function getCached<T>(
+	cache: WeakMap<object, T>,
+	schema: unknown,
+	build: () => T,
+): T {
+	if (typeof schema === "object" && schema !== null) {
+		const hit = cache.get(schema);
+		if (hit) return hit;
+		const value = build();
+		cache.set(schema, value);
+		return value;
+	}
+	return build();
+}
+
 function getCachedFieldMap<TSchema>(
 	schemaResolver: SchemaAdapter<TSchema>,
 	cache: WeakMap<object, SchemaTree>,
 	schema: TSchema,
 ): SchemaTree {
-	if (typeof schema === "object" && schema !== null) {
-		const hit = cache.get(schema);
-		if (hit) return hit;
-		const fieldMap = runAdapterStep(
+	return getCached(cache, schema, () =>
+		runAdapterStep(
 			"useForm could not build the field map from your schema",
 			"Check that the schema matches the adapter (e.g. a Zod object for zodAdapter).",
 			() => schemaResolver.buildFieldMap(schema),
-		);
-		cache.set(schema, fieldMap);
-		return fieldMap;
-	}
-	return runAdapterStep(
-		"useForm could not build the field map from your schema",
-		"Check that the schema matches the adapter (e.g. a Zod object for zodAdapter).",
-		() => schemaResolver.buildFieldMap(schema),
+		),
 	);
 }
 
@@ -84,21 +90,12 @@ function getCachedResolver<TSchema>(
 	cache: WeakMap<object, Resolver>,
 	schema: TSchema,
 ): Resolver {
-	if (typeof schema === "object" && schema !== null) {
-		const hit = cache.get(schema);
-		if (hit) return hit;
-		const resolver = runAdapterStep(
+	return getCached(cache, schema, () =>
+		runAdapterStep(
 			"useForm could not create the form resolver from your schema",
 			"Check that the schema is a valid schema for the adapter.",
 			() => schemaResolver.createResolver(schema),
-		);
-		cache.set(schema, resolver);
-		return resolver;
-	}
-	return runAdapterStep(
-		"useForm could not create the form resolver from your schema",
-		"Check that the schema is a valid schema for the adapter.",
-		() => schemaResolver.createResolver(schema),
+		),
 	);
 }
 

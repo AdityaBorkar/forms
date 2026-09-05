@@ -62,28 +62,19 @@ export function createSmartField(
 		const def = resolved.def;
 		const Component = fieldComponents[def.kind];
 		if (!Component) {
+			const message = `No component registered for field kind "${def.kind}" (field "${name}")`;
 			const availableKinds = Object.keys(fieldComponents);
+			const details = [
+				availableKinds.length
+					? `Available component kinds: ${availableKinds.join(", ")}`
+					: "No components have been registered.",
+				`Add a component for kind "${def.kind}" to the fieldComponents map passed to createFormSystem().`,
+			];
 			if (onMissingField === "warn" || isProduction()) {
-				devWarn(
-					`No component registered for field kind "${def.kind}" (field "${name}")`,
-					[
-						availableKinds.length
-							? `Available component kinds: ${availableKinds.join(", ")}`
-							: "No components have been registered.",
-						`Add a component for kind "${def.kind}" to the fieldComponents map passed to createFormSystem().`,
-					],
-				);
+				devWarn(message, details);
 				return null;
 			}
-			throw createFormError(
-				`No component registered for field kind "${def.kind}" (field "${name}")`,
-				[
-					availableKinds.length
-						? `Available component kinds: ${availableKinds.join(", ")}`
-						: "No components have been registered.",
-					`Add a component for kind "${def.kind}" to the fieldComponents map passed to createFormSystem().`,
-				],
-			);
+			throw createFormError(message, details);
 		}
 
 		return (

@@ -40,13 +40,11 @@ export function resolveFieldDef(fieldMap: SchemaTree, name: string): FieldDef {
 		]);
 	}
 	const segments = name.split(".");
-	for (const segment of segments) {
-		if (!segment) {
-			throw createFormError(`No field definition found for "${name}"`, [
-				`Path contains an empty segment — check for leading, trailing, or doubled dots.`,
-				`Ensure the nested path matches your schema structure.`,
-			]);
-		}
+	if (segments.includes("")) {
+		throw createFormError(`No field definition found for "${name}"`, [
+			`Path contains an empty segment — check for leading, trailing, or doubled dots.`,
+			`Ensure the nested path matches your schema structure.`,
+		]);
 	}
 	const rootKey = segments[0] as string;
 	let def: FieldDef | undefined = fieldMap[rootKey];
