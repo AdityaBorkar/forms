@@ -7,7 +7,7 @@ import type {
 } from "react-hook-form";
 import { useForm as useRhfForm } from "react-hook-form";
 
-import { createFormError } from "#/errors";
+import { createFormError } from "#/core/errors.ts";
 import type {
 	FormInstance,
 	InferFormValues,

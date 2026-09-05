@@ -2,9 +2,9 @@ import type { ComponentType, Context, ReactElement } from "react";
 import { useMemo } from "react";
 import { useController } from "react-hook-form";
 
+import { createFormError, devWarn, isProduction } from "#/core/errors.ts";
 import { useFormContextValue } from "#/core/form-context";
 import { resolveFieldDef } from "#/core/resolve-field-def";
-import { createFormError, devWarn, isProduction } from "#/errors";
 import type {
 	FieldComponentMap,
 	FieldComponentProps,

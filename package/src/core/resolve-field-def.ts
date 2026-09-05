@@ -1,4 +1,4 @@
-import { createFormError } from "#/errors";
+import { createFormError } from "#/core/errors.ts";
 import type { FieldDef, SchemaTree } from "#/types";
 
 function isNumeric(segment: string): boolean {

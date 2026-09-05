@@ -1,7 +1,7 @@
 import type { Context } from "react";
 import { useContext } from "react";
 
-import { createFormError } from "#/errors";
+import { createFormError } from "#/core/errors.ts";
 import type { FormContextValue } from "#/types";
 
 export function useFormContextValue(

@@ -21,7 +21,7 @@ import {
 	makeFieldDef,
 	mergeMeta,
 } from "#/adapters/shared";
-import { createFormError } from "#/errors";
+import { createFormError } from "#/core/errors.ts";
 import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "#/types";
 
 const SUPPORTED_TYPES = [
