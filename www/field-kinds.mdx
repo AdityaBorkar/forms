@@ -50,7 +50,7 @@ Full schema in `examples/src/examples/field-kinds.tsx:6-50`. `config` is free-fo
 | `meta` | `FieldMeta` | `label`, `placeholder`, `description`, `component`, plus custom keys |
 | `checks` | `FieldCheck[]` | Normalized constraints (below) |
 | `entries` | `Record<string, string>` | Enum value-label pairs |
-| `elementFields` | `SchemaTree` | Object children; array-element children hoisted for index-less lookup |
+| `elementFields` | `SchemaTree` | Object children (`array` element children live on `elementDef.elementFields`) |
 | `elementDef` | `FieldDef` | Array element definition, including primitives |
 | `min` / `max` | `number` | Derived minimum/maximum (length for strings/arrays, value for numbers) |
 

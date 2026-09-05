@@ -138,8 +138,9 @@ Custom strings stay allowed for user-defined variants.
 Once the adapter produces the `SchemaTree`, the rest of the system never touches
 the raw schema again. The tree carries:
 
-- Nesting → `elementFields` (object children; array element children) plus
-  `elementDef` (array element definition, including primitives)
+- Nesting → `elementFields` (object children only) plus
+  `elementDef` (array element definition, including primitives; object
+  elements carry their own `elementFields` via `elementDef`)
 - Type → `kind`
 - Constraints → `checks`, `min`, `max`
 - Annotations → `meta` (including `component` override)
@@ -273,7 +274,7 @@ package/src/
 │   ├── create-form-system.ts         # createFormSystem factory (+ CreateFormSystemOptions, FormSystem)
 │   ├── create-form-system.test.tsx   # jsdom integration: resolution, meta.component, nesting, submit, arrays
 │   ├── form-context.ts               # useFormContextValue choke point (SmartField|SmartFieldArray|useFormContext)
-│   ├── resolve-field-def.ts          # resolveFieldDef (dot-path, numeric via elementDef, empty-segment throw)
+│   ├── resolve-field-def.ts          # resolveFieldDef (dot-path, numeric via elementDef, array index required, empty-segment throw)
 │   ├── resolve-field-def.test.ts
 │   ├── form.tsx                      # <Form> (FormProvider + context, handleSubmit wiring) + FormProps
 │   ├── use-form.ts                   # createUseForm factory
@@ -322,8 +323,9 @@ non-object or `undefined` input.
 - **Numbers:** inclusive `greater_than`/`greater_than_equal` → `min`, inclusive
   `less_than`/`less_than_equal` → `max`; exclusive bounds become
   `{ type: "gt"/"lt" }` checks; `format` checks (e.g. `integer`) pass through.
-- **Arrays:** `element` builds `elementDef`; when the element is an object its
-  `elementFields` are also hoisted onto the array def for index-less lookup.
+- **Arrays:** `element` builds `elementDef`; object elements carry their
+  `elementFields` on `elementDef` (no hoisting onto the array def — array
+  paths require an explicit index, e.g. `arr.0.city`).
 - **Objects:** `elementFields` built recursively.
 - **Unsupported:** `record`, `literal` (bare), and unknown types throw
   `Unsupported Zod type: …`. The adapter never emits `kind: "unknown"`.
@@ -365,11 +367,11 @@ widgets already do via `value ?? ""` / `checked === true` fallbacks.
 - **Nested objects — supported.** `resolveFieldDef` walks nested
   `elementFields`. `{ address: z.object({ city: z.string() }) }` renders via
   `<SmartField name="address.city" />`.
-- **Arrays — supported with two forms.** Numeric segments step into
-  `elementDef` (`tasks.0.title`); for object elements the array def also carries
-  `elementFields`, so `arr.city` resolves without an index. Explicit
-  `arr.0.city` is preferred. Primitive elements resolve directly
-  (`tags.0` → `string`).
+- **Arrays — indexed only.** Numeric segments step into `elementDef`
+  (`tasks.0.title`); object-element children live on
+  `elementDef.elementFields`. Index-less `arr.city` is ambiguous (which row?)
+  and throws — always use an explicit index (`arr.0.city`). Primitive
+  elements resolve directly (`tags.0` → `string`).
 - **`resolveFieldDef` is strict.** Empty names and empty segments
   (`"addr..city"`, leading/trailing dots) throw; unknown roots/segments throw
   with available-field hints. Numeric keys on non-array objects look up

@@ -30,7 +30,7 @@ Walks private `schema._zod.def` — intentionally fragile (`package/src/adapters
 | `z.string()` + `format`/`email`/`url` checks | `string` \| `email` \| `url` |
 | `z.number()` + `greater_than`/`less_than` | `min`/`max` (inclusive) or `{ type: "gt"/"lt" }` checks (exclusive); `format` (e.g. `integer`) passes through |
 | `z.enum()` | `enum` + `entries` |
-| `z.array(el)` | `array` + `elementDef`; object elements also hoist `elementFields` |
+| `z.array(el)` | `array` + `elementDef` (object-element children on `elementDef.elementFields`; array paths require an explicit index) |
 | `z.object()` | `object` + recursive `elementFields` |
 | `.optional()` | Recurses into `innerType` with `optional: true`; outer `meta` wins |
 | `union` | Single non-`literal` branch wins, else throws (empty/all-literal/multi-branch) |

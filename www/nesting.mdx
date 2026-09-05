@@ -23,7 +23,7 @@ Schema in `examples/src/examples/nested-form.tsx:6-13`. Each segment steps into 
 
 ## Arrays
 
-Two forms resolve. Explicit index is preferred:
+Two forms resolve. Explicit index is required for array children:
 
 ```tsx title="examples/array-form.tsx"
 <SmartFieldArray name="tasks">
@@ -46,8 +46,9 @@ Two forms resolve. Explicit index is preferred:
 | Path | How it resolves |
 |---|---|
 | `tasks.0.title` | Numeric segment into `kind === "array"` steps into `elementDef`, then `elementFields` |
-| `arr.city` | Array `elementFields` (hoisted from object element) without an index |
 | `tags.0` | Primitive `elementDef` directly (`z.array(z.string())` yields a `string` elementDef) |
+
+Index-less `arr.city` is ambiguous (which row?) and throws — always use `arr.0.city`.
 
 `SmartFieldArray` is a thin wrapper over RHF `useFieldArray`. The factory-bound version requires `<Form>` context (throws outside it) and validates `name` resolves to an `array` Kind; a static unbound `SmartFieldArray` is also exported from `@adistack/forms` and `@adistack/forms/ui` without the context guard — the bound one is canonical.
 
@@ -73,4 +74,4 @@ Missing-field policy is `onMissingField` (`"throw"` default, `"warn"` renders `n
 
 Nested objects are supported. Sub-forms with an independent submit/validation lifecycle (separate `useForm` / `<Form>` inside another `<Form>`) are not — one `FormInstance` per form tree.
 
-Agent hint: index-less lookup checks `def.elementFields?.[segment]` first, then `elementDef.elementFields` for arrays (`package/src/core/resolve-field-def.ts:74`).
+Agent hint: arrays require an explicit index — `arr.0.city` steps into `elementDef`, then `elementFields` (`package/src/core/resolve-field-def.ts`).

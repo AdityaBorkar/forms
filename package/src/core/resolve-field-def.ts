@@ -22,14 +22,21 @@ function failSegment(
 	traversed: string,
 	def: FieldDef,
 ): never {
-	const available = def.elementFields ? Object.keys(def.elementFields) : [];
-	throw createFormError(`No field definition found for "${name}"`, [
+	const fields = def.elementFields ?? def.elementDef?.elementFields;
+	const available = fields ? Object.keys(fields) : [];
+	const details = [
 		`Could not resolve segment "${segment}" at path "${traversed}".`,
+		...(def.kind === "array"
+			? [
+					`Arrays require an explicit index — use "${traversed}.0.${segment}" instead of "${traversed}.${segment}".`,
+				]
+			: []),
 		available.length
 			? `Available nested fields at "${traversed}": ${available.join(", ")}`
 			: `"${traversed}" has no nested fields — it may not be an array or object type.`,
 		"Ensure the nested path matches your schema structure.",
-	]);
+	];
+	throw createFormError(`No field definition found for "${name}"`, details);
 }
 
 export function resolveFieldDef(fieldMap: SchemaTree, name: string): FieldDef {
@@ -63,9 +70,10 @@ export function resolveFieldDef(fieldMap: SchemaTree, name: string): FieldDef {
 			// Non-array parents fall through: numeric keys are looked up literally.
 		}
 
-		// Step through an array element object without requiring an explicit index:
-		// `locations.city` resolves via the array's element fields when present.
-		// Explicit indexed paths (`locations.0.city`) are preferred.
+		// Arrays require an explicit index (`arr.0.city`). An index-less
+		// `arr.city` is ambiguous (which row?) and no longer resolves.
+		if (def.kind === "array") failSegment(name, segment, traversed, def);
+
 		const next: FieldDef | undefined = def.elementFields?.[segment];
 		if (!next) failSegment(name, segment, traversed, def);
 		def = next;

@@ -147,10 +147,15 @@ describe("buildFieldMap — array / object", () => {
 		expect(map.locations?.kind).toBe("array");
 		expect(map.locations?.min).toBe(1);
 		expect(map.locations?.max).toBe(5);
-		expect(map.locations?.elementFields?.city?.kind).toBe("string");
-		expect(map.locations?.elementFields?.city?.optional).toBe(false);
-		expect(map.locations?.elementFields?.country?.kind).toBe("string");
+		expect(map.locations?.elementFields).toBeUndefined();
 		expect(map.locations?.elementDef?.kind).toBe("object");
+		expect(map.locations?.elementDef?.elementFields?.city?.kind).toBe("string");
+		expect(map.locations?.elementDef?.elementFields?.city?.optional).toBe(
+			false,
+		);
+		expect(map.locations?.elementDef?.elementFields?.country?.kind).toBe(
+			"string",
+		);
 	});
 
 	it("maps v.array(v.string()) with a primitive elementDef", () => {

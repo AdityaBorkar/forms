@@ -250,9 +250,6 @@ function resolveType(
 			return {
 				...deriveLengthConstraints(pipe),
 				elementDef,
-				...(elementDef.elementFields && {
-					elementFields: elementDef.elementFields,
-				}),
 				kind: "array",
 			};
 		}

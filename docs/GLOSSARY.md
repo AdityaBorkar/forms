@@ -53,7 +53,7 @@ One node's resolved metadata:
 | `meta` | [FieldMeta](#fieldmeta)? | User annotations (label, placeholder, `component` override, …) |
 | `checks` | [FieldCheck](#fieldcheck)[]? | Normalized validation constraints |
 | `entries` | `Record<string, string>?` | Enum value-label pairs |
-| `elementFields` | [SchemaTree](#schematree)? | Child fields: object properties, or array-element children (hoisted for index-less lookup) |
+| `elementFields` | [SchemaTree](#schematree)? | Child fields for `object` kinds (array-element children live on `elementDef.elementFields`) |
 | `elementDef` | `FieldDef?` | Array element definition — present whenever the element type is known, including primitives (`z.array(z.string())` yields a `string` elementDef) |
 | `min` | `number?` | Derived minimum (length for strings/arrays, value for numbers) |
 | `max` | `number?` | Derived maximum |
@@ -347,11 +347,10 @@ Both take [SmartFieldArrayProps](#smartfieldarrayprops).
 Splits `name` on `.` and walks `elementFields`/`elementDef`:
 
 - Empty name or empty segments (`"addr..city"`, leading/trailing dots) throw.
-- Numeric segments into `kind === "array"` step into `elementDef` (or stay on
-  the array for legacy defs without element detail). Numeric keys on non-arrays
+- Numeric segments into `kind === "array"` step into `elementDef`. Numeric keys on non-arrays
   look up literally.
-- `arr.city` resolves via the array's `elementFields`/`elementDef.elementFields`
-  without an index; explicit `arr.0.city` is preferred.
+- Non-numeric segments into `kind === "array"` throw (`arr.city` is ambiguous —
+  which row? — use explicit `arr.0.city`).
 - Unknown roots/segments throw `No field definition found for "<name>"` with
   available-field hints.
 
