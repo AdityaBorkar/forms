@@ -67,7 +67,7 @@ function ArrayFieldInner({
 	fieldMap,
 	onMissingField,
 }: SmartFieldArrayProps & {
-	fieldMap: SchemaTree | null;
+	fieldMap: SchemaTree;
 	onMissingField: OnMissingField;
 }): ReactNode {
 	const rhf = useRhfContext();
@@ -76,9 +76,7 @@ function ArrayFieldInner({
 		name,
 	});
 
-	if (fieldMap) {
-		assertArrayField(fieldMap, name, onMissingField);
-	}
+	assertArrayField(fieldMap, name, onMissingField);
 
 	return children({
 		append,
@@ -87,17 +85,6 @@ function ArrayFieldInner({
 		remove,
 		update,
 	});
-}
-
-function BaseSmartFieldArray({
-	name,
-	children,
-}: SmartFieldArrayProps): ReactNode {
-	return (
-		<ArrayFieldInner fieldMap={null} name={name} onMissingField="warn">
-			{children}
-		</ArrayFieldInner>
-	);
 }
 
 export function createSmartFieldArray(
@@ -126,12 +113,3 @@ export function createSmartFieldArray(
 		displayName: "SmartFieldArray",
 	});
 }
-
-export function SmartFieldArray({
-	name,
-	children,
-}: SmartFieldArrayProps): ReactNode {
-	return <BaseSmartFieldArray name={name}>{children}</BaseSmartFieldArray>;
-}
-
-SmartFieldArray.displayName = "SmartFieldArray";

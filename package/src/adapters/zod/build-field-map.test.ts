@@ -53,11 +53,6 @@ describe("buildFieldMap — email/url", () => {
 		const map = buildFieldMap(z.object({ site: z.url() }));
 		expect(map.site?.kind).toBe("url");
 	});
-
-	it("maps deprecated z.string().email() to kind email", () => {
-		const map = buildFieldMap(z.object({ email: z.string().email() }));
-		expect(map.email?.kind).toBe("email");
-	});
 });
 
 describe("buildFieldMap — number", () => {
@@ -161,7 +156,7 @@ describe("buildFieldMap — optional / union", () => {
 
 	it("resolves a union of optional(email) | literal() to email, optional", () => {
 		const map = buildFieldMap(
-			z.object({ email: z.string().email().optional().or(z.literal("")) }),
+			z.object({ email: z.email().optional().or(z.literal("")) }),
 		);
 		expect(map.email?.kind).toBe("email");
 		expect(map.email?.optional).toBe(true);

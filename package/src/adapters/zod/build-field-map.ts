@@ -97,9 +97,6 @@ function deriveLengthConstraints(def: $ZodTypeDef | undefined): {
 				acc.max = maximum;
 				acc.checks.push({ type: "max", value: maximum });
 			}
-		} else {
-			const format = getCheckFormat(cd);
-			if (format) acc.checks.push({ type: format });
 		}
 	});
 }
@@ -134,12 +131,9 @@ function deriveNumberConstraints(def: $ZodTypeDef | undefined): {
 }
 
 function resolveStringKind(def: $ZodTypeDef | undefined): string {
-	const formats = [
-		def ? getDefFormat(def) : undefined,
-		...(def?.checks ?? []).map((c) => getCheckFormat(c._zod.def)),
-	];
-	if (formats.includes("email")) return "email";
-	if (formats.includes("url")) return "url";
+	const format = def ? getDefFormat(def) : undefined;
+	if (format === "email") return "email";
+	if (format === "url") return "url";
 	return "string";
 }
 

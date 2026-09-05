@@ -58,11 +58,8 @@ export function resolveFieldDef(fieldMap: SchemaTree, name: string): FieldDef {
 
 		if (isNumeric(segment)) {
 			if (def.kind === "array") {
-				if (def.elementDef) {
-					def = def.elementDef;
-					continue;
-				}
-				// Legacy array without element detail: index addresses the array itself.
+				if (!def.elementDef) failSegment(name, segment, traversed, def);
+				def = def.elementDef;
 				continue;
 			}
 			// Non-array parents fall through: numeric keys are looked up literally.
@@ -71,15 +68,7 @@ export function resolveFieldDef(fieldMap: SchemaTree, name: string): FieldDef {
 		// Step through an array element object without requiring an explicit index:
 		// `locations.city` resolves via the array's element fields when present.
 		// Explicit indexed paths (`locations.0.city`) are preferred.
-		let next: FieldDef | undefined = def.elementFields?.[segment];
-		if (!next && def.kind === "array" && def.elementDef) {
-			const elementDef: FieldDef = def.elementDef;
-			if (elementDef.kind === "object") {
-				next = elementDef.elementFields?.[segment];
-			} else if (isNumeric(segment)) {
-				next = elementDef;
-			}
-		}
+		const next: FieldDef | undefined = def.elementFields?.[segment];
 		if (!next) failSegment(name, segment, traversed, def);
 		def = next;
 	}
