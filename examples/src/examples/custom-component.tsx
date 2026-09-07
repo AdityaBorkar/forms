@@ -5,7 +5,7 @@ import type { FieldValues } from "react-hook-form";
 import type { ZodType } from "zod";
 import z from "zod";
 
-import { TextareaField, TextField } from "#/components/form-ui";
+import { TextField } from "#/components/form-ui";
 import { FieldShell } from "#/components/form-ui/field-shell";
 import { Button } from "#/components/ui/button";
 import {
@@ -17,7 +17,7 @@ import {
 } from "#/components/ui/card";
 
 /**
- * A custom widget registered under its own kind. It receives the standard
+ * A custom widget registered under a base kind. It receives the standard
  * `FieldComponentProps` (`def`, `value`, `onChange`, `error`, …) so any
  * React component can become a field.
  */
@@ -58,26 +58,22 @@ function StarsField({
 	);
 }
 
-// A local form system: same Zod adapter, extended widget map. Schemas opt
-// into the custom widget with `meta({ component: "stars" })` — validation
-// stays a plain number, only the UI changes.
+// A local form system: same Zod adapter, custom widget registered under the
+// base `number` kind — validation stays a plain number, only the UI changes.
 const customSystem = createFormSystem({
 	fieldComponents: {
-		stars: StarsField,
+		number: StarsField,
 		string: TextField,
-		textarea: TextareaField,
 	},
 	schemaResolver: zodAdapter,
 });
 
 const schema = z.object({
 	feedback: z.string().max(200).meta({
-		component: "textarea",
 		label: "Feedback",
 		placeholder: "What did you think?",
 	}),
 	score: z.number().min(1).max(5).meta({
-		component: "stars",
 		description: "Pick 1–5 stars.",
 		label: "Score",
 	}),
@@ -86,8 +82,8 @@ const schema = z.object({
 
 /**
  * 5 · Custom field component — register your own widget in the
- * `fieldComponents` map (here a 5-star rating) and select it per field
- * with `meta.component`. No changes to validation or core are needed.
+ * `fieldComponents` map (here a 5-star rating for the `number` kind).
+ * No changes to validation or core are needed.
  */
 export function CustomComponentForm() {
 	const [result, setResult] = useState<unknown>(null);
@@ -102,8 +98,7 @@ export function CustomComponentForm() {
 			<CardHeader>
 				<CardTitle>5 · Custom field component</CardTitle>
 				<CardDescription>
-					A local form system with a custom ★ rating widget selected via
-					meta.component.
+					A local form system with a custom ★ rating widget for the number kind.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>

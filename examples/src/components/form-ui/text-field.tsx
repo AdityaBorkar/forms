@@ -20,14 +20,7 @@ export function TextField({
 	);
 	const meta = def.meta;
 	const kind = def.kind;
-	const type =
-		kind === "email"
-			? "email"
-			: kind === "url"
-				? "url"
-				: kind === "password"
-					? "password"
-					: "text";
+	const type = kind === "email" ? "email" : kind === "url" ? "url" : "text";
 	return (
 		<FieldShell
 			description={meta?.description}

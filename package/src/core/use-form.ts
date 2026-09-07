@@ -19,18 +19,14 @@ import type {
 export type InferredValues<S> =
 	InferFormValues<S> extends FieldValues ? InferFormValues<S> : FieldValues;
 
-const FORM_ERROR_PREFIX = "[@adistack/forms]";
-
-/**
- * Run one adapter step, adding form-system context when a custom adapter
- * throws a raw error. Errors the adapter already built with `createFormError`
- * (e.g. unsupported-type messages) pass through untouched.
- */
 function runAdapterStep<T>(stage: string, hint: string, fn: () => T): T {
 	try {
 		return fn();
 	} catch (error) {
-		if (error instanceof Error && error.message.startsWith(FORM_ERROR_PREFIX)) {
+		if (
+			error instanceof Error &&
+			error.message.startsWith("[@adistack/forms]")
+		) {
 			throw error;
 		}
 		throw createFormError(stage, [
@@ -88,9 +84,6 @@ export function createUseForm<TSchema>(
 ): <const S extends TSchema, TValues extends FieldValues = InferredValues<S>>(
 	options: UseFormOptions<S, TValues>,
 ) => FormInstance<TValues> {
-	// Per-factory caches: shared across every useForm call with the same schema
-	// object (GC-safe — entries vanish with their schema key). Pair with
-	// hoisted `schema` objects for O(1) hits instead of per-render walks.
 	const fieldMapCache = new WeakMap<object, SchemaTree>();
 	const resolverCache = new WeakMap<object, Resolver>();
 
@@ -98,10 +91,6 @@ export function createUseForm<TSchema>(
 		const S extends TSchema,
 		TValues extends FieldValues = InferredValues<S>,
 	>(options: UseFormOptions<S, TValues>): FormInstance<TValues> {
-		// Fail fast on developer misuse with an actionable message instead of a
-		// cryptic failure deep inside the adapter or react-hook-form. These
-		// throws are deterministic per call site, so hook order is unaffected.
-		// biome-ignore lint/suspicious/noUnnecessaryConditions: runtime guard for developer misuse
 		if (!options) {
 			throw createFormError("useForm requires an options object", [
 				"Call useForm({ schema, onSubmit, ... }).",
@@ -148,9 +137,6 @@ export function createUseForm<TSchema>(
 			reValidateMode,
 		});
 
-		// Latest-ref stabilization: inline onSubmit/onInvalid/onSubmitError no
-		// longer churn the returned `form` identity (and downstream
-		// FormProvider renders).
 		const onSubmitRef = useRef(onSubmit);
 		onSubmitRef.current = onSubmit;
 		const onInvalidRef = useRef(onInvalid);

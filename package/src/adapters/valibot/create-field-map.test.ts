@@ -39,15 +39,6 @@ describe("createFieldMap — string kinds", () => {
 		);
 		expect(map.name?.meta).toEqual({ label: "Name", placeholder: "x" });
 	});
-
-	it("honors metadata component as a kind override", () => {
-		const map = createFieldMap(
-			v.object({
-				bio: v.pipe(v.string(), v.metadata({ component: "textarea" })),
-			}),
-		);
-		expect(map.bio?.kind).toBe("textarea");
-	});
 });
 
 describe("createFieldMap — email/url", () => {
@@ -79,7 +70,7 @@ describe("createFieldMap — number", () => {
 	});
 
 	it("maps gt/lt bounds to checks", () => {
-		const map = buildFieldMap(
+		const map = createFieldMap(
 			v.object({ score: v.pipe(v.number(), v.gtValue(5), v.ltValue(10)) }),
 		);
 		expect(map.score?.kind).toBe("number");

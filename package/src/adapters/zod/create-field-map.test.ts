@@ -30,16 +30,6 @@ describe("createFieldMap — string kinds", () => {
 		);
 		expect(map.name?.meta).toEqual({ label: "Name", placeholder: "x" });
 	});
-
-	it("honors meta.component as a kind override", () => {
-		const map = createFieldMap(
-			z.object({
-				bio: z.string().meta({ component: "textarea", label: "Bio" }),
-			}),
-		);
-		expect(map.bio?.kind).toBe("textarea");
-		expect(map.bio?.meta?.label).toBe("Bio");
-	});
 });
 
 describe("createFieldMap — email/url", () => {
@@ -55,9 +45,9 @@ describe("createFieldMap — email/url", () => {
 	});
 });
 
-describe("buildFieldMap — number", () => {
+describe("createFieldMap — number", () => {
 	it("maps z.number() with min/max via inclusive greater_than/less_than", () => {
-		const map = buildFieldMap(
+		const map = createFieldMap(
 			z.object({ age: z.number().int().min(0).max(100) }),
 		);
 		expect(map.age?.kind).toBe("number");
@@ -138,7 +128,9 @@ describe("createFieldMap — array / object", () => {
 
 describe("createFieldMap — optional / union", () => {
 	it("unwraps optional and sets optional: true on inner def", () => {
-		const map = createFieldMap(z.object({ name: z.string().min(1).optional() }));
+		const map = createFieldMap(
+			z.object({ name: z.string().min(1).optional() }),
+		);
 		expect(map.name?.kind).toBe("string");
 		expect(map.name?.optional).toBe(true);
 		expect(map.name?.min).toBe(1);

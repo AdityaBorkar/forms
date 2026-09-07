@@ -14,10 +14,7 @@ export function createUseFormContext(
 		TValues extends FieldValues = FieldValues,
 	>(): FormContextInstance<TValues> {
 		const rhf = useRhfContext<TValues>();
-		const ctx = useFormContextValue(FormContext, "useFormContext");
-		return {
-			...rhf,
-			fieldMap: ctx.fieldMap,
-		};
+		const { fieldMap } = useFormContextValue(FormContext, "useFormContext");
+		return { ...rhf, fieldMap };
 	};
 }

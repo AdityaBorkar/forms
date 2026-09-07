@@ -10,22 +10,22 @@ You will import from the right entrypoint and type against the right shape.
 
 ## Entrypoints
 
-4 exports in `package/package.json:25-30`. Consumed as source TypeScript — no build step, ESM only.
+4 exports in `package/package.json`. Consumed as source TypeScript — no build step, ESM only.
 
 | Entrypoint | Path | Purpose |
 |---|---|---|
-| `@adistack/forms` | `src/index.ts` | Core: `createFormSystem`, `resolveFieldDef`, static `SmartFieldArray`, types |
-| `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | `zodAdapter`, `buildFieldMap(schema)`, `createResolver(schema)` |
-| `@adistack/forms/adapters/valibot` | `src/adapters/valibot/index.ts` | `valibotAdapter`, same shape (`picklist`/`enum` → `enum`) |
-| `@adistack/forms/ui` | `src/ui/index.ts` | Static unbound `SmartFieldArray` plus `SmartFieldProps`, `SmartFieldArrayProps`, `SmartFieldArrayRenderProps` |
+| `@adistack/forms` | `src/index.ts` | Core: `createFormSystem`, `resolveFieldDef`, types |
+| `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | `zodAdapter`, `createFieldMap(schema)`, `createResolver(schema)` |
+| `@adistack/forms/adapters/valibot` | `src/adapters/valibot/index.ts` | `valibotAdapter`, `createFieldMap(schema)`, `createResolver(schema)` (`picklist`/`enum` → `enum`) |
+| `@adistack/forms/ui` | `src/ui/index.ts` | Types only: `SmartFieldProps`, `SmartFieldArrayProps`, `SmartFieldArrayRenderProps`, `FieldArrayRow` |
 
-`SmartField`/`useForm`/`useFormContext` are factory-returned, not direct imports. `FieldArrayRow` is defined in `ui/smart-field-array.tsx` but not re-exported — infer it from render props.
+`SmartField`/`useForm`/`useFormContext`/`SmartFieldArray` are factory-returned, not direct imports.
 
 ```ts title="app.ts"
 import { createFormSystem, resolveFieldDef } from "@adistack/forms";
 import { zodAdapter } from "@adistack/forms/adapters/zod";
 import { valibotAdapter } from "@adistack/forms/adapters/valibot";
-import { SmartFieldArray } from "@adistack/forms/ui";
+import type { SmartFieldArrayProps } from "@adistack/forms/ui";
 ```
 
 ## FormSystem
@@ -40,11 +40,11 @@ createFormSystem({ fieldComponents, schemaResolver, onMissingField }: CreateForm
 |---|---|
 | `Form` | `<Form form={formInstance}>` — `FormProvider` + `{ fieldMap }` context; throws without `form` prop |
 | `SmartField` | `{ name: string; disabled?: boolean; config?: Record<string, unknown> }` — `useController` dispatch; throws outside `<Form>` |
-| `SmartFieldArray` | Bound (canonical, context-gated) — `{ name: string; children: (props) => ReactNode }` |
-| `useForm` | `(options: UseFormOptions) => FormInstance` — `fieldMap` via `buildFieldMap`, `defaultValues` straight to RHF, resolver via `createResolver` |
+| `SmartFieldArray` | Factory-bound (requires `<Form>` context) — `{ name: string; children: (props) => ReactNode }` |
+| `useForm` | `(options: UseFormOptions) => FormInstance` — `fieldMap` via `createFieldMap`, `defaultValues` straight to RHF, resolver via `createResolver` |
 | `useFormContext` | `() => FormContextInstance` — RHF return + `{ fieldMap }`; throws outside `<Form>` |
 
-`onMissingField: "throw" | "warn"` (default `"throw"`): dev throws fast; `"warn"` or production renders `null` with a dev-only deduped `devWarn`. `resetDevWarnings` is tests-only.
+`onMissingField: "throw" | "warn"` (default `"throw"`): dev throws fast; `"warn"` or production renders `null` with a dev-only deduped `devWarn`.
 
 ## Instance types
 
@@ -57,7 +57,7 @@ Both generic over `TValues extends FieldValues` (default `FieldValues`):
 | `UseFormOptions` | `{ schema, onSubmit, onInvalid?, onSubmitError?, defaultValues?, validationMode?, reValidateMode? }` |
 | `FormProps` | `{ form: FormInstance; className?: string; children?: ReactNode }` |
 
-Helpers: `defineFieldComponent` / `defineFieldComponents` (identity, zero runtime), `InferFormValues` (Standard Schema `~standard` inference), `FieldKindValueMap` (typed `value` per Kind), `ComboboxConfig` (`{ options: string[] }`).
+Helpers: `defineFieldComponent` / `defineFieldComponents` (identity, zero runtime), `InferFormValues` (Standard Schema inference), `FieldKindValueMap` (typed `value` per Kind), `ComboboxConfig` (`{ options: string[] }`).
 
 ## Constraints
 
@@ -71,4 +71,4 @@ Helpers: `defineFieldComponent` / `defineFieldComponents` (identity, zero runtim
 
 Invariants: TypeScript strict + `verbatimModuleSyntax` + `noUncheckedIndexedAccess`; alias `#/* → ./src/*`; tests colocated (`*.test.ts[x]` next to source, never `package/tests/`); `jsdom` via `// @vitest-environment jsdom` first line for component tests. Internal errors use `createFormError` (`[@adistack/forms]` prefix); recoverable misses use dev-only deduped `devWarn`.
 
-Agent hint: file map and Adapter internals live in `docs/ARCHITECTURE.md:259-364`; full type glossary in `docs/GLOSSARY.md`.
+Agent hint: file map and Adapter internals live in `docs/ARCHITECTURE.md`; full type glossary in `docs/GLOSSARY.md`.

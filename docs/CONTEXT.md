@@ -20,10 +20,6 @@ _Avoid_: field definition (verbose), field config
 The single dispatch string on a FieldDef that selects a UI component.
 _Avoid_: type, variant, widget
 
-**Component override**:
-A `meta.component` value that replaces the adapter's base kind.
-_Avoid_: custom kind, kind override (ambiguous)
-
 **Adapter**:
 The boundary that translates one validation library into a SchemaTree
 and a resolver.

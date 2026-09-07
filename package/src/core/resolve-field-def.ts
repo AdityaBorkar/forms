@@ -67,11 +67,8 @@ export function resolveFieldDef(fieldMap: SchemaTree, name: string): FieldDef {
 				def = def.elementDef;
 				continue;
 			}
-			// Non-array parents fall through: numeric keys are looked up literally.
 		}
 
-		// Arrays require an explicit index (`arr.0.city`). An index-less
-		// `arr.city` is ambiguous (which row?) and no longer resolves.
 		if (def.kind === "array") failSegment(name, segment, traversed, def);
 
 		const next: FieldDef | undefined = def.elementFields?.[segment];

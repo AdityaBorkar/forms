@@ -90,12 +90,12 @@ Three moving parts, all yours to swap:
 | Part            | You provide                          | Library does                                   |
 | --------------- | ------------------------------------ | ---------------------------------------------- |
 | `FieldComponentMap` | React components keyed by `kind` | Rendered by `<SmartField>`                     |
-| `SchemaAdapter`     | `buildFieldMap` / `createResolver` | Introspects your schema into a `SchemaTree` |
+| `SchemaAdapter`     | `createFieldMap` / `createResolver` | Introspects your schema into a `SchemaTree` |
 | The schema          | e.g. a Zod object               | Source of truth for validation                 |
 
 ## Field meta
 
-Attach UI hints to any schema field with `.meta(...)`. The adapter surfaces them as `FieldDef.meta`:
+Attach UI hints to any schema field with `.meta(...)`. The adapter surfaces them as `FieldDef.meta` (passthrough — label, placeholder, description, plus any custom keys):
 
 ```tsx
 z.string().min(8).meta({
@@ -105,16 +105,9 @@ z.string().min(8).meta({
 })
 ```
 
-`meta` is passthrough, plus an optional `component` override — when
-`meta.component` is a non-empty string it becomes the dispatch kind:
-
-```tsx
-z.string().meta({ component: "textarea", label: "Bio" }) // renders fieldComponents.textarea
-```
-
-Without the override, dispatch is `fieldComponents[def.kind]` and required
+Dispatch is `fieldComponents[def.kind]` and required
 state derives as `!def.optional`. The Zod adapter emits
-`string|number|boolean|date|email|url|object|array|enum` before the override;
+`string|number|boolean|date|email|url|object|array|enum`;
 the Valibot adapter emits `string|number|boolean|date|email|url|object|array|enum`
 (`picklist`/`enum` normalize to `enum`).
 

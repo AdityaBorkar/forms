@@ -2,14 +2,16 @@
 
 ## Phase 1
 
-- Manual Code Review
+- update docs
+- `examples` review
 - GitHub Workflows Review and Actual Publishing
+  - changeset verififcaton
+  - webhook
 - Component Support with useFormField() to register it
   - along with Custom Component
 
 ## Phase 2
 
-- Transform `examples` using Fumadocs+Wrangler. Also write documentation in this file itself.
 - @abstack/conform
   - Write a README
   - GitHub Actions

@@ -11,7 +11,6 @@ export type FieldMeta = {
 	label?: string;
 	placeholder?: string;
 	description?: string;
-	component?: string;
 	[key: string]: unknown;
 };
 
@@ -19,14 +18,8 @@ export type KnownFieldKind =
 	| "string"
 	| "email"
 	| "url"
-	| "password"
-	| "textarea"
-	| "combobox"
 	| "number"
-	| "slider"
 	| "boolean"
-	| "checkbox"
-	| "switch"
 	| "enum"
 	| "array"
 	| "object"
@@ -84,14 +77,8 @@ export type FieldKindValueMap = {
 	string: string;
 	email: string;
 	url: string;
-	password: string;
-	textarea: string;
-	combobox: string;
 	number: number;
-	slider: number;
 	boolean: boolean;
-	checkbox: boolean;
-	switch: boolean;
 	enum: string;
 	date: Date | undefined;
 	array: unknown[];
@@ -124,16 +111,9 @@ export function defineFieldComponents<T extends FieldComponentMap>(map: T): T {
 export type SchemaAdapter<TSchema, TValues = unknown> = {
 	createFieldMap(schema: TSchema): SchemaTree;
 	createResolver(schema: TSchema): Resolver;
-	/** Phantom output type — never read at runtime. Enables `useForm` inference. */
 	readonly _infer?: TValues;
 };
 
-/**
- * Structural Standard Schema output inference (zero runtime, zero new deps).
- * Zod v4 (`z.infer`) and Valibot (`v.InferOutput`) both expose
- * `~standard.types.output`, so one conditional covers every adapter.
- * Falls back to `unknown` for non-conforming schemas.
- */
 export type InferFormValues<TSchema> = TSchema extends {
 	"~standard": { types?: { output?: infer TOut } };
 }
@@ -163,11 +143,6 @@ export type FormInstance<TValues extends FieldValues = FieldValues> =
 		fieldMap: SchemaTree;
 		onSubmit: (values: TValues) => void | Promise<void>;
 		onInvalid?: (errors: FieldErrors<TValues>) => void;
-		/**
-		 * Called when `onSubmit` itself throws or rejects (e.g. a failed server
-		 * request). Validation failures still go to `onInvalid`. `<Form>` also
-		 * records the failure as a `root.serverError` field error.
-		 */
 		onSubmitError?: (error: unknown) => void;
 	};
 
@@ -178,7 +153,6 @@ export type UseFormOptions<
 	schema: TSchema;
 	onSubmit: (values: TValues) => void | Promise<void>;
 	onInvalid?: (errors: FieldErrors<TValues>) => void;
-	/** Called when `onSubmit` throws or rejects. Validation failures still go to `onInvalid`. */
 	onSubmitError?: (error: unknown) => void;
 	defaultValues?: DefaultValues<TValues>;
 	validationMode?: ValidationMode;

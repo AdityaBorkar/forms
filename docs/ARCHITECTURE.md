@@ -45,10 +45,8 @@ that knowledge.**
               <Component {...FieldComponentProps} />
 ```
 
-`meta.component` is applied at adapter time, not at render time:
-`resolveKind` in `adapters/shared/field-def.ts` lets a non-empty
-`meta.component` string replace the base kind, so `def.kind` already carries
-the override when `SmartField` dispatches.
+Dispatch is strictly by adapter base kind: `fieldComponents[def.kind]`
+(`def.kind` comes from the schema type — `meta` is passthrough only).
 
 ### Data flow
 
@@ -62,7 +60,7 @@ the override when `SmartField` dispatches.
 2. Consumer calls `useForm({ schema, onSubmit, ... })` — the hook validates
    its options (missing options/`schema`/`onSubmit` throw `createFormError`;
    there is no runtime `validationMode`/`reValidateMode` check — invalid
-   strings are a type error only), then calls `adapter.buildFieldMap(schema)` for the
+   strings are a type error only), then calls `adapter.createFieldMap(schema)` for the
    `SchemaTree` and `adapter.createResolver(schema)` for validation (raw adapter failures
    are wrapped with context; adapter `createFormError`s pass through), then
    delegates to RHF's `useForm` with `mode: validationMode` (defaults to
@@ -112,14 +110,14 @@ acceptable — form systems are typically configured once at module level.
 The adapter is the **only** place that knows about a specific validation
 library. Everything downstream operates on normalized output (`SchemaTree`,
 defaults, resolver). Adding a validation library = writing a new adapter, not
-touching core. The `buildFieldMap` implementations walk private internals
+touching core. The `createFieldMap` implementations walk private internals
 (Zod's `_zod.def`, Valibot's `type`/`entries`/`pipe`) — intentionally fragile.
 
 Current signature (`src/types.ts`):
 
 ```ts
 type SchemaAdapter<TSchema, TValues = unknown> = {
-  buildFieldMap(schema: TSchema): SchemaTree;
+  createFieldMap(schema: TSchema): SchemaTree;
   createResolver(schema: TSchema): Resolver;
   /** Phantom output type — never read at runtime. Enables `useForm` inference. */
   readonly _infer?: TValues;
@@ -137,17 +135,13 @@ There is no auto-default derivation — `defaultValues` pass straight through
 to RHF. Guessing `0` for numbers or the first entry for enums masked
 required-field UX, so the adapter no longer derives defaults.
 
-### 3. Flat `kind` plus `meta.component` override
+### 3. Flat `kind' dispatch
 
 `FieldDef.kind` (`FieldKind = KnownFieldKind | (string & {})`) is the single
-dispatch key: `fieldComponents[def.kind]`. Adapters resolve base kinds, then
-`resolveKind(baseKind, meta)` lets a non-empty `meta.component` string replace
-the kind (e.g. `z.string().meta({ component: "textarea" })` dispatches to
-`fieldComponents.textarea`). `KnownFieldKind` lists the first-class kinds:
-
-`string|email|url|password|textarea|combobox|number|slider|boolean|checkbox|switch|enum|array|object|date`
-
-Custom strings stay allowed for user-defined variants.
+dispatch key: `fieldComponents[def.kind]`. Adapters resolve base kinds
+(`string|email|url|number|boolean|enum|array|object|date`); `KnownFieldKind`
+lists exactly those base kinds. Custom strings stay allowed in the type
+for forward-compat, but no adapter override produces them.
 
 ### 4. SchemaTree as the single source of truth
 
@@ -159,7 +153,7 @@ the raw schema again. The tree carries:
   elements carry their own `elementFields` via `elementDef`)
 - Type → `kind`
 - Constraints → `checks`, `min`, `max`
-- Annotations → `meta` (including `component` override)
+- Annotations → `meta` (passthrough: label, placeholder, description, custom keys)
 - Optionality → `optional` (single source of truth; derive "required" in UI as
   `!optional` — there is no stored `required` field)
 
@@ -182,8 +176,8 @@ Four exports in `package/package.json`:
 | Entrypoint | Path | Purpose |
 |---|---|---|
 | `@adistack/forms` | `src/index.ts` | Core: `createFormSystem`, `resolveFieldDef`, types (`FieldDef`, `SchemaTree`, `FieldComponentMap`, `FieldComponentProps<TValue, TConfig>` with nested `def`, `FormInstance` (+`onSubmitError`), `FormContextInstance`, `UseFormOptions` (`onSubmit` returns `void \| Promise<void>`), `ValidationMode`, `ReValidateMode`, `FieldKind`, `KnownFieldKind`, `FieldCheck`, `KnownFieldCheckType`, `FieldMeta`, `FormSystem`, `CreateFormSystemOptions` (+`onMissingField`), `OnMissingField`, `InferFormValues`, `FieldKindValueMap`, `ComboboxConfig`), helpers (`defineFieldComponent`, `defineFieldComponents`), prop/row types (`SmartFieldProps`, `SmartFieldArrayProps`, `SmartFieldArrayRenderProps`, `FieldArrayRow` — re-exported). `SmartField`/`useForm`/`useFormContext`/`SmartFieldArray` components are **not** direct exports — they're factory-returned. |
-| `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | Zod v4 adapter: `zodAdapter`, `buildFieldMap(schema)`, `createResolver(schema)` |
-| `@adistack/forms/adapters/valibot` | `src/adapters/valibot/index.ts` | Valibot adapter: `valibotAdapter`, same shape (`picklist`/`enum` normalize to `enum`) |
+| `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | Zod v4 adapter: `zodAdapter`, `createFieldMap(schema)`, `createResolver(schema)` |
+| `@adistack/forms/adapters/valibot` | `src/adapters/valibot/index.ts` | Valibot adapter: `valibotAdapter`, `createFieldMap(schema)`, `createResolver(schema)` (`picklist`/`enum` normalize to `enum`) |
 | `@adistack/forms/ui` | `src/ui/index.ts` | Types only: `SmartFieldProps`, `SmartFieldArrayProps`, `SmartFieldArrayRenderProps`, `FieldArrayRow` (no runtime component exports) |
 
 `react-hook-form@^7.86.0` and `react@>=18` are required peers.
@@ -291,7 +285,7 @@ package/src/
 ├── errors.ts                         # createFormError + devWarn (deduplicated, dev-only) + isProduction (no reset helper)
 ├── core/
 │   ├── create-form-system.ts         # createFormSystem factory (+ CreateFormSystemOptions w/ onMissingField, FormSystem w/ inferred useForm)
-│   ├── create-form-system.test.tsx   # jsdom integration: resolution, meta.component, nesting, submit, arrays, onMissingField, inference
+│   ├── create-form-system.test.tsx   # jsdom integration: resolution, nesting, submit, arrays, onMissingField, inference
 │   ├── form-context.ts               # useFormContextValue choke point (SmartField|SmartFieldArray|useFormContext)
 │   ├── resolve-field-def.ts          # resolveFieldDef (dot-path, numeric via elementDef, array index required, empty-segment throw)
 │   ├── resolve-field-def.test.ts
@@ -304,38 +298,37 @@ package/src/
 │   └── smart-field-array.tsx         # createSmartFieldArray (bound-only, context-gated) + FieldArrayRow
 └── adapters/
     ├── shared/
-    │   ├── field-def.ts              # resolveKind (meta.component), mergeMeta (outer wins), makeFieldDef, isFieldMeta
-    │   ├── constraints.ts            # ConstraintAcc type + finalizeConstraints (accumulators start as `{ checks: [] }`)
+    │   ├── index.ts                  # makeFieldDef, isFieldMeta, ConstraintAcc
+    │   │                         # (ConstraintAcc accumulators start inline as `{ checks: [] }`)
     │   └── index.ts
     ├── zod/
     │   ├── index.ts                  # zodAdapter, createResolver
-    │   ├── build-field-map.ts        # Zod → SchemaTree via _zod.def (+ SUPPORTED_TYPES)
-    │   └── build-field-map.test.ts
+    │   ├── create-field-map.ts       # Zod → SchemaTree via _zod.def (+ SUPPORTED_TYPES)
+    │   └── create-field-map.test.ts
     └── valibot/
         ├── index.ts                  # valibotAdapter, createResolver
-        ├── build-field-map.ts        # Valibot → SchemaTree via type/entries/pipe (+ SUPPORTED_TYPES, OPTIONAL_WRAPPERS)
-        └── build-field-map.test.ts
+        ├── create-field-map.ts       # Valibot → SchemaTree via type/entries/pipe (+ SUPPORTED_TYPES, OPTIONAL_WRAPPERS)
+        └── create-field-map.test.ts
 ```
 
 ---
 
 ## Adapter internals
 
-### Zod (`adapters/zod/build-field-map.ts`)
+### Zod (`adapters/zod/create-field-map.ts`)
 
 Walks Zod v4's private `_zod.def` API (fragile by design).
 `SUPPORTED_TYPES`: `string`, `number`, `boolean`, `enum`, `array`, `object`,
-`date`. `buildFieldMap(schema)` reads `schema._zod.def.shape`, returns `{}` for
+`date`. `createFieldMap(schema)` reads `schema._zod.def.shape`, returns `{}` for
 non-object or `undefined` input.
 
 - **Optional:** `type === "optional"` recurses into `innerType` with
-  `optional = true`; outer `meta` wins via `mergeMeta(inner.meta, meta)`.
+  `optional = true`; outer `meta` keys win over inner `meta`.
 - **Union:** picks the single non-`literal` branch (handles
   `z.string().optional()` as `string | literal(undefined)`). Empty unions,
   all-literal unions, and multi-branch unions throw (unsupported/ambiguous).
 - **String kinds:** `resolveStringKind` checks `def.format` for `email`/`url`,
-  else `string`. `password`/`textarea`/`combobox` come from
-  `meta.component`, not from Zod itself.
+  else `string`.
 - **Numbers:** inclusive `greater_than`/`greater_than_equal` → `min`, inclusive
   `less_than`/`less_than_equal` → `max`; exclusive bounds become
   `{ type: "gt"/"lt" }` checks; `format` checks (e.g. `integer`) pass through.
@@ -346,7 +339,7 @@ non-object or `undefined` input.
 - **Unsupported:** `record`, `literal` (bare), and unknown types throw
   `Unsupported Zod type: …`. The adapter never emits `kind: "unknown"`.
 
-### Valibot (`adapters/valibot/build-field-map.ts`)
+### Valibot (`adapters/valibot/create-field-map.ts`)
 
 Walks Valibot's public-ish `type`/`entries`/`item`/`wrapped`/`pipe` shape.
 `SUPPORTED_TYPES`: `string`, `number`, `boolean`, `picklist`, `enum`, `array`,

@@ -15,7 +15,7 @@ tight domain language lives in [CONTEXT.md](./CONTEXT.md).
 
 The adapter contract. Bridges one validation library to the form system:
 
-1. **`buildFieldMap(schema)`** — Introspects the schema, produces a
+1. **`createFieldMap(schema)`** — Introspects the schema, produces a
    [SchemaTree](#schematree).
 2. **`createResolver(schema)`** — Creates an RHF-compatible `Resolver` for
    schema-level validation.
@@ -50,9 +50,9 @@ One node's resolved metadata:
 
 | Property | Type | Meaning |
 |---|---|---|
-| `kind` | [FieldKind](#fieldkind) | Dispatch key into [FieldComponentMap](#fieldcomponentmap) (already includes any `meta.component` override) |
+| `kind` | [FieldKind](#fieldkind) | Dispatch key into [FieldComponentMap](#fieldcomponentmap) |
 | `optional` | `boolean` | Whether the value may be `undefined`. Single source of truth — derive "required" in UI as `!optional`. There is no stored `required` field. |
-| `meta` | [FieldMeta](#fieldmeta)? | User annotations (label, placeholder, `component` override, …) |
+| `meta` | [FieldMeta](#fieldmeta)? | User annotations (label, placeholder, description, plus custom keys) |
 | `checks` | [FieldCheck](#fieldcheck)[]? | Normalized validation constraints |
 | `entries` | `Record<string, string>?` | Enum value-label pairs |
 | `elementFields` | [SchemaTree](#schematree)? | Child fields for `object` kinds (array-element children live on `elementDef.elementFields`) |
@@ -67,8 +67,7 @@ One node's resolved metadata:
 **Type:** `FieldKind = KnownFieldKind | (string & {})`
 
 The `kind` on [FieldDef](#fielddef). Known kinds get autocomplete; any other
-non-empty string stays allowed (custom variants via
-[`meta.component`](#fieldmeta)). See [Kind](#kind).
+non-empty string stays allowed. See [Kind](#kind).
 
 ## Kind
 
@@ -78,16 +77,14 @@ The runtime value of `FieldDef.kind`. Base kinds per adapter:
 - Valibot emits: `string|number|boolean|date|email|url|object|array|enum`
   (`picklist`/`enum` both normalize to `enum`)
 
-`meta.component` replaces the base kind with any string (e.g. `"textarea"`,
-`"password"`, `"slider"`, `"switch"`, `"checkbox"`, `"combobox"`, or a fully
-custom widget name). The adapter never emits `"unknown"`; custom/unknown kinds
+The adapter never emits `"unknown"`; unknown kinds
 resolve at render time (missing component → `devWarn` + `null`).
 
 ## KnownFieldKind
 
-**Type:** union of 15 first-class kinds
+**Type:** union of 9 base kinds
 
-`string|email|url|password|textarea|combobox|number|slider|boolean|checkbox|switch|enum|array|object|date`
+`string|email|url|number|boolean|enum|array|object|date`
 
 ---
 
@@ -110,10 +107,9 @@ intentional — the adapter is the normalization boundary.
 
 ## FieldMeta
 
-**Type:** `{ label?: string; placeholder?: string; description?: string; component?: string; [key: string]: unknown }`
+**Type:** `{ label?: string; placeholder?: string; description?: string; [key: string]: unknown }`
 
-User annotations from the schema. `component`, when a non-empty string,
-replaces the dispatch kind (see [Kind](#kind) and `resolveKind`). The index
+User annotations from the schema (passthrough). The index
 signature carries custom metadata without changing the core type. Zod reads
 `.meta()`; Valibot merges `v.metadata()` plus `v.title()` → `label`/`title`
 and `v.description()`.
@@ -297,13 +293,12 @@ Zero-runtime typed helpers (`src/types.ts`, re-exported from `@adistack/forms`):
 
 ## FieldKindValueMap / ComboboxConfig
 
-- **`FieldKindValueMap`** — kind → value type (`string`/`email`/`url`/
-  `password`/`textarea`/`combobox` → `string`; `number`/`slider` → `number`;
-  `boolean`/`checkbox`/`switch` → `boolean`; `enum` → `string`;
+- **`FieldKindValueMap`** — kind → value type (`string`/`email`/`url` → `string`;
+  `number` → `number`; `boolean` → `boolean`; `enum` → `string`;
   `date` → `Date | undefined`; `array` → `unknown[]`;
   `object` → `Record<string, unknown>`).
 - **`ComboboxConfig`** — `{ options: string[] }`, the conventional `TConfig`
-  for `combobox` widgets.
+  for combobox-style widgets (pass via `<SmartField config={...} />`).
 
 ---
 
@@ -313,8 +308,6 @@ Factory-bound component (`createSmartField(FormContext, fieldComponents)`).
 Reads the [SchemaTree](#schematree) from context (throws outside `<Form>`),
 resolves via [resolveFieldDef](#resolvefielddef), dispatches
 `fieldComponents[def.kind]` through `useController({ name, disabled })`.
-`def.kind` already includes any `meta.component` override (applied by the
-adapter via `resolveKind`).
 
 Miss behavior honors [OnMissingField](#onmissingfield): default `"throw"`
 throws in dev; `"warn"` or production [`devWarn`](#devwarn) + render `null`.
@@ -401,7 +394,7 @@ No `"unknown"`-kind rejection — custom kinds are render-time concerns. Lives i
 
 Factory-bound hook (`createUseForm(adapter)`):
 `<S extends TSchema, TValues extends FieldValues = InferFormValues<S> extends FieldValues ? InferFormValues<S> : FieldValues>(options: UseFormOptions<S, TValues>) => FormInstance<TValues>`.
-Builds `fieldMap` via `buildFieldMap(schema)`, resolver via `createResolver(schema)`
+Builds `fieldMap` via `createFieldMap(schema)`, resolver via `createResolver(schema)`
 (both `WeakMap`-cached per schema object), passes `defaultValues` straight through to RHF,
 delegates to RHF with `mode: validationMode ?? "onBlur"`,
 `reValidateMode: reValidateMode ?? "onChange"`. Callbacks are latest-ref
@@ -431,19 +424,13 @@ passes straight through to RHF; array rows use explicit `append(value)`.
 
 ---
 
-## resolveKind / mergeMeta / makeFieldDef
+## makeFieldDef
 
-Internal adapter helpers (`adapters/shared/field-def.ts`, re-exported from
-`adapters/shared` but not from public entrypoints):
+Internal adapter helper (`adapters/shared/index.ts`, not from public entrypoints):
 
-- **`resolveKind(baseKind, meta?)`** — non-empty `meta.component` wins, else
-  `baseKind`.
-- **`mergeMeta(inner?, outer?)`** — shallow merge, outer (wrapper) keys win.
-- **`makeFieldDef(base, optional, meta?)`** — applies `resolveKind` and attaches
-  `meta` when present.
+- **`makeFieldDef(base, optional, meta?)`** — attaches `meta` and `optional` to the base def.
 - **`isFieldMeta(value)`** — `FieldMeta` type guard.
-- Constraint helper (`adapters/shared/constraints.ts`): `ConstraintAcc`,
-  `finalizeConstraints` (accumulators start inline as `{ checks: [] }`).
+- `ConstraintAcc` type (accumulators start inline as `{ checks: [] }`).
 
 ---
 
@@ -473,7 +460,7 @@ There is no `resetDevWarnings` helper.
 `@adistack/forms/adapters/zod`:
 
 - **`zodAdapter`** — `SchemaAdapter<ZodType<FieldValues, FieldValues>, FieldValues>` wiring the two below.
-- **`buildFieldMap(schema)`** — Zod → [SchemaTree](#schematree) via
+- **`createFieldMap(schema)`** — Zod → [SchemaTree](#schematree) via
   `schema._zod.def.shape`; `{}` for non-object/`undefined`. See
   [ARCHITECTURE.md](./ARCHITECTURE.md#zod-adapter-internals).
 - **`createResolver(schema)`** — `zodResolver(schema)` typed as `Resolver`.
@@ -485,7 +472,7 @@ There is no `resetDevWarnings` helper.
 `@adistack/forms/adapters/valibot`:
 
 - **`valibotAdapter`** — `SchemaAdapter<GenericSchema, FieldValues>`, same shape.
-- **`buildFieldMap(schema)`** — Valibot → [SchemaTree](#schematree) via
+- **`createFieldMap(schema)`** — Valibot → [SchemaTree](#schematree) via
   `type`/`entries`/`item`/`wrapped`/`pipe`. `picklist`/`enum` → `enum`.
   `optional`/`nullish`/`exact_optional` force optional; `nullable` alone does
   not.

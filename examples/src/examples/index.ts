@@ -50,7 +50,7 @@ export const EXAMPLES: ExampleMeta[] = [
 	},
 	{
 		component: CustomComponentForm,
-		description: "Your own widget via meta.component.",
+		description: "Your own widget for a base kind.",
 		files: ["examples/custom-component.tsx"],
 		slug: "custom-component",
 		title: "Custom Component",

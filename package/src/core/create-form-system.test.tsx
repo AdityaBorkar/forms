@@ -122,18 +122,6 @@ describe("createFormSystem — component resolution", () => {
 		expect(screen.getByTestId("field-number")).toBeTruthy();
 	});
 
-	it("SmartField honors meta.component overrides", () => {
-		const schema = z.object({
-			bio: z.string().meta({ component: "combobox" }),
-		});
-		render(
-			<FormHarness onSubmit={vi.fn()} schema={schema}>
-				<SmartField name="bio" />
-			</FormHarness>,
-		);
-		expect(screen.getByTestId("field-combobox")).toBeTruthy();
-	});
-
 	it("throws in dev for an unknown field name", () => {
 		const schema = z.object({ name: z.string() });
 		expect(() =>

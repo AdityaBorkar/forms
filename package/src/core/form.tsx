@@ -27,8 +27,6 @@ export function createForm(
 		className,
 		children,
 	}: FormProps<TValues>): ReactElement {
-		// Fail fast on developer misuse instead of destructuring `undefined`.
-		// Deterministic per call site, so hook order is unaffected.
 		if (!form) {
 			throw createFormError("<Form> requires a form prop", [
 				"Pass the object returned by useForm(), e.g. <Form form={form}>.",
@@ -40,15 +38,10 @@ export function createForm(
 
 		const contextValue = useMemo(() => ({ fieldMap }), [fieldMap]);
 
-		// Bound to stable callbacks — not [form] — so inline onSubmit/onInvalid
-		// in useForm no longer rebinds this handler every render.
 		const handleSubmit: SubmitEventHandler = useCallback(
 			(event) => {
 				event.preventDefault();
 				const result = rhfMethods.handleSubmit(onSubmit, onInvalid)(event);
-				// Validation failures resolve via onInvalid; only a throwing
-				// onSubmit rejects. Route that to onSubmitError plus a
-				// root-level field error instead of an unhandled rejection.
 				void Promise.resolve(result).catch((error: unknown) => {
 					const message =
 						error instanceof Error ? error.message : String(error);
@@ -79,9 +72,5 @@ export function createForm(
 		);
 	}
 
-	return Object.assign(Form, { displayName: "Form" }) as <
-		TValues extends FieldValues = FieldValues,
-	>(
-		props: FormProps<TValues>,
-	) => ReactElement;
+	return Form;
 }

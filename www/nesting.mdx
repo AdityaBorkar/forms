@@ -10,7 +10,7 @@ You will address nested objects and arrays by dotted path without extra setup.
 
 ## Nested objects
 
-`resolveFieldDef` walks nested `elementFields` (`package/src/core/resolve-field-def.ts:35`):
+`resolveFieldDef` walks nested `elementFields`:
 
 ```tsx title="examples/nested-form.tsx"
 <SmartField name="name" />
@@ -19,7 +19,7 @@ You will address nested objects and arrays by dotted path without extra setup.
 <SmartField name="address.zip" />
 ```
 
-Schema in `examples/src/examples/nested-form.tsx:6-13`. Each segment steps into `elementFields`; unknown segments throw with available-field hints.
+Schema in `examples/src/examples/nested-form.tsx`. Each segment steps into `elementFields`; unknown segments throw with available-field hints.
 
 ## Arrays
 
@@ -50,9 +50,9 @@ Two forms resolve. Explicit index is required for array children:
 
 Index-less `arr.city` is ambiguous (which row?) and throws — always use `arr.0.city`.
 
-`SmartFieldArray` is a thin wrapper over RHF `useFieldArray`. The factory-bound version requires `<Form>` context (throws outside it) and validates `name` resolves to an `array` Kind; a static unbound `SmartFieldArray` is also exported from `@adistack/forms` and `@adistack/forms/ui` without the context guard — the bound one is canonical.
+`SmartFieldArray` is a thin wrapper over RHF `useFieldArray`. The factory-bound version requires `<Form>` context (throws outside it) and validates `name` resolves to an `array` kind.
 
-Render props (`package/src/ui/smart-field-array.tsx:16-27`):
+Render props:
 
 | Prop | Meaning |
 |---|---|
@@ -62,16 +62,16 @@ Render props (`package/src/ui/smart-field-array.tsx:16-27`):
 | `update` | `(index: number, value: Record<string, unknown>) => void` |
 | `move` | `(from: number, to: number) => void` |
 
-Props are `{ name: string; children: (props) => ReactNode }`. `FieldArrayRow` is defined in `ui/smart-field-array.tsx` but not re-exported — infer it from render props.
+Props are `{ name: string; children: (props) => ReactNode }`.
 
 ## Strict paths
 
 `resolveFieldDef(fieldMap, name)` throws `createFormError` on empty names, empty segments (`"addr..city"`, leading/trailing dots), unknown roots, and unknown segments. Numeric keys on non-arrays look up literally.
 
-Missing-field policy is `onMissingField` (`"throw"` default, `"warn"` renders `null` with a dev warning). Production always warns + renders `null` (`package/src/ui/smart-field.tsx:50`, `package/src/ui/smart-field-array.tsx:39`).
+Missing-field policy is `onMissingField` (`"throw"` default, `"warn"` renders `null` with a dev warning). Production always warns + renders `null`.
 
 ## Nested forms are not supported
 
 Nested objects are supported. Sub-forms with an independent submit/validation lifecycle (separate `useForm` / `<Form>` inside another `<Form>`) are not — one `FormInstance` per form tree.
 
-Agent hint: arrays require an explicit index — `arr.0.city` steps into `elementDef`, then `elementFields` (`package/src/core/resolve-field-def.ts`).
+Agent hint: arrays require an explicit index — `arr.0.city` steps into `elementDef`, then `elementFields`.

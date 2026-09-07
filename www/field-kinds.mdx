@@ -10,44 +10,38 @@ You will pick the right Kind for each field and read its constraints from `def`.
 
 ## Known Kinds
 
-15 first-class Kinds (`package/src/types.ts:19-34`):
+9 base Kinds (`package/src/types.ts`):
 
 | Kind | Schema source | Widget slot |
 |---|---|---|
 | `string` | `z.string()` / `v.string()` | `fieldComponents.string` |
 | `email` | `z.email()` / `v.pipe(v.string(), v.email())` | `fieldComponents.email` |
 | `url` | `z.url()` / `v.pipe(v.string(), v.url())` | `fieldComponents.url` |
-| `password` | `meta.component: "password"` | `fieldComponents.password` |
-| `textarea` | `meta.component: "textarea"` | `fieldComponents.textarea` |
-| `combobox` | `meta.component: "combobox"` | `fieldComponents.combobox` |
 | `number` | `z.number()` / `v.number()` | `fieldComponents.number` |
-| `slider` | `meta.component: "slider"` | `fieldComponents.slider` |
 | `boolean` | `z.boolean()` / `v.boolean()` | `fieldComponents.boolean` |
-| `checkbox` | `meta.component: "checkbox"` | `fieldComponents.checkbox` |
-| `switch` | `meta.component: "switch"` | `fieldComponents.switch` |
 | `enum` | `z.enum()` / `v.picklist()`+`v.enum()` | `fieldComponents.enum` |
 | `array` | `z.array()` / `v.array()` | Repeatable rows via `SmartFieldArray` |
 | `object` | `z.object()` / `v.object()` | Nested `elementFields` |
 | `date` | `z.date()` / `v.date()` | `fieldComponents.date` |
 
-Base Kinds come from the Adapter; `password`/`textarea`/`combobox`/`slider`/`checkbox`/`switch` come only from a Component override. Any other non-empty string stays allowed for custom widgets (`FieldKind = KnownFieldKind | (string & {})`). The Adapter never emits `kind: "unknown"` — unknown Kinds resolve at render time (missing component → `devWarn` + `null`).
+All Kinds come from the Adapter (`FieldKind = KnownFieldKind | (string & {})`). The Adapter never emits `kind: "unknown"` — unknown Kinds resolve at render time (missing component → `devWarn` + `null`).
 
 ```tsx title="examples/field-kinds.tsx"
-z.string().min(8).meta({ component: "password", label: "Password" });
-z.number().min(0).max(10).meta({ component: "slider", label: "Rating" });
-z.boolean().meta({ component: "switch", label: "Email notifications" });
-z.string().meta({ component: "combobox", label: "City" });
+z.string().min(1).meta({ label: "Username" });
+z.email().meta({ label: "Email" });
+z.number().min(0).max(120).meta({ label: "Age" });
+z.enum(["admin", "member", "guest"]).meta({ label: "Role" });
 ```
 
-Full schema in `examples/src/examples/field-kinds.tsx:6-50`. `config` is free-form pass-through — the combobox reads `config.options` (`<SmartField config={{ options: [...] }} name="city" />`).
+Full schema in `examples/src/examples/field-kinds.tsx`. `config` is free-form pass-through (`<SmartField config={{ options: [...] }} name="city" />`).
 
 ## What lives on FieldDef
 
 | Property | Type | Meaning |
 |---|---|---|
-| `kind` | `FieldKind` | Dispatch key into FieldComponentMap (already includes any Component override) |
+| `kind` | `FieldKind` | Dispatch key into FieldComponentMap |
 | `optional` | `boolean` | May be `undefined`. Single source of truth — derive required as `!optional`; there is no stored `required` |
-| `meta` | `FieldMeta` | `label`, `placeholder`, `description`, `component`, plus custom keys |
+| `meta` | `FieldMeta` | `label`, `placeholder`, `description`, plus custom keys |
 | `checks` | `FieldCheck[]` | Normalized constraints (below) |
 | `entries` | `Record<string, string>` | Enum value-label pairs |
 | `elementFields` | `SchemaTree` | Object children (`array` element children live on `elementDef.elementFields`) |
@@ -64,4 +58,4 @@ required={!def.optional}
 
 Zod `.optional()` and Valibot `optional`/`nullish`/`exact_optional` flip `def.optional` to `true`; `nullable` alone does not (`null` is a value, not absence). See [Adapters](/adapters).
 
-Agent hint: `resolveKind(baseKind, meta)` lets a non-empty `meta.component` win, else `baseKind` (`package/src/adapters/shared/field-def.ts:8`).
+Agent hint: dispatch is strictly `fieldComponents[def.kind]` — `meta` is passthrough only.
