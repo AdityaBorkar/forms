@@ -25,7 +25,7 @@ export default function Page({ params }: { params: { id: string } }) {
 	}
 	return (
 		<RootLayout className="w-full grid grid-cols-3 h-screen *:overflow-auto divide-x divide-border">
-			<SourcePanel exampleId={Example.slug} className="col-span-2 " />
+			<SourcePanel className="col-span-2 " exampleId={Example.slug} />
 			<Example.component />
 		</RootLayout>
 	);

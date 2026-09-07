@@ -45,10 +45,10 @@ function ResetButton() {
 }
 
 /**
- * 8 · useFormContext + disabled + config — deep components read form state
- * via `useFormContext()`, `SmartField` accepts `disabled` (forwarded to the
- * widget and react-hook-form) and `config` (free-form, forwarded to the
- * widget — the combobox reads `config.options`).
+ * 8 · useFormContext + disabled — deep components read form state
+ * via `useFormContext()`, and `SmartField` accepts `disabled` (forwarded
+ * to the widget and react-hook-form). For `config` pass-through, see the
+ * alternative-widgets example.
  */
 export function FormContextForm() {
 	const [disabled, setDisabled] = useState(false);

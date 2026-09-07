@@ -2,7 +2,6 @@
 
 ## Phase 1
 
-- `examples` review
 - GitHub Workflows Review and Actual Publishing
   - changeset verififcaton
   - webhook

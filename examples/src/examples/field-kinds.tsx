@@ -11,10 +11,7 @@ const schema = z.object({
 		label: "Bio",
 		placeholder: "Tell us about yourself",
 	}),
-	city: z.string().meta({
-		label: "City",
-		placeholder: "Type or pick…",
-	}),
+	city: z.string().meta({ label: "City", placeholder: "Where are you based?" }),
 	// String formats: `z.email()` / `z.url()` dispatch the email/url kinds.
 	email: z.email().meta({ label: "Email" }),
 	notifications: z.boolean().meta({ label: "Email notifications" }),
@@ -59,10 +56,7 @@ export function FieldKindsForm() {
 			<SmartField name="age" />
 			<SmartField name="rating" />
 			<SmartField name="role" />
-			<SmartField
-				config={{ options: ["Berlin", "Paris", "Tokyo", "New York"] }}
-				name="city"
-			/>
+			<SmartField name="city" />
 			<SmartField name="startDate" />
 			<SmartField name="subscribe" />
 			<SmartField name="acceptTerms" />

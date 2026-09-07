@@ -6,7 +6,6 @@ import { SmartField } from "#/components/form-zod";
 const schema = z.object({
 	email: z.email().meta({ label: "Email" }),
 	message: z.string().min(10).meta({
-		component: "textarea",
 		description: "At least 10 characters.",
 		label: "Message",
 	}),
