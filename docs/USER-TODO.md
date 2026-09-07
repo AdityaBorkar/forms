@@ -4,7 +4,6 @@
 
 - GitHub Workflows Review and Actual Publishing
   - changeset verififcaton
-  - webhook
 - Component Support with useFormField() to register it
   - along with Custom Component
 

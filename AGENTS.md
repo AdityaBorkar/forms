@@ -4,26 +4,27 @@
 
 `@adistack/forms` — schema-driven React forms on `react-hook-form`. Factory `createFormSystem({ fieldComponents, schemaResolver, onMissingField? })`; caller supplies `SchemaAdapter` + `FieldComponentMap`.
 
-Bun workspace: `package/` is the library (`src/`, no build — ESM source TS), `examples/` is the demo (`Bun.serve` in `server.ts`, port 4000), `www/` is Fumadocs mdx.
+Bun workspace: `package/` is the library (`src/`, no build — ESM source TS), `examples/` is the demo (`Bun.serve` in `server.ts`, port 4000), `www/` is Fumadocs mdx (changes trigger a docs-repo refresh via `release.yml`).
 
 ## Commands
 
 ```
-bun run check:lint   # biome check --fix . from root (mutates)
-bun run check:types  # tsc -b from root (composite: package/ + examples/)
-bun run format       # biome format --fix .
+bun run check:lint   # root: biome check . (read-only)
+bun run check:types  # root: tsc -b (composite: package/ + examples/)
+bun run fix:format   # biome format --fix . (pre-commit runs this)
+bun run fix:lint     # biome check --fix . (mutates)
 cd package && bunx vitest run                                    # all tests
 cd package && bunx vitest run src/adapters/zod/create-field-map.test.ts  # single file
 cd examples && bun run dev  # demo: bun --hot server.ts
 ```
 
-Run `check:lint` → `check:types` after changes. Pre-commit runs `bun format` (format only). Vitest must run from `package/` — `#/*` resolves via `package/vitest.config.ts` (`vite-tsconfig-paths`); running from root breaks it. `bunx --cwd package …` does not work; `cd` first.
+Run `check:lint` → `check:types` after changes. Do not confuse with `package/` scripts of the same name: there `check:lint` is `biome check --fix .` (mutates) and `check:types` is `tsc --noEmit`. Vitest must run from `package/` — `#/*` resolves via `package/vitest.config.ts` (`vite-tsconfig-paths`); running from root breaks it. `bunx --cwd package …` does not work; `cd` first.
 
 ## Toolchain
 
 - **Bun** only. `bunfig.toml`: `ignore-scripts=true`, `minimumReleaseAge=259200` (3d).
 - **Biome**, not ESLint/Prettier. `**/*.test.*` relax `noNonNullAssertion` + `noUnnecessaryConditions`.
-- **TypeScript** strict + `verbatimModuleSyntax` + `noUncheckedIndexedAccess`; `#/*` → `./src/*` in both `package/` and `examples/`.
+- **TypeScript** strict + `verbatimModuleSyntax` + `noUncheckedIndexedAccess`; `#/*` → `./src/*` in both `package/` and `examples/` (different bases).
 - **Vitest**, not Jest; default env is `node` — component tests need `// @vitest-environment jsdom` as first line.
 
 ## Architecture
@@ -43,7 +44,7 @@ Colocated `*.test.ts(x)` next to source — never create `package/tests/`.
 
 ## Git & Release
 
-Conventional Commits via Husky `commit-msg` (`build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|wip`). Changesets: only `package/` publishes (`ignore: ["examples","www"]`). PRs to `beta`/`stable` need a changeset unless docs-only (`www/`, `docs/`, `examples/`, `*.md`); push to `beta` publishes `--tag beta`, push to `stable` publishes `--tag latest`.
+Conventional Commits via Husky `commit-msg` (`build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|wip`). Changesets: only `package/` publishes (`ignore: ["examples","www"]`, `baseBranch: "main"`). PRs to `beta`/`latest` need a changeset unless docs-only (`www/`, `docs/`, `examples/`, `.github/`, `*.md`/`*.mdx`, `bun.lockb`); push to `beta` publishes `--tag beta` (enters prerelease mode), push to `latest` publishes `--tag latest`.
 
 ## Docs
 
