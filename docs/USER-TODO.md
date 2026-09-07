@@ -2,8 +2,6 @@
 
 ## Phase 1
 
-- GitHub Workflows Review and Actual Publishing
-  - changeset verififcaton
 - Component Support with useFormField() to register it
   - along with Custom Component
 

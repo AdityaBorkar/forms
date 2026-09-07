@@ -14,12 +14,6 @@ concurrency:
   group: release-${{ github.ref_name }}
   cancel-in-progress: false
 
-env:
-  DOCS_OWNER: adityaborkar
-  DOCS_REPO: adistack-docs
-  DOCS_WORKFLOW: refresh-content.yml
-  DOCS_REF: main
-
 jobs:
   release:
     name: Version or publish (${{ github.ref_name }})
@@ -100,47 +94,24 @@ jobs:
   sync-docs:
     name: Refresh docs content
     needs: release
-    if: success()
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Detect www/ changes
+      - uses: dorny/paths-filter@v4
         id: www
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "push" ] && [ -n "${{ github.event.before }}" ]; then
-            RANGE="${{ github.event.before }} ${{ github.sha }}"
-          else
-            RANGE="HEAD~1 HEAD"
-          fi
-          # shellcheck disable=SC2086
-          CHANGED=$(git diff --name-only $RANGE -- 'www/' || true)
-          if [ -n "$CHANGED" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "www/ changes detected:"
-            echo "$CHANGED"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No www/ changes — skipping docs refresh."
-          fi
+        with:
+          base: ${{ github.ref_name }}
+          filters: |
+            changed:
+              - 'www/**'
 
       - name: Trigger refresh-content.yml in adistack-docs
         if: steps.www.outputs.changed == 'true'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: process.env.DOCS_OWNER,
-              repo: process.env.DOCS_REPO,
-              workflow_id: process.env.DOCS_WORKFLOW,
-              ref: process.env.DOCS_REF,
-            });
-            core.info(`Dispatched ${process.env.DOCS_WORKFLOW} on ${process.env.DOCS_OWNER}/${process.env.DOCS_REPO}@${process.env.DOCS_REF}`);
+        run: gh workflow run "refresh-content.yml" --repo "adityaborkar/adistack-docs" --ref "latest"
+        env:
+          GH_TOKEN: ${{ github.token }}

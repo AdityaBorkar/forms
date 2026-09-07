@@ -15,7 +15,7 @@ export function createFormError(message: string, details?: string[]): Error {
 }
 
 export function isProduction(): boolean {
-	return process?.env?.NODE_ENV === "production";
+	return import.meta?.env?.NODE_ENV === "production";
 }
 
 export function devWarn(message: string, details?: string[]): void {
