@@ -1,6 +1,6 @@
 {
 	"name": "@adistack/forms",
-	"version": "0.0.1-alpha.0",
+	"version": "0.1.0",
 	"description": "Schema-driven React form library. Pass a Zod schema, get auto-rendered form fields via react-hook-form.",
 	"keywords": [
 		"react",

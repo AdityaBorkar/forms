@@ -63,7 +63,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          bunx changeset version
+          bun changeset version
           if [ -n "$(git status --porcelain)" ]; then
             git add .
             git commit --amend --no-edit
@@ -72,7 +72,7 @@ jobs:
             echo "No version changes."
             AMENDED=0
           fi
-          bunx changeset publish
+          bun changeset publish
           if [ "$AMENDED" = "1" ]; then
             git push --force-with-lease --follow-tags origin HEAD:${{ github.ref_name }}
           else
