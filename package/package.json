@@ -46,6 +46,7 @@
 		"react-dom": "^19.2.8",
 		"typescript": "^7.0.2",
 		"valibot": "^1.4.2",
+		"vite-tsconfig-paths": "^6.1.1",
 		"vitest": "^4.1.11",
 		"zod": "^4.5.4"
 	},
