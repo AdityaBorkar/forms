@@ -1,7 +1,5 @@
 .local
 .output
-.tanstack
-.wrangler
 node_modules
 
 .env*
