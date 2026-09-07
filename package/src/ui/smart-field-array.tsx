@@ -4,7 +4,7 @@ import {
 	useFormContext as useRhfContext,
 } from "react-hook-form";
 
-import { devWarn, missingField, shouldWarnOnMissing } from "#/core/errors.ts";
+import { missingField, warn } from "#/core/errors.ts";
 import { useFormContextValue } from "#/core/form-context";
 import { resolveFieldDef } from "#/core/resolve-field-def";
 import type { FormContextValue, OnMissingField, SchemaTree } from "#/types";
@@ -39,8 +39,8 @@ function assertArrayField(
 	try {
 		kind = resolveFieldDef(fieldMap, name).kind;
 	} catch (error) {
-		if (shouldWarnOnMissing(onMissingField)) {
-			devWarn(`SmartFieldArray: could not find array field "${name}"`, [
+		if (onMissingField === "warn") {
+			warn(`SmartFieldArray: could not find array field "${name}"`, [
 				"The field was not found in the schema or has an unsupported type.",
 				"Check that the name prop matches an array key in your object schema.",
 			]);

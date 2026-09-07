@@ -2,12 +2,7 @@ import type { ComponentType, Context, ReactElement } from "react";
 import { useMemo } from "react";
 import { useController } from "react-hook-form";
 
-import {
-	createFormError,
-	devWarn,
-	missingField,
-	shouldWarnOnMissing,
-} from "#/core/errors.ts";
+import { createFormError, missingField, warn } from "#/core/errors.ts";
 import { useFormContextValue } from "#/core/form-context";
 import { resolveFieldDef } from "#/core/resolve-field-def";
 import type {
@@ -53,8 +48,8 @@ export function createSmartField(
 		}, [fieldMap, name]);
 
 		if ("error" in resolved) {
-			if (shouldWarnOnMissing(onMissingField)) {
-				devWarn(`SmartField: could not render field "${name}"`, [
+			if (onMissingField === "warn") {
+				warn(`SmartField: could not render field "${name}"`, [
 					"The field was not found in the schema or has an unsupported type.",
 					"SmartField will render nothing for this field.",
 					"Check that the name prop matches a key in your object schema.",

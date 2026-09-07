@@ -14,25 +14,11 @@ export function createFormError(message: string, details?: string[]): Error {
 	return new Error(formatMessage(message, details));
 }
 
-export function isProduction(): boolean {
-	return import.meta?.env?.NODE_ENV === "production";
-}
-
-export function devWarn(message: string, details?: string[]): void {
-	if (isProduction()) return;
+export function warn(message: string, details?: string[]): void {
 	const key = formatMessage(message, details);
 	if (warnedMessages.has(key)) return;
 	warnedMessages.add(key);
 	console.warn(key);
-}
-
-/**
- * Single choke point for the `onMissingField` policy.
- * Dev `"throw"` throws, `"warn"` (or any production miss) warns and returns
- * `null` so callers render nothing. Keeps SmartField/SmartFieldArray in sync.
- */
-export function shouldWarnOnMissing(onMissingField: OnMissingField): boolean {
-	return onMissingField === "warn" || isProduction();
 }
 
 export function missingField(
@@ -40,8 +26,8 @@ export function missingField(
 	details: string[],
 	onMissingField: OnMissingField,
 ): null {
-	if (shouldWarnOnMissing(onMissingField)) {
-		devWarn(message, details);
+	if (onMissingField === "warn") {
+		warn(message, details);
 		return null;
 	}
 	throw createFormError(message, details);
