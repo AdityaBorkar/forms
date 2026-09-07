@@ -11,18 +11,19 @@ tight domain language lives in [CONTEXT.md](./CONTEXT.md).
 
 ## SchemaAdapter
 
-**Type:** `SchemaAdapter<TSchema>`
+**Type:** `SchemaAdapter<TSchema, TValues = unknown>`
 
 The adapter contract. Bridges one validation library to the form system:
 
-1. **`buildFieldMap(schema)`** — Introspects the schema, produces a
+1. **`createFieldMap(schema)`** — Introspects the schema, produces a
    [SchemaTree](#schematree).
-2. **`buildDefaults(fieldMap, overrides?)`** — Derives
-   `DefaultValues<FieldValues>` from the [SchemaTree](#schematree), deep-merging
-   `overrides`. Takes no `schema` parameter (see
-   [buildDefaults](#builddefaults-shared)).
-3. **`createResolver(schema)`** — Creates an RHF-compatible `Resolver` for
+2. **`createResolver(schema)`** — Creates an RHF-compatible `Resolver` for
    schema-level validation.
+3. **`_infer?: TValues`** — Phantom output type (never read at runtime).
+   Lets `useForm` infer form values via [InferFormValues](#inferformvalues).
+
+No auto-defaults — `defaultValues` pass straight through to RHF (see
+[Defaults](#defaults-removed)).
 
 The adapter is the **only** place that knows about a validation library's
 internals. Everything downstream operates on normalized output.
@@ -43,21 +44,39 @@ is never touched again downstream.
 
 ## FieldDef
 
-**Type:** `FieldDef`
+**Type:** `FieldDef = StringFieldDef | NumberFieldDef | BooleanFieldDef | EnumFieldDef | ArrayFieldDef | ObjectFieldDef | DateFieldDef | CustomFieldDef`
 
-One node's resolved metadata:
+One node's resolved metadata. Discriminated by `kind` — each variant only
+allows the props that make sense for it (e.g. `BooleanFieldDef` has
+`checks?: never`, `ObjectFieldDef` requires `elementFields`):
 
 | Property | Type | Meaning |
 |---|---|---|
-| `kind` | [FieldKind](#fieldkind) | Dispatch key into [FieldComponentMap](#fieldcomponentmap) (already includes any `meta.component` override) |
+| `kind` | [FieldKind](#fieldkind) | Dispatch key into [FieldComponentMap](#fieldcomponentmap) |
 | `optional` | `boolean` | Whether the value may be `undefined`. Single source of truth — derive "required" in UI as `!optional`. There is no stored `required` field. |
-| `meta` | [FieldMeta](#fieldmeta)? | User annotations (label, placeholder, `component` override, …) |
-| `checks` | [FieldCheck](#fieldcheck)[]? | Normalized validation constraints |
-| `entries` | `Record<string, string>?` | Enum value-label pairs |
-| `elementFields` | [SchemaTree](#schematree)? | Child fields: object properties, or array-element children (hoisted for index-less lookup) |
+| `meta` | [FieldMeta](#fieldmeta)? | User annotations (label, placeholder, description, plus custom keys) |
+| `checks` | [FieldCheck](#fieldcheck)[]? | Normalized validation constraints (string/number/array only) |
+| `entries` | `Record<string, string>?` | Enum value-label pairs (`enum` only) |
+| `elementFields` | [SchemaTree](#schematree)? | Child fields for `object` kinds (array-element children live on `elementDef.elementFields`) |
 | `elementDef` | `FieldDef?` | Array element definition — present whenever the element type is known, including primitives (`z.array(z.string())` yields a `string` elementDef) |
 | `min` | `number?` | Derived minimum (length for strings/arrays, value for numbers) |
 | `max` | `number?` | Derived maximum |
+
+Variant rules (`src/types.ts`):
+
+| Variant | `kind` | Allowed extras |
+|---|---|---|
+| `StringFieldDef` | `"string" \| "email" \| "url"` | `checks`, `min`, `max` |
+| `NumberFieldDef` | `"number"` | `checks`, `min`, `max` |
+| `BooleanFieldDef` | `"boolean"` | — (leaf, no constraints) |
+| `EnumFieldDef` | `"enum"` | `entries` |
+| `ArrayFieldDef` | `"array"` | `elementDef`, `checks`, `min`, `max` |
+| `ObjectFieldDef` | `"object"` | `elementFields` (required) |
+| `DateFieldDef` | `"date"` | — (leaf) |
+| `CustomFieldDef` | `string` | Leaf-or-container permissive (`checks`/`min`/`max`/`entries`/`elementFields`/`elementDef` all allowed) so third-party adapters keep working |
+
+`CustomFieldDef` is why `resolveFieldDef` only branches on `"array"` vs
+`"object"` — every other kind (including custom leaves) is terminal.
 
 ---
 
@@ -66,8 +85,7 @@ One node's resolved metadata:
 **Type:** `FieldKind = KnownFieldKind | (string & {})`
 
 The `kind` on [FieldDef](#fielddef). Known kinds get autocomplete; any other
-non-empty string stays allowed (custom variants via
-[`meta.component`](#fieldmeta)). See [Kind](#kind).
+non-empty string stays allowed. See [Kind](#kind).
 
 ## Kind
 
@@ -77,16 +95,15 @@ The runtime value of `FieldDef.kind`. Base kinds per adapter:
 - Valibot emits: `string|number|boolean|date|email|url|object|array|enum`
   (`picklist`/`enum` both normalize to `enum`)
 
-`meta.component` replaces the base kind with any string (e.g. `"textarea"`,
-`"password"`, `"slider"`, `"switch"`, `"checkbox"`, `"combobox"`, or a fully
-custom widget name). The adapter never emits `"unknown"`; custom/unknown kinds
-resolve at render time (missing component → `devWarn` + `null`).
+The adapter never emits `"unknown"`; unregistered kinds
+resolve at render time via [OnMissingField](#onmissingfield)
+(dev throw by default, prod `devWarn` + `null`).
 
 ## KnownFieldKind
 
-**Type:** union of 15 first-class kinds
+**Type:** union of 9 base kinds
 
-`string|email|url|password|textarea|combobox|number|slider|boolean|checkbox|switch|enum|array|object|date`
+`string|email|url|number|boolean|enum|array|object|date`
 
 ---
 
@@ -109,10 +126,9 @@ intentional — the adapter is the normalization boundary.
 
 ## FieldMeta
 
-**Type:** `{ label?: string; placeholder?: string; description?: string; component?: string; [key: string]: unknown }`
+**Type:** `{ label?: string; placeholder?: string; description?: string; [key: string]: unknown }`
 
-User annotations from the schema. `component`, when a non-empty string,
-replaces the dispatch kind (see [Kind](#kind) and `resolveKind`). The index
+User annotations from the schema (passthrough). The index
 signature carries custom metadata without changing the core type. Zod reads
 `.meta()`; Valibot merges `v.metadata()` plus `v.title()` → `label`/`title`
 and `v.description()`.
@@ -121,16 +137,19 @@ and `v.description()`.
 
 ## FieldComponentMap
 
-**Type:** `Record<string, React.ComponentType<FieldComponentProps>>`
+**Type:** `Record<string, React.ComponentType<FieldComponentProps<any, any>>>`
 
 Kind-to-component dispatch table, supplied once to `createFormSystem` and
-closed over (not in React context, not swappable at runtime).
+closed over (not in React context, not swappable at runtime). `any` is
+intentional bivariance — safety comes from
+[`defineFieldComponent`](#definefieldcomponent--definefieldcomponents) at
+registration time.
 
 ---
 
 ## FieldComponentProps
 
-**Type:** `{ def: FieldDef; name: string; value?: unknown; onChange: (value: unknown) => void; onBlur: () => void; ref: React.RefCallback<HTMLElement>; error?: string; disabled?: boolean; config?: Record<string, unknown> }`
+**Type:** `FieldComponentProps<TValue = unknown, TConfig = Record<string, unknown>>`
 
 Input contract for [FieldComponentMap](#fieldcomponentmap) components:
 
@@ -138,13 +157,15 @@ Input contract for [FieldComponentMap](#fieldcomponentmap) components:
 |---|---|
 | `def` | Resolved [FieldDef](#fielddef) (read `def.kind`, `def.meta`, `def.min`/`max`, `def.entries`, `def.optional`) |
 | `name` | RHF dotted path |
-| `value` | Current value via `useController` (omitted when `undefined`) |
-| `onChange` | `(value: unknown) => void` — takes the value directly, not an event |
+| `value` | `TValue` — current value via `useController` (`undefined` until set; components must handle `undefined`) |
+| `onChange` | `(value: TValue) => void` — takes the value directly, not an event |
 | `onBlur` | `() => void` |
-| `ref` | Focus ref |
+| `ref` | Focus ref (`React.RefCallback<HTMLElement>`) |
 | `error` | `fieldState.error?.message` |
 | `disabled` | From [SmartFieldProps](#smartfieldprops) |
-| `config` | From [SmartFieldProps](#smartfieldprops), arbitrary pass-through |
+| `config` | `TConfig` — from [SmartFieldProps](#smartfieldprops), arbitrary pass-through |
+
+Use [`defineFieldComponent`](#definefieldcomponent) to pin `TValue`/`TConfig` per widget.
 
 ---
 
@@ -179,7 +200,7 @@ When RHF re-triggers validation after a submit attempt. `useForm` defaults to
 ```ts
 type UseFormOptions<TSchema, TValues extends FieldValues = FieldValues> = {
   schema: TSchema;
-  onSubmit: (values: TValues) => void;
+  onSubmit: (values: TValues) => void | Promise<void>;
   onInvalid?: (errors: FieldErrors<TValues>) => void;
   onSubmitError?: (error: unknown) => void;
   defaultValues?: DefaultValues<TValues>;
@@ -188,11 +209,13 @@ type UseFormOptions<TSchema, TValues extends FieldValues = FieldValues> = {
 };
 ```
 
-`schema` feeds the adapter; `defaultValues` deep-merge over derived defaults.
+`schema` feeds the adapter; `defaultValues` pass straight through to RHF —
+no per-kind defaults are derived.
 `onInvalid` fires on validation failures; `onSubmitError` fires when `onSubmit`
 itself throws or rejects (`<Form>` also records that as a `root.serverError`
-field error). Missing `schema`/`onSubmit` and invalid modes throw
-[`createFormError`](#createformerror).
+field error). Missing options/`schema`/`onSubmit` throw
+[`createFormError`](#createformerror). `validationMode`/`reValidateMode` are
+type-checked only — no runtime validation.
 
 ---
 
@@ -207,7 +230,7 @@ What [`useFormContext`](#useformcontext) returns. Generic over `TValues`
 
 ## FormInstance
 
-**Type:** `FormInstance<TValues extends FieldValues = FieldValues> = UseFormReturn<TValues, unknown, TValues> & { fieldMap: SchemaTree; onSubmit: (values: TValues) => void; onInvalid?: (errors: FieldErrors<TValues>) => void }`
+**Type:** `FormInstance<TValues extends FieldValues = FieldValues> = UseFormReturn<TValues, unknown, TValues> & { fieldMap: SchemaTree; onSubmit: (values: TValues) => void | Promise<void>; onInvalid?: (errors: FieldErrors<TValues>) => void; onSubmitError?: (error: unknown) => void }`
 
 What [`useForm`](#useform) returns. Extends the RHF return with the
 [SchemaTree](#schematree) plus submit callbacks. This is what `<Form>` accepts.
@@ -239,9 +262,10 @@ field error (read it via `useFormState().errors.root?.serverError`).
 
 ## CreateFormSystemOptions
 
-**Type:** `{ fieldComponents: FieldComponentMap; schemaResolver: SchemaAdapter<TSchema> }`
+**Type:** `{ fieldComponents: FieldComponentMap; schemaResolver: SchemaAdapter<TSchema>; onMissingField?: OnMissingField }`
 
-Input to [`createFormSystem`](#createformsystem).
+Input to [`createFormSystem`](#createformsystem). `onMissingField` defaults to
+`"throw"` (see [OnMissingField](#onmissingfield).
 
 ## FormSystem
 
@@ -263,6 +287,41 @@ Throws [`createFormError`](#createformerror) when `schemaResolver` is missing,
 when `fieldComponents` is missing/empty, or when any registered value is not a
 component function.
 
+## OnMissingField
+
+**Type:** `"throw" | "warn"`
+
+Missing field/kind policy, supplied once to `createFormSystem`. `"throw"`
+(default) throws in dev for fast debugging; `"warn"` renders `null` with a dev
+warning. Production always warns + renders `null`.
+
+## InferFormValues
+
+**Type:** `InferFormValues<TSchema> = TSchema extends { "~standard": { types?: { output?: infer TOut } } } ? TOut : unknown`
+
+Zero-runtime Standard Schema output inference. Zod v4 (`z.infer`) and Valibot
+(`v.InferOutput`) both expose `~standard.types.output`, so one conditional
+covers every adapter. `useForm` defaults `TValues` to this when it extends
+`FieldValues`.
+
+## defineFieldComponent / defineFieldComponents
+
+Zero-runtime typed helpers (`src/types.ts`, re-exported from `@adistack/forms`):
+
+- **`defineFieldComponent<TValue, TConfig>(component)`** — pins a widget to
+  `FieldComponentProps<TValue, TConfig>`, returns it unchanged.
+- **`defineFieldComponents(map)`** — pins a whole `FieldComponentMap`, returns
+  it unchanged.
+
+## FieldKindValueMap / ComboboxConfig
+
+- **`FieldKindValueMap`** — kind → value type (`string`/`email`/`url` → `string`;
+  `number` → `number`; `boolean` → `boolean`; `enum` → `string`;
+  `date` → `Date | undefined`; `array` → `unknown[]`;
+  `object` → `Record<string, unknown>`).
+- **`ComboboxConfig`** — `{ options: string[] }`, the conventional `TConfig`
+  for combobox-style widgets (pass via `<SmartField config={...} />`).
+
 ---
 
 ## SmartField
@@ -271,26 +330,21 @@ Factory-bound component (`createSmartField(FormContext, fieldComponents)`).
 Reads the [SchemaTree](#schematree) from context (throws outside `<Form>`),
 resolves via [resolveFieldDef](#resolvefielddef), dispatches
 `fieldComponents[def.kind]` through `useController({ name, disabled })`.
-`def.kind` already includes any `meta.component` override (applied by the
-adapter via `resolveKind`).
 
-Miss behavior: `resolveFieldDef` failure or unregistered kind → [`devWarn`](#devwarn)
-+ render `null`. Outside `<Form>` → throw.
+Miss behavior honors [OnMissingField](#onmissingfield): default `"throw"`
+throws in dev; `"warn"` or production [`devWarn`](#devwarn) + render `null`.
+Outside `<Form>` → throw.
 
 ---
 
 ## SmartFieldArray
 
-Factory-bound component is canonical
+Factory-bound component — the only export
 (`createSmartFieldArray(FormContext)` — requires `<Form>` context, throws
 outside it). Thin wrapper over RHF `useFieldArray`; validates that `name`
-resolves to an `array` field (dev throw, prod `devWarn`, honoring
-`onMissingField`). Props:
+resolves to an `array` field (honors [OnMissingField](#onmissingfield):
+dev throw by default, prod `devWarn` + carry on). Props:
 [SmartFieldArrayProps](#smartfieldarrayprops).
-
-A static unbound `SmartFieldArray` (same render behavior, no context check) is
-also exported from `@adistack/forms` and `@adistack/forms/ui` (see
-[SmartFieldArray exports](#smartfieldarray-exports)).
 
 ---
 
@@ -299,8 +353,8 @@ also exported from `@adistack/forms` and `@adistack/forms/ui` (see
 **Type:** `Record<string, unknown> & { id: string }`
 
 One row in [SmartFieldArray](#smartfieldarray) `fields` — row values plus RHF's
-stable `id` (use as `key`). Defined in `ui/smart-field-array.tsx`, **not**
-re-exported from any entrypoint — infer from render props.
+stable `id` (use as `key`). Defined in `ui/smart-field-array.tsx`, re-exported
+as a type from `@adistack/forms` and `@adistack/forms/ui` — infer from render props.
 
 ---
 
@@ -311,7 +365,7 @@ re-exported from any entrypoint — infer from render props.
 | Property | Meaning |
 |---|---|
 | `fields` | Current rows |
-| `append` | `(value: Record<string, unknown>) => void` |
+| `append` | `(value: Record<string, unknown>) => void` — pass an explicit row value |
 | `remove` | `(index: number) => void` |
 | `update` | `(index: number, value: Record<string, unknown>) => void` |
 | `move` | `(from: number, to: number) => void` |
@@ -328,15 +382,14 @@ re-exported from any entrypoint — infer from render props.
 
 ## SmartFieldArray exports
 
-Two components share the name:
+Only one component exists: the factory-bound `SmartFieldArray` returned by
+`createFormSystem` (requires `<Form>` context). `@adistack/forms` and
+`@adistack/forms/ui` re-export only its types
+([SmartFieldArrayProps](#smartfieldarrayprops),
+[SmartFieldArrayRenderProps](#smartfieldarrayrenderprops), `FieldArrayRow`) —
+there is no static unbound component.
 
-- **Bound (canonical):** returned by `createFormSystem`, requires `<Form>`
-  context. Use this in factory-based apps.
-- **Static:** `SmartFieldArray` exported from `@adistack/forms` and
-  `@adistack/forms/ui`. Same `useFieldArray` behavior without the context
-  guard. Useful outside a factory system or in the `ui` entrypoint.
-
-Both take [SmartFieldArrayProps](#smartfieldarrayprops).
+It takes [SmartFieldArrayProps](#smartfieldarrayprops).
 
 ---
 
@@ -347,11 +400,10 @@ Both take [SmartFieldArrayProps](#smartfieldarrayprops).
 Splits `name` on `.` and walks `elementFields`/`elementDef`:
 
 - Empty name or empty segments (`"addr..city"`, leading/trailing dots) throw.
-- Numeric segments into `kind === "array"` step into `elementDef` (or stay on
-  the array for legacy defs without element detail). Numeric keys on non-arrays
+- Numeric segments into `kind === "array"` step into `elementDef`. Numeric keys on non-arrays
   look up literally.
-- `arr.city` resolves via the array's `elementFields`/`elementDef.elementFields`
-  without an index; explicit `arr.0.city` is preferred.
+- Non-numeric segments into `kind === "array"` throw (`arr.city` is ambiguous —
+  which row? — use explicit `arr.0.city`).
 - Unknown roots/segments throw `No field definition found for "<name>"` with
   available-field hints.
 
@@ -363,14 +415,16 @@ No `"unknown"`-kind rejection — custom kinds are render-time concerns. Lives i
 ## useForm
 
 Factory-bound hook (`createUseForm(adapter)`):
-`<TValues>(options: UseFormOptions<TSchema, TValues>) => FormInstance<TValues>`.
-Builds `fieldMap` via `buildFieldMap(schema)`, defaults via
-`buildDefaults(fieldMap, defaultValues)`, resolver via `createResolver(schema)`,
+`<S extends TSchema, TValues extends FieldValues = InferFormValues<S> extends FieldValues ? InferFormValues<S> : FieldValues>(options: UseFormOptions<S, TValues>) => FormInstance<TValues>`.
+Builds `fieldMap` via `createFieldMap(schema)`, resolver via `createResolver(schema)`
+(both `WeakMap`-cached per schema object), passes `defaultValues` straight through to RHF,
 delegates to RHF with `mode: validationMode ?? "onBlur"`,
-`reValidateMode: reValidateMode ?? "onChange"`. Throws
-[`createFormError`](#createformerror) without `schema`/`onSubmit`, on invalid
-modes, or when an adapter step fails (raw adapter errors gain context;
-`createFormError` messages pass through).
+`reValidateMode: reValidateMode ?? "onChange"`. Callbacks are latest-ref
+stabilized. Throws
+[`createFormError`](#createformerror) without an options object or without
+`schema`/`onSubmit`, or when an adapter step fails (raw adapter errors gain context;
+`createFormError` messages pass through). There is no runtime
+`validationMode`/`reValidateMode` check.
 
 ---
 
@@ -382,35 +436,24 @@ Factory-bound hook (`createUseFormContext(FormContext)`):
 
 ---
 
-## buildDefaults (shared)
+## Defaults (removed)
 
-**Signature:** `buildDefaults(fieldMap: SchemaTree, overrides?: Record<string, unknown>) => DefaultValues<FieldValues>`
-
-Shared implementation (`adapters/shared/defaults.ts`), re-exported by both
-adapters. Derives per-field defaults via private `deriveDefault`, then
-deep-merges `overrides` (nested objects merge, not clobber).
-
-## deriveDefault
-
-Private helper in `adapters/shared/defaults.ts`. `optional` → `undefined`
-first, then: `string/email/url/password/textarea/combobox` → `""`;
-`number/slider` → `0`; `boolean/checkbox/switch` → `false`; `enum` → first entry
-value; `array` → `[]`; `object` → recursive (or `undefined` without
-`elementFields`); `date`/custom/`unknown` → `undefined`. `meta.component`
-variants are reachable (e.g. `component: "password"` still defaults to `""`).
+No auto-defaults are derived. `buildDefaults` / `deriveDefault` /
+`mergeDefaults` and `SmartFieldArray.appendDefault` were removed: guessing
+`""` / `0` / `false` / first-enum-entry hid required-field UX (`0` and a
+pre-selected enum pass validation without user input). `useForm({ defaultValues })`
+passes straight through to RHF; array rows use explicit `append(value)`.
 
 ---
 
-## resolveKind / mergeMeta / makeFieldDef
+## makeFieldDef / createFieldMapEngine
 
-Internal adapter helpers (`adapters/shared/field-def.ts`, re-exported from
-`adapters/shared` but not from public entrypoints):
+Internal adapter helpers (`adapters/shared/index.ts`, not from public entrypoints):
 
-- **`resolveKind(baseKind, meta?)`** — non-empty `meta.component` wins, else
-  `baseKind`.
-- **`mergeMeta(inner?, outer?)`** — shallow merge, outer (wrapper) keys win.
-- **`makeFieldDef(base, optional, meta?)`** — applies `resolveKind` and attaches
-  `meta` when present.
+- **`makeFieldDef(base, optional, meta?)`** — attaches `meta` and `optional` to the base def (drops empty `checks`).
+- **`isFieldMeta(value)`** — `FieldMeta` type guard.
+- **`createFieldMapEngine(primitives)`** — shared `createFieldMap`/`createFieldDefInner` loop behind an `AdapterPrimitives<TSchema>` boundary (`getType`/`getMeta`/`getLengthConstraints`/`getNumberConstraints`/`getStringKind`/`getEnumEntries`/`getArrayItem`/`getObjectEntries`/`unwrapOptional`/`getUnionOptions`/`isLiteral`). Handles optional-unwrap (outer `meta` wins), single-non-`literal` union pick, `record`/unknown throw. Both bundled adapters are thin primitive sets over this engine.
+- `ConstraintAcc` / `Constraints` types (accumulators start inline as `{ checks: [] }`).
 
 ---
 
@@ -419,18 +462,19 @@ Internal adapter helpers (`adapters/shared/field-def.ts`, re-exported from
 **Type:** `(message: string, details?: string[]) => Error`
 
 `[@adistack/forms]`-prefixed error with `→ detail` bullet lines. Internal
-(`errors.ts`, not exported).
+(`core/errors.ts`, not exported).
 
 ---
 
-## devWarn
+## devWarn / missing-field helpers
 
-**Type:** `(message: string, details?: string[]) => void`
+**Types:** `devWarn(message, details?)`, `isProduction()`, `shouldWarnOnMissing(onMissingField)`, `missingField(message, details, onMissingField)`
 
 Dev-only `console.warn` (`[@adistack/forms]` prefix, skipped when
 `NODE_ENV === "production"`), deduplicated per message. Used for recoverable
-`SmartField` misses (render `null`). Internal (`errors.ts`, not exported).
-`resetDevWarnings()` clears the dedupe set (tests only).
+`SmartField`/`SmartFieldArray` misses under `onMissingField: "warn"` (or always
+in production, where both render `null`). Internal (`core/errors.ts`, not exported).
+There is no `resetDevWarnings` helper.
 
 ---
 
@@ -438,11 +482,10 @@ Dev-only `console.warn` (`[@adistack/forms]` prefix, skipped when
 
 `@adistack/forms/adapters/zod`:
 
-- **`zodAdapter`** — `SchemaAdapter<ZodType>` wiring the three below.
-- **`buildFieldMap(schema)`** — Zod → [SchemaTree](#schematree) via
-  `schema._zod.def.shape`; `{}` for non-object/`undefined`. See
-  [ARCHITECTURE.md](./ARCHITECTURE.md#zod-adapter-internals).
-- **`buildDefaults(fieldMap, overrides?)`** — shared (above).
+- **`zodAdapter`** — `SchemaAdapter<ZodType<FieldValues, FieldValues>, FieldValues>` wiring the two below.
+- **`createFieldMap(schema)`** — Zod → [SchemaTree](#schematree) via
+  a `getZodDef` (`schema._zod.def`) choke point; `{}` for non-object/`undefined`. See
+  [ARCHITECTURE.md](./ARCHITECTURE.md#adapter-internals).
 - **`createResolver(schema)`** — `zodResolver(schema)` typed as `Resolver`.
 
 ---
@@ -451,12 +494,11 @@ Dev-only `console.warn` (`[@adistack/forms]` prefix, skipped when
 
 `@adistack/forms/adapters/valibot`:
 
-- **`valibotAdapter`** — `SchemaAdapter<GenericSchema>`, same shape.
-- **`buildFieldMap(schema)`** — Valibot → [SchemaTree](#schematree) via
+- **`valibotAdapter`** — `SchemaAdapter<GenericSchema, FieldValues>`, same shape.
+- **`createFieldMap(schema)`** — Valibot → [SchemaTree](#schematree) via
   `type`/`entries`/`item`/`wrapped`/`pipe`. `picklist`/`enum` → `enum`.
   `optional`/`nullish`/`exact_optional` force optional; `nullable` alone does
   not.
-- **`buildDefaults(fieldMap, overrides?)`** — shared.
 - **`createResolver(schema)`** — `valibotResolver(schema)` typed as `Resolver`.
 
 ---

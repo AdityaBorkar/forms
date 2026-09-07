@@ -29,11 +29,10 @@ const fieldComponents: FieldComponentMap = {
   number: NumberField,
   boolean: CheckboxField,
   enum: SelectField,
-  textarea: TextareaField,
 };
 ```
 
-Full map in `examples/src/components/form-zod.tsx:28-43`. Read schema data from `def` (`def.kind`, `def.meta`, `def.min`/`def.max`, `def.entries`, `def.optional`).
+Full map in `examples/src/components/form-zod.tsx`. Read schema data from `def` (`def.kind`, `def.meta`, `def.min`/`def.max`, `def.entries`, `def.optional`).
 
 ## 3. Wire the factory once
 
@@ -48,7 +47,7 @@ export const { Form, SmartField, SmartFieldArray, useForm, useFormContext } =
   });
 ```
 
-`createFormSystem` closes over `fieldComponents` — it is not in React context and not swappable at runtime (`package/src/core/create-form-system.ts:55`). It throws `createFormError` without a `schemaResolver`, with a missing/empty map, or when any entry is not a function. `SmartField`/`useForm`/`useFormContext` are factory-returned, never direct imports.
+`createFormSystem` closes over `fieldComponents` — it is not in React context and not swappable at runtime. It throws `createFormError` without a `schemaResolver`, with a missing/empty map, or when any entry is not a function. `SmartField`/`useForm`/`useFormContext`/`SmartFieldArray` are factory-returned, never direct imports.
 
 ## 4. Render from a schema
 
@@ -73,22 +72,22 @@ function SimpleForm() {
 }
 ```
 
-Flow: `useForm({ schema })` → `buildFieldMap` + `buildDefaults(fieldMap, defaultValues)` + `createResolver` → `<Form form>` (`FormProvider` + `{ fieldMap }` context) → `<SmartField name>` → `resolveFieldDef` → `fieldComponents[def.kind]` via `useController` (`package/src/core/use-form.ts:116`, `package/src/core/form.tsx:25`, `package/src/ui/smart-field.tsx:29`).
+Flow: `useForm({ schema })` → `createFieldMap` + `createResolver` (plus your `defaultValues` straight to RHF) → `<Form form>` (`FormProvider` + `{ fieldMap }` context) → `<SmartField name>` → `resolveFieldDef` → `fieldComponents[def.kind]` via `useController`.
 
 ## 5. Run the demo
 
 ```sh
-bun run --cwd examples dev
+cd examples && bun run dev
 ```
 
-Opens `Bun.serve` in `examples/server.ts` on port 4000. See [Concepts](/concepts) for the ten canonical terms, [Field Kinds](/field-kinds) for every dispatch Kind.
+Opens `Bun.serve` in `examples/server.ts` on port 4000. See [Concepts](/concepts) for the canonical terms, [Field Kinds](/field-kinds) for every dispatch Kind.
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `SmartField must be used within a <Form>` | Rendered outside factory `<Form>` | Wrap with the `Form` from the same `createFormSystem()` call (`package/src/core/form-context.ts:8`) |
+| `SmartField must be used within a <Form>` | Rendered outside factory `<Form>` | Wrap with the `Form` from the same `createFormSystem()` call |
 | `No field definition found for "x"` | `name` does not match schema | Match dotted path to schema keys; see [Nesting](/nesting) |
 | `No component registered for field kind "x"` | Kind missing from map | Add `fieldComponents[kind]`; missing def/component renders `null` + dev-only `devWarn` in `warn`/production mode |
 
-Agent hint: `useForm` caches per schema object in a `WeakMap` — hoist `schema` for O(1) hits (`package/src/core/use-form.ts:111`).
+Agent hint: `useForm` caches per schema object in a `WeakMap` — hoist `schema` for O(1) hits.

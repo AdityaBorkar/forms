@@ -13,7 +13,13 @@ const schema = z.object({
 	}),
 });
 
-const MODES: ValidationMode[] = ["onBlur", "onChange", "onSubmit", "all"];
+const MODES: ValidationMode[] = [
+	"onBlur",
+	"onChange",
+	"onSubmit",
+	"onTouched",
+	"all",
+];
 const RE_MODES: ReValidateMode[] = ["onChange", "onBlur", "onSubmit"];
 
 /**

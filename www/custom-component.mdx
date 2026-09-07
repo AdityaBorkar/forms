@@ -6,11 +6,11 @@ icon: Sparkles
 
 # Custom Component
 
-You will add a 5-star rating widget without touching validation or core.
+You will add a 5-star rating widget for a numeric score field.
 
 ## 1. Write the widget
 
-It receives standard `FieldComponentProps` (`def`, `name`, `value`, `onChange`, `onBlur`, `ref`, `error`, `disabled`, `config`). Use `defineFieldComponent` for typed `value`/`onChange` with zero runtime cost (`package/src/types.ts:123`).
+It receives standard `FieldComponentProps` (`def`, `name`, `value`, `onChange`, `onBlur`, `ref`, `error`, `disabled`, `config`). Use `defineFieldComponent` for typed `value`/`onChange` with zero runtime cost.
 
 ```tsx title="examples/custom-component.tsx"
 function StarsField({ def, name, value, onChange, error, disabled }: FieldComponentProps) {
@@ -27,7 +27,7 @@ function StarsField({ def, name, value, onChange, error, disabled }: FieldCompon
 }
 ```
 
-Full widget in `examples/src/examples/custom-component.tsx:24-59`. Derive required state as `!def.optional`; read `def.meta`, `def.min`/`max`, `def.entries`.
+Full widget in `examples/src/examples/custom-component.tsx`. Derive required state as `!def.optional`; read `def.meta`, `def.min`/`max`, `def.entries`.
 
 ## 2. Register it
 
@@ -36,34 +36,33 @@ Full widget in `examples/src/examples/custom-component.tsx:24-59`. Derive requir
 ```ts title="examples/custom-component.tsx"
 const customSystem = createFormSystem({
   fieldComponents: {
-    stars: StarsField,
+    number: StarsField,
     string: TextField,
-    textarea: TextareaField,
   },
   schemaResolver: zodAdapter,
 });
 ```
 
-`createFormSystem` throws when any registered value is not a function (`package/src/core/create-form-system.ts:75`).
+`createFormSystem` throws when any registered value is not a function.
 
-## 3. Select it per field
+## 3. Render it
 
-A Component override replaces the base Kind at Adapter time — validation stays a plain number, only the UI changes:
+Register the widget under the base kind it handles — validation stays a plain number, only the UI changes:
 
 ```ts title="examples/custom-component.tsx"
 const schema = z.object({
-  score: z.number().min(1).max(5).meta({ component: "stars", label: "Score" }),
+  feedback: z.string().max(200).meta({ label: "Feedback" }),
+  score: z.number().min(1).max(5).meta({ label: "Score" }),
   title: z.string().min(1).meta({ label: "Title" }),
 });
 ```
 
-`resolveKind` lets a non-empty `meta.component` win (`package/src/adapters/shared/field-def.ts:8`); outer `meta` wins via `mergeMeta`. Need per-instance options? Use `config` — it passes through untouched (`<SmartField config={{ options: [...] }} />`; the combobox reads `config.options`).
+Need per-instance options? Use `config` — it passes through untouched (`<SmartField config={{ options: [...] }} />`).
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `No component registered for field kind "stars"` | Kind missing from map | Add `stars: StarsField` to the `fieldComponents` passed to `createFormSystem()` |
-| Override ignored | `component` empty or not a string | Pass a non-empty string in `.meta({ component: "stars" })` / `v.metadata()` |
+| `No component registered for field kind "number"` | Kind missing from map | Add `number: StarsField` to the `fieldComponents` passed to `createFormSystem()` |
 
-Agent hint: `makeFieldDef` applies `resolveKind` and attaches `meta` only when present (`package/src/adapters/shared/field-def.ts:24`).
+Agent hint: `makeFieldDef` attaches `meta` and `optional` to the base def and drops empty `checks` (`package/src/adapters/shared/index.ts:20-30`).

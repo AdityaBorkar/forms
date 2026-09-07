@@ -8,13 +8,9 @@ import type { GenericSchema } from "valibot";
 
 import {
 	CheckboxField,
-	ComboboxField,
 	DateField,
 	NumberField,
 	SelectField,
-	SliderField,
-	SwitchField,
-	TextareaField,
 	TextField,
 } from "#/components/form-ui";
 
@@ -25,18 +21,11 @@ import {
  */
 const fieldComponents: FieldComponentMap = {
 	boolean: CheckboxField,
-	checkbox: CheckboxField,
-	combobox: ComboboxField,
 	date: DateField,
 	email: TextField,
 	enum: SelectField,
 	number: NumberField,
-	password: TextField,
-	slider: SliderField,
 	string: TextField,
-	switch: SwitchField,
-	textarea: TextareaField,
-	unknown: TextField,
 	url: TextField,
 };
 

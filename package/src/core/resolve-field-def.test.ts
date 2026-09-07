@@ -27,9 +27,6 @@ const tree: SchemaTree = {
 			kind: "object",
 			optional: false,
 		},
-		elementFields: {
-			city: { kind: "string", optional: false },
-		},
 		kind: "array",
 		optional: false,
 	},
@@ -51,6 +48,12 @@ describe("resolveFieldDef", () => {
 
 	it("resolves an indexed array-object path", () => {
 		expect(resolveFieldDef(tree, "locations.0.city").kind).toBe("string");
+	});
+
+	it("requires an explicit index for array element fields", () => {
+		expect(() => resolveFieldDef(tree, "locations.city")).toThrow(
+			"Arrays require an explicit index",
+		);
 	});
 
 	it("resolves a primitive array element path", () => {

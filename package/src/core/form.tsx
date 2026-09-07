@@ -5,10 +5,10 @@ import type {
 	SubmitEventHandler,
 } from "react";
 import { useCallback, useMemo } from "react";
-import type { FieldPath, FieldValues } from "react-hook-form";
+import type { FieldPath, FieldValues, UseFormReturn } from "react-hook-form";
 import { FormProvider } from "react-hook-form";
 
-import { createFormError } from "#/errors";
+import { createFormError } from "#/core/errors.ts";
 import type { FormContextValue, FormInstance } from "#/types";
 
 export type FormProps<TValues extends FieldValues = FieldValues> = {
@@ -16,6 +16,19 @@ export type FormProps<TValues extends FieldValues = FieldValues> = {
 	className?: string;
 	children?: ReactNode;
 };
+
+function setRootServerError<TValues extends FieldValues>(
+	setError: UseFormReturn<TValues>["setError"],
+	message: string,
+): void {
+	// RHF reserves `root.*` for form-level errors; `root.serverError` is the
+	// conventional key for async submit failures. The cast is safe because
+	// `FieldValues` permits arbitrary keys and `root` is RHF-reserved.
+	setError("root.serverError" as FieldPath<TValues>, {
+		message,
+		type: "server",
+	});
+}
 
 export function createForm(
 	FormContext: Context<FormContextValue | null>,
@@ -27,35 +40,26 @@ export function createForm(
 		className,
 		children,
 	}: FormProps<TValues>): ReactElement {
-		// Fail fast on developer misuse instead of destructuring `undefined`.
-		// Deterministic per call site, so hook order is unaffected.
 		if (!form) {
 			throw createFormError("<Form> requires a form prop", [
 				"Pass the object returned by useForm(), e.g. <Form form={form}>.",
 				"Make sure <Form> and useForm come from the same createFormSystem() call.",
 			]);
 		}
+		// Strip library-owned fields; the rest is exactly RHF's UseFormReturn.
 		const { fieldMap, onSubmit, onInvalid, onSubmitError, ...rhfMethods } =
 			form;
 
 		const contextValue = useMemo(() => ({ fieldMap }), [fieldMap]);
 
-		// Bound to stable callbacks — not [form] — so inline onSubmit/onInvalid
-		// in useForm no longer rebinds this handler every render.
 		const handleSubmit: SubmitEventHandler = useCallback(
 			(event) => {
 				event.preventDefault();
 				const result = rhfMethods.handleSubmit(onSubmit, onInvalid)(event);
-				// Validation failures resolve via onInvalid; only a throwing
-				// onSubmit rejects. Route that to onSubmitError plus a
-				// root-level field error instead of an unhandled rejection.
-				void Promise.resolve(result).catch((error: unknown) => {
+				void result.catch((error: unknown) => {
 					const message =
 						error instanceof Error ? error.message : String(error);
-					rhfMethods.setError("root.serverError" as FieldPath<TValues>, {
-						message,
-						type: "server",
-					});
+					setRootServerError(rhfMethods.setError, message);
 					onSubmitError?.(error);
 				});
 			},
@@ -79,9 +83,5 @@ export function createForm(
 		);
 	}
 
-	return Object.assign(Form, { displayName: "Form" }) as <
-		TValues extends FieldValues = FieldValues,
-	>(
-		props: FormProps<TValues>,
-	) => ReactElement;
+	return Form;
 }

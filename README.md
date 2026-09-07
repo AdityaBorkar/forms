@@ -2,7 +2,7 @@
 
 Schema-driven React form library. Pass a schema + adapter, get auto-rendered form fields via [`react-hook-form`](https://react-hook-form.com).
 
-The schema is the single source of truth — it drives **validation**, **default values**, and **rendering**. You bring your own field components and your own schema adapter, so it works with any UI library (shadcn, Radix, MUI, …) and any validator (Zod today, more to come).
+The schema is the single source of truth — it drives **validation** and **rendering**. `defaultValues` stay yours and pass straight through to RHF. You bring your own field components and your own schema adapter, so it works with any UI library (shadcn, Radix, MUI, …) and any validator (Zod today, more to come).
 
 > **Status:** `0.0.1-alpha` — the API is still settling. Try it, break it, open an issue.
 
@@ -72,14 +72,14 @@ function SimpleForm() {
 }
 ```
 
-`<SmartField>` reads the field map from context, resolves the def for `name`, and dispatches to your component — all validation, defaults, and error messages flow from the schema.
+`<SmartField>` reads the field map from context, resolves the def for `name`, and dispatches to your component — validation and error messages flow from the schema; initial values come from your `defaultValues`.
 
 ## How it works
 
 ```
 createFormSystem({ fieldComponents, schemaResolver })
         │
-        ├── useForm(schema)      → builds SchemaTree + defaults + resolver, delegates to react-hook-form
+        ├── useForm(schema)      → builds SchemaTree + resolver, passes defaultValues to react-hook-form
         ├── <Form>               → wraps FormProvider + the context that carries fieldMap
         ├── <SmartField name>    → resolves FieldDef, renders your component via useController()
         └── <SmartFieldArray>    → wraps useFieldArray for repeatable rows
@@ -90,12 +90,12 @@ Three moving parts, all yours to swap:
 | Part            | You provide                          | Library does                                   |
 | --------------- | ------------------------------------ | ---------------------------------------------- |
 | `FieldComponentMap` | React components keyed by `kind` | Rendered by `<SmartField>`                     |
-| `SchemaAdapter`     | `buildFieldMap` / `buildDefaults` / `createResolver` | Introspects your schema into a `SchemaTree` |
-| The schema          | e.g. a Zod object               | Source of truth for validation + defaults      |
+| `SchemaAdapter`     | `createFieldMap` / `createResolver` | Introspects your schema into a `SchemaTree` |
+| The schema          | e.g. a Zod object               | Source of truth for validation                 |
 
 ## Field meta
 
-Attach UI hints to any schema field with `.meta(...)`. The adapter surfaces them as `FieldDef.meta`:
+Attach UI hints to any schema field with `.meta(...)`. The adapter surfaces them as `FieldDef.meta` (passthrough — label, placeholder, description, plus any custom keys):
 
 ```tsx
 z.string().min(8).meta({
@@ -105,11 +105,7 @@ z.string().min(8).meta({
 })
 ```
 
-`meta` is passthrough, plus an optional `component` override — when
-`meta.component` is a non-empty string it becomes the dispatch kind
-(e.g. `z.string().meta({ component: "textarea" })` renders
-`fieldComponents.textarea`). Without the override, dispatch is
-`fieldComponents[def.kind]` and required state derives as `!def.optional`.
+Dispatch is `fieldComponents[def.kind]` and required state derives as `!def.optional`.
 
 ## Nested objects & arrays
 

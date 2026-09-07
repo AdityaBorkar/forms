@@ -11,18 +11,18 @@ You will trace any SchemaTree claim back to the Adapter that produced it.
 ## Contract
 
 ```ts title="package/src/types.ts"
-type SchemaAdapter<TSchema> = {
-  buildFieldMap(schema: TSchema): SchemaTree;
-  buildDefaults(fieldMap: SchemaTree, overrides?: Record<string, unknown>): DefaultValues<FieldValues>;
+type SchemaAdapter<TSchema, TValues = unknown> = {
+  createFieldMap(schema: TSchema): SchemaTree;
   createResolver(schema: TSchema): Resolver;
+  readonly _infer?: TValues;
 };
 ```
 
-The Adapter is the only place that knows a validation library's internals (`package/src/adapters/zod/build-field-map.ts:1`, `package/src/adapters/valibot/build-field-map.ts:1`). Everything downstream operates on normalized output. Full param defaults live in `package/src/adapters/*/build-field-map.ts`.
+The Adapter is the only place that knows a validation library's internals. Both bundled Adapters are thin primitive sets over the shared `createFieldMapEngine` (`package/src/adapters/shared/index.ts:82-228`) behind an `AdapterPrimitives` boundary (`package/src/adapters/shared/index.ts:41-70`). Everything downstream operates on normalized output. Full internals live in `package/src/adapters/*/create-field-map.ts`.
 
 ## Zod
 
-Walks private `schema._zod.def` — intentionally fragile (`package/src/adapters/zod/build-field-map.ts:49`). 7 supported types:
+Walks private `schema._zod.def` via a `getZodDef` choke point (`package/src/adapters/zod/create-field-map.ts:32-34`) — intentionally fragile. 7 supported types (`package/src/adapters/zod/create-field-map.ts:21-29`):
 
 `string`, `number`, `boolean`, `enum`, `array`, `object`, `date`.
 
@@ -31,21 +31,21 @@ Walks private `schema._zod.def` — intentionally fragile (`package/src/adapters
 | `z.string()` + `format`/`email`/`url` checks | `string` \| `email` \| `url` |
 | `z.number()` + `greater_than`/`less_than` | `min`/`max` (inclusive) or `{ type: "gt"/"lt" }` checks (exclusive); `format` (e.g. `integer`) passes through |
 | `z.enum()` | `enum` + `entries` |
-| `z.array(el)` | `array` + `elementDef`; object elements also hoist `elementFields` |
+| `z.array(el)` | `array` + `elementDef` (object-element children on `elementDef.elementFields`; array paths require an explicit index) |
 | `z.object()` | `object` + recursive `elementFields` |
 | `.optional()` | Recurses into `innerType` with `optional: true`; outer `meta` wins |
 | `union` | Single non-`literal` branch wins, else throws (empty/all-literal/multi-branch) |
 | `record`, bare `literal`, unknown | Throws `Unsupported Zod type: …`; never emits `kind: "unknown"` |
 
 ```ts title="app.ts"
-import { buildFieldMap, zodAdapter } from "@adistack/forms/adapters/zod";
+import { zodAdapter } from "@adistack/forms/adapters/zod";
 ```
 
-`createResolver` is `zodResolver(schema)` from `@hookform/resolvers/zod` (`package/src/adapters/zod/index.ts:18`).
+`createFieldMap`/`createResolver` are methods on `zodAdapter` (`package/src/adapters/zod/index.ts:14-20`); `createResolver` is also a standalone named export. `createResolver` is `zodResolver(schema)` from `@hookform/resolvers/zod`.
 
 ## Valibot
 
-Walks public-ish `type`/`entries`/`item`/`wrapped`/`pipe`. 8 supported types:
+Walks public-ish `type`/`entries`/`item`/`wrapped`/`pipe` (`package/src/adapters/valibot/create-field-map.ts`). 8 supported types (`package/src/adapters/valibot/create-field-map.ts:37-46`):
 
 `string`, `number`, `boolean`, `picklist`, `enum`, `array`, `object`, `date` (`picklist`/`enum` both normalize to `enum`).
 
@@ -62,25 +62,13 @@ Walks public-ish `type`/`entries`/`item`/`wrapped`/`pipe`. 8 supported types:
 ```tsx title="examples/valibot-form.tsx"
 v.pipe(v.string(), v.minLength(1), v.title("Full name"));
 v.pipe(v.picklist(["admin", "member", "guest"]), v.title("Role"));
-v.pipe(v.boolean(), v.metadata({ component: "switch" }), v.title("Email notifications"));
+v.pipe(v.boolean(), v.title("Email notifications"));
 ```
 
-Full schema in `examples/src/examples/valibot-form.tsx:18-39`. `createResolver` is `valibotResolver(schema)` (`package/src/adapters/valibot/index.ts:14`).
+Full schema in `examples/src/examples/valibot-form.tsx`. `createResolver` is `valibotResolver(schema)`.
 
-## Defaults
+## Defaults — intentionally absent
 
-Shared implementation (`package/src/adapters/shared/defaults.ts:5`), re-exported by both Adapters. `buildDefaults(fieldMap, overrides?)` derives per field, then deep-merges `overrides` (nested objects merge, not clobber). Takes no `schema` param.
+No auto-defaults are derived. `useForm({ defaultValues })` passes straight through to RHF; array rows use explicit `append(value)`.
 
-| Kind | Default |
-|---|---|
-| `string`/`email`/`url`/`password`/`textarea`/`combobox` | `""` |
-| `number`/`slider` | `0` |
-| `boolean`/`checkbox`/`switch` | `false` |
-| `enum` | First entry value (or `undefined`) |
-| `array` | `[]` |
-| `object` | Recursive object (or `undefined` without `elementFields`) |
-| `date`, custom, unknown | `undefined` |
-
-`optional` → `undefined` wins first. `meta.component` variants stay reachable (e.g. `component: "password"` still defaults to `""`).
-
-Agent hint: Zod `SUPPORTED_TYPES` lives at `package/src/adapters/zod/build-field-map.ts:38`; Valibot adds `picklist` and `OPTIONAL_WRAPPERS` at `package/src/adapters/valibot/build-field-map.ts:29-41`.
+Agent hint: Zod `SUPPORTED_TYPES` lives in `package/src/adapters/zod/create-field-map.ts:21-29`; Valibot adds `picklist` in `package/src/adapters/valibot/create-field-map.ts:37-46`, with `optional`/`nullish`/`exact_optional` forcing optional inline (`package/src/adapters/valibot/create-field-map.ts:247-273`).

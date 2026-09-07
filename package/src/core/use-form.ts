@@ -7,46 +7,26 @@ import type {
 } from "react-hook-form";
 import { useForm as useRhfForm } from "react-hook-form";
 
-import { createFormError } from "#/errors";
+import { createFormError } from "#/core/errors.ts";
 import type {
 	FormInstance,
 	InferFormValues,
-	ReValidateMode,
 	SchemaAdapter,
 	SchemaTree,
 	UseFormOptions,
-	ValidationMode,
 } from "#/types";
 
 export type InferredValues<S> =
 	InferFormValues<S> extends FieldValues ? InferFormValues<S> : FieldValues;
 
-const VALIDATION_MODES: readonly ValidationMode[] = [
-	"onBlur",
-	"onChange",
-	"onSubmit",
-	"onTouched",
-	"all",
-];
-
-const RE_VALIDATE_MODES: readonly ReValidateMode[] = [
-	"onChange",
-	"onBlur",
-	"onSubmit",
-];
-
-const FORM_ERROR_PREFIX = "[@adistack/forms]";
-
-/**
- * Run one adapter step, adding form-system context when a custom adapter
- * throws a raw error. Errors the adapter already built with `createFormError`
- * (e.g. unsupported-type messages) pass through untouched.
- */
 function runAdapterStep<T>(stage: string, hint: string, fn: () => T): T {
 	try {
 		return fn();
 	} catch (error) {
-		if (error instanceof Error && error.message.startsWith(FORM_ERROR_PREFIX)) {
+		if (
+			error instanceof Error &&
+			error.message.startsWith("[@adistack/forms]")
+		) {
 			throw error;
 		}
 		throw createFormError(stage, [
@@ -56,50 +36,33 @@ function runAdapterStep<T>(stage: string, hint: string, fn: () => T): T {
 	}
 }
 
-function getCachedFieldMap<TSchema>(
-	schemaResolver: SchemaAdapter<TSchema>,
-	cache: WeakMap<object, SchemaTree>,
-	schema: TSchema,
-): SchemaTree {
+/**
+ * Cross-instance cache: `useMemo([schema])` already avoids rebuilds within one
+ * hook instance, while this `WeakMap` shares the built field map / resolver
+ * across mounts that reuse the same schema object. Non-object schemas bypass
+ * the cache (adapters always receive objects in practice).
+ */
+function getOrBuild<T>(
+	cache: WeakMap<object, T>,
+	schema: unknown,
+	build: () => T,
+): T {
 	if (typeof schema === "object" && schema !== null) {
 		const hit = cache.get(schema);
-		if (hit) return hit;
-		const fieldMap = runAdapterStep(
-			"useForm could not build the field map from your schema",
-			"Check that the schema matches the adapter (e.g. a Zod object for zodAdapter).",
-			() => schemaResolver.buildFieldMap(schema),
-		);
-		cache.set(schema, fieldMap);
-		return fieldMap;
+		if (hit !== undefined) return hit;
+		const value = build();
+		cache.set(schema, value);
+		return value;
 	}
-	return runAdapterStep(
-		"useForm could not build the field map from your schema",
-		"Check that the schema matches the adapter (e.g. a Zod object for zodAdapter).",
-		() => schemaResolver.buildFieldMap(schema),
-	);
+	return build();
 }
 
-function getCachedResolver<TSchema>(
-	schemaResolver: SchemaAdapter<TSchema>,
-	cache: WeakMap<object, Resolver>,
-	schema: TSchema,
-): Resolver {
-	if (typeof schema === "object" && schema !== null) {
-		const hit = cache.get(schema);
-		if (hit) return hit;
-		const resolver = runAdapterStep(
-			"useForm could not create the form resolver from your schema",
-			"Check that the schema is a valid schema for the adapter.",
-			() => schemaResolver.createResolver(schema),
-		);
-		cache.set(schema, resolver);
-		return resolver;
-	}
-	return runAdapterStep(
-		"useForm could not create the form resolver from your schema",
-		"Check that the schema is a valid schema for the adapter.",
-		() => schemaResolver.createResolver(schema),
-	);
+function useStableCallback<Args extends unknown[], R>(
+	fn: ((...args: Args) => R) | undefined,
+): (...args: Args) => R | undefined {
+	const ref = useRef(fn);
+	ref.current = fn;
+	return useCallback((...args: Args) => ref.current?.(...args), []);
 }
 
 export function createUseForm<TSchema>(
@@ -107,9 +70,6 @@ export function createUseForm<TSchema>(
 ): <const S extends TSchema, TValues extends FieldValues = InferredValues<S>>(
 	options: UseFormOptions<S, TValues>,
 ) => FormInstance<TValues> {
-	// Per-factory caches: shared across every useForm call with the same schema
-	// object (GC-safe — entries vanish with their schema key). Pair with
-	// hoisted `schema` objects for O(1) hits instead of per-render walks.
 	const fieldMapCache = new WeakMap<object, SchemaTree>();
 	const resolverCache = new WeakMap<object, Resolver>();
 
@@ -117,9 +77,6 @@ export function createUseForm<TSchema>(
 		const S extends TSchema,
 		TValues extends FieldValues = InferredValues<S>,
 	>(options: UseFormOptions<S, TValues>): FormInstance<TValues> {
-		// Fail fast on developer misuse with an actionable message instead of a
-		// cryptic failure deep inside the adapter or react-hook-form. These
-		// throws are deterministic per call site, so hook order is unaffected.
 		// biome-ignore lint/suspicious/noUnnecessaryConditions: runtime guard for developer misuse
 		if (!options) {
 			throw createFormError("useForm requires an options object", [
@@ -148,70 +105,46 @@ export function createUseForm<TSchema>(
 				`Received ${typeof onSubmit}.`,
 			]);
 		}
-		if (!VALIDATION_MODES.includes(validationMode)) {
-			throw createFormError(
-				`Invalid validationMode "${validationMode as string}"`,
-				[
-					`Expected one of: ${VALIDATION_MODES.join(", ")}.`,
-					"Pass it as useForm({ validationMode: ... }).",
-				],
-			);
-		}
-		if (!RE_VALIDATE_MODES.includes(reValidateMode)) {
-			throw createFormError(
-				`Invalid reValidateMode "${reValidateMode as string}"`,
-				[
-					`Expected one of: ${RE_VALIDATE_MODES.join(", ")}.`,
-					"Pass it as useForm({ reValidateMode: ... }).",
-				],
-			);
-		}
 
 		const fieldMap = useMemo(
-			() => getCachedFieldMap(schemaResolver, fieldMapCache, schema),
+			() =>
+				getOrBuild(fieldMapCache, schema, () =>
+					runAdapterStep(
+						"useForm could not build the field map from your schema",
+						"Check that the schema matches the adapter (e.g. a Zod object for zodAdapter).",
+						() => schemaResolver.createFieldMap(schema),
+					),
+				),
 			[schema],
 		);
-		const defaults = useMemo(
-			() =>
-				runAdapterStep(
-					"useForm could not derive default values from the field map",
-					"Check that defaultValues matches the shape of your schema.",
-					() => schemaResolver.buildDefaults(fieldMap, defaultValues),
-				),
-			[fieldMap, defaultValues],
-		);
 		const resolver = useMemo(
-			() => getCachedResolver(schemaResolver, resolverCache, schema),
+			() =>
+				getOrBuild(resolverCache, schema, () =>
+					runAdapterStep(
+						"useForm could not create the form resolver from your schema",
+						"Check that the schema is a valid schema for the adapter.",
+						() => schemaResolver.createResolver(schema),
+					),
+				),
 			[schema],
 		);
 
 		const methods = useRhfForm<TValues, unknown, TValues>({
-			defaultValues: defaults as DefaultValues<TValues>,
+			defaultValues: defaultValues as DefaultValues<TValues> | undefined,
 			mode: validationMode,
 			resolver: resolver as Resolver<TValues, unknown, TValues>,
 			reValidateMode,
 		});
 
-		// Latest-ref stabilization: inline onSubmit/onInvalid/onSubmitError no
-		// longer churn the returned `form` identity (and downstream
-		// FormProvider renders).
-		const onSubmitRef = useRef(onSubmit);
-		onSubmitRef.current = onSubmit;
-		const onInvalidRef = useRef(onInvalid);
-		onInvalidRef.current = onInvalid;
-		const onSubmitErrorRef = useRef(onSubmitError);
-		onSubmitErrorRef.current = onSubmitError;
-		const stableOnSubmit = useCallback(
-			(values: TValues) => onSubmitRef.current(values),
-			[],
+		const stableOnSubmit = useStableCallback<[TValues], void | Promise<void>>(
+			onSubmit,
 		);
-		const stableOnInvalid = useCallback(
-			(errors: FieldErrors<TValues>) => onInvalidRef.current?.(errors),
-			[],
+		const stableOnInvalid = useStableCallback<[FieldErrors<TValues>], void>(
+			onInvalid,
 		);
-		const stableOnSubmitError = useCallback((error: unknown) => {
-			onSubmitErrorRef.current?.(error);
-		}, []);
+		const stableOnSubmitError = useStableCallback<[unknown], void>(
+			onSubmitError,
+		);
 
 		return useMemo(
 			() =>

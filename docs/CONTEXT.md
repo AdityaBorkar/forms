@@ -1,7 +1,7 @@
 # Forms Context
 
-Schema-driven React forms: the validation schema drives validation, default
-values, and rendering. Details live in [ARCHITECTURE.md](./ARCHITECTURE.md);
+Schema-driven React forms: the validation schema drives validation and
+rendering. Initial values come from caller-supplied `defaultValues` (RHF-owned). Details live in [ARCHITECTURE.md](./ARCHITECTURE.md);
 the full API reference lives in [GLOSSARY.md](./GLOSSARY.md).
 
 ## Language
@@ -13,21 +13,23 @@ The metadata tree an adapter derives from a schema.
 _Avoid_: field map (as a generic phrase), schema tree (lowercase)
 
 **FieldDef**:
-One field's resolved metadata (kind, optionality, constraints, nesting).
+One field's resolved metadata (kind, optionality, constraints, nesting),
+discriminated by kind.
 _Avoid_: field definition (verbose), field config
 
 **Kind**:
 The single dispatch string on a FieldDef that selects a UI component.
+Base kinds are fixed (`string|email|url|number|boolean|enum|array|object|date`); custom strings stay allowed for forward-compat.
 _Avoid_: type, variant, widget
 
-**Component override**:
-A `meta.component` value that replaces the adapter's base kind.
-_Avoid_: custom kind, kind override (ambiguous)
-
 **Adapter**:
-The boundary that translates one validation library into a SchemaTree,
-defaults, and a resolver.
+The boundary that translates one validation library into a SchemaTree
+and a resolver.
 _Avoid_: resolver (too narrow), parser, bridge
+
+**Inferred values**:
+The form value type derived from a schema.
+_Avoid_: form data (vague), output type (too broad)
 
 ### UI dispatch
 
@@ -57,3 +59,7 @@ _Avoid_: form factory, form instance (singular form), form kit
 **FieldMap**:
 The SchemaTree carried in React context (`FormContextValue.fieldMap`).
 _Avoid_: schema tree (when meaning the context value), field components
+
+**Missing-field policy**:
+The rule for unknown field names or unregistered kinds.
+_Avoid_: error handling (too broad), fallback (vague)

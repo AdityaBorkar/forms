@@ -2,44 +2,41 @@
 
 ## Project
 
-`@adistack/forms` — schema-driven React forms via `react-hook-form`. Factory `createFormSystem({ fieldComponents, schemaResolver })`; caller supplies `SchemaAdapter` + `FieldComponentMap`.
+`@adistack/forms` — schema-driven React forms on `react-hook-form`. Factory `createFormSystem({ fieldComponents, schemaResolver, onMissingField? })`; caller supplies `SchemaAdapter` + `FieldComponentMap`.
 
-Bun workspace: `package/` is the library (`src/`), `examples/` is the demo (`Bun.serve` in `server.ts`, port 4000). `www/` and `.github/workflows/` are empty — no CI.
+Bun workspace: `package/` is the library (`src/`, no build — ESM source TS), `examples/` is the demo (`Bun.serve` in `server.ts`, port 4000), `www/` is Fumadocs mdx (changes trigger a docs-repo refresh via `release.yml`).
 
 ## Commands
 
 ```
-bun run check:lint   # biome check --fix . (mutates; run from root)
-bun run check:types  # tsc -b (composite: package/ + examples/)
-bun run format       # biome format --fix .
-bunx --cwd package vitest run              # all tests (config lives in package/)
-bunx --cwd package vitest run src/adapters/zod/build-field-map.test.ts  # single file
-bun run --cwd examples dev    # demo: bun --hot server.ts
-bun run update:deps  # bun taze -rw --maturity-period 3 && bun install
+bun run check:lint   # root: biome check . (read-only)
+bun run check:types  # root: tsc -b (composite: package/ + examples/)
+bun run fix:format   # biome format --fix . (pre-commit runs this)
+bun run fix:lint     # biome check --fix . (mutates)
+cd package && bunx vitest run                                    # all tests
+cd package && bunx vitest run src/adapters/zod/create-field-map.test.ts  # single file
+cd examples && bun run dev  # demo: bun --hot server.ts
 ```
 
-Run `check:lint` → `check:types` after changes. Pre-commit runs `bun format` (format only). Must run vitest with `--cwd package` — tests import via `#/*`, resolved by `package/vitest.config.ts` (`vite-tsconfig-paths`); running from root breaks resolution.
+Run `check:lint` → `check:types` after changes. Do not confuse with `package/` scripts of the same name: there `check:lint` is `biome check --fix .` (mutates) and `check:types` is `tsc --noEmit`. Vitest must run from `package/` — `#/*` resolves via `package/vitest.config.ts` (`vite-tsconfig-paths`); running from root breaks it. `bunx --cwd package …` does not work; `cd` first.
 
 ## Toolchain
 
-- **Bun** only (`bun` for install/run). `bunfig.toml`: `ignore-scripts=true`, `minimumReleaseAge=259200` (3d).
-- **Biome**, not ESLint/Prettier. Test files (`**/*.test.*`) relax `noNonNullAssertion` + `noUnnecessaryConditions`.
-- **TypeScript** strict + `verbatimModuleSyntax` + `noUncheckedIndexedAccess`; alias `#/*` → `./src/*` in both `package/` and `examples/`.
+- **Bun** only. `bunfig.toml`: `ignore-scripts=true`, `minimumReleaseAge=259200` (3d).
+- **Biome**, not ESLint/Prettier. `**/*.test.*` relax `noNonNullAssertion` + `noUnnecessaryConditions`.
+- **TypeScript** strict + `verbatimModuleSyntax` + `noUncheckedIndexedAccess`; `#/*` → `./src/*` in both `package/` and `examples/` (different bases).
 - **Vitest**, not Jest; default env is `node` — component tests need `// @vitest-environment jsdom` as first line.
-- No build — consumed as source TS, ESM only (`module`/`types` point at `src/index.ts`, `files: ["src"]`).
 
 ## Architecture
 
-4 exports in `package/package.json`: `@adistack/forms` → `src/index.ts`, `.../adapters/zod`, `.../adapters/valibot`, `.../ui`.
+4 exports in `package/package.json`: `@adistack/forms` → `src/index.ts`, `.../adapters/zod`, `.../adapters/valibot`, `.../ui` (types only).
 
-- `SmartField` / `useForm` / `useFormContext` are **factory-returned**, not direct imports. Factory-bound `SmartFieldArray` (requires `<Form>` context) is canonical; a static unbound one is also exported from core + `ui`.
-- Flow: `useForm({ schema })` → `buildFieldMap` + `buildDefaults(fieldMap, defaultValues)` + `createResolver` → `<Form form>` (`FormProvider` + `{ fieldMap }` context) → `<SmartField name="a.b">` → `resolveFieldDef` → `fieldComponents[def.kind]` via `useController`. `validationMode` defaults `onBlur`, `reValidateMode` defaults `onChange`.
-- `meta.component` (non-empty string) replaces the dispatch kind **at adapter time** (`adapters/shared/field-def.ts`, outer `meta` wins) — `def.kind` already carries the override.
-- `resolveFieldDef`: numeric segment into an `array` steps into `elementDef`; `arr.city` resolves via `elementFields` without an index (prefer `arr.0.city`); empty names/segments throw; numeric keys on non-arrays look up literally.
-- No stored `required` — `FieldDef.optional` is the source of truth (`!optional` = required).
-- `buildDefaults(fieldMap, overrides?)` takes no `schema` param; overrides deep-merge. Defaults: string-family → `""`, `number|slider` → `0`, boolean-family → `false`, `enum` → first entry, `array` → `[]`, `object` → recursive, `date`/custom → `undefined`; `optional` → `undefined` wins first.
-- Zod adapter walks private `schema._zod.def` (fragile). Both adapters: `union` keeps the single non-`literal` branch else throws; `record`/unknown throws; never emits `kind: "unknown"`. Valibot: `optional`/`nullish`/`exact_optional` force optional but `nullable` alone does not; `picklist`/`enum` → `enum` kind.
-- Missing def/component renders `null` + deduped dev-only `devWarn` (`resetDevWarnings` is tests-only). Peers: `react@>=18` + `react-hook-form@^7.86.0` required; `zod@>=4`, `valibot@>=1`, `@hookform/resolvers@>=5` optional.
+- `SmartField` / `useForm` / `useFormContext` / `SmartFieldArray` are **factory-returned**, not direct imports. `SmartFieldArray` requires `<Form>` context.
+- Flow: `useForm({ schema })` → `createFieldMap` + `createResolver` (WeakMap-cached per schema object; `defaultValues` pass straight to RHF) → `<Form form>` (`FormProvider` + `{ fieldMap }` context) → `<SmartField name="a.b">` → `resolveFieldDef` → `fieldComponents[def.kind]` via `useController`. `validationMode` defaults `onBlur`, `reValidateMode` defaults `onChange` (type-checked only, no runtime check). `TValues` infers via Standard Schema `~standard.types.output`.
+- `resolveFieldDef` (`core/resolve-field-def.ts`): arrays need an explicit index (`tasks.0.title`; bare `tasks.title` throws); empty names/segments throw; numeric keys on non-arrays look up literally.
+- No stored `required` — `FieldDef.optional` is the source of truth (`!optional` = required). No auto-defaults — field components must handle `undefined`; array rows use explicit `append(value)`.
+- Missing def/component policy is `onMissingField` (default `"throw"`): dev throws, prod always `devWarn` + `null`; `"warn"` opts into `devWarn` + `null` in dev too. Peers: `react@>=18` + `react-hook-form@^7.86.0` required; `zod@>=4`, `valibot@>=1`, `@hookform/resolvers@>=5` optional.
+- Zod adapter walks private `schema._zod.def` (fragile). Both adapters: `union` keeps the single non-`literal` branch else throws; `record`/unknown throws; never emits `kind: "unknown"`.
 
 ## Testing
 
@@ -47,8 +44,8 @@ Colocated `*.test.ts(x)` next to source — never create `package/tests/`.
 
 ## Git & Release
 
-Conventional Commits via Husky `commit-msg` (`build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|wip`). Changesets: `baseBranch: main`, `ignore: ["examples","www"]`, only `package/` publishes.
+Conventional Commits via Husky `commit-msg` (`build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|wip`). Changesets: only `package/` publishes (`ignore: ["examples","www"]`, `baseBranch: "main"`). PRs to `beta`/`latest` need a changeset unless docs-only (`www/`, `docs/`, `examples/`, `.github/`, `*.md`/`*.mdx`, `bun.lockb`); push to `beta` publishes `--tag beta` (enters prerelease mode), push to `latest` publishes `--tag latest`.
 
 ## Docs
 
-`docs/ARCHITECTURE.md` is the implementation reference (diagram, file map, adapter internals); `docs/GLOSSARY.md` is the API reference; `docs/CONTEXT.md` is glossary-only. Check `ARCHITECTURE.md` before inferring behavior from leaf files.
+`docs/GLOSSARY.md` is the API reference, `docs/CONTEXT.md` the vocabulary, `docs/ARCHITECTURE.md` the design. Dispatch is strictly by adapter base kind (`fieldComponents[def.kind]`); `meta` is passthrough only — trust `package/src` over prose if any stale override mention remains.

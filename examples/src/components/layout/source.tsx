@@ -2,11 +2,17 @@ import { IconBrandGithub, IconExternalLink } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 
 import { EXAMPLES } from "#/examples";
-import { GITHUB_EXAMPLES_PREFIX } from "#/lib/utils";
+import { cn, GITHUB_EXAMPLES_PREFIX } from "#/lib/utils";
 
 type SourceTab = { name: string; content: string };
 
-export function SourcePanel({ exampleId }: { exampleId: string }) {
+export function SourcePanel({
+	exampleId,
+	className,
+}: {
+	exampleId: string;
+	className?: string;
+}) {
 	const example = EXAMPLES.find((ex) => ex.slug === exampleId);
 	const [activeTab, setActiveTab] = useState(0);
 	const [tabs, setTabs] = useState<SourceTab[]>([]);
@@ -18,8 +24,7 @@ export function SourcePanel({ exampleId }: { exampleId: string }) {
 		setTabs([]);
 		setError(null);
 		let cancelled = false;
-		// Raw file contents come from the `/api/sources` route —
-		// no build-time codegen, the server reads `src/` from disk.
+
 		Promise.all(
 			example.files.map(async (rel): Promise<SourceTab> => {
 				const res = await fetch(`/api/sources/${rel}`);
@@ -48,7 +53,12 @@ export function SourcePanel({ exampleId }: { exampleId: string }) {
 	const githubUrl = `${GITHUB_EXAMPLES_PREFIX}/${currentRel}`;
 
 	return (
-		<aside className="flex w-2xl shrink-0 flex-col border-border border-l bg-card">
+		<aside
+			className={cn(
+				"flex shrink-0 flex-col border-border border-l bg-card",
+				className,
+			)}
+		>
 			<div className="flex items-center justify-between border-border border-b px-4 py-2">
 				<span className="font-medium text-sm">Source</span>
 				<a
@@ -67,7 +77,7 @@ export function SourcePanel({ exampleId }: { exampleId: string }) {
 					<button
 						className={`border-b-2 px-3 py-1.5 text-xs transition-colors ${
 							i === activeTab
-								? "border-primary font-medium text-foreground"
+								? "border-primary  text-foreground"
 								: "border-transparent text-muted-foreground hover:text-foreground"
 						}`}
 						key={tab.name}

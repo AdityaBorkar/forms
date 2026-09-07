@@ -1,13 +1,17 @@
 import type { ComponentType } from "react";
 
+import { AlternativeWidgetsForm } from "./alternative-widgets.tsx";
 import { ArrayForm } from "./array-form.tsx";
 import { CustomComponentForm } from "./custom-component.tsx";
 import { DefaultsOptionalForm } from "./defaults-optional.tsx";
 import { FieldKindsForm } from "./field-kinds.tsx";
 import { FormContextForm } from "./form-context.tsx";
+import { MissingFieldForm } from "./missing-field.tsx";
 import { NestedForm } from "./nested-form.tsx";
+import { PrimitiveArrayForm } from "./primitive-array.tsx";
 import { ServerSubmitForm } from "./server-submit.tsx";
 import { SimpleForm } from "./simple-form.tsx";
+import { SubmitErrorsForm } from "./submit-errors.tsx";
 import { ValibotFormExample } from "./valibot-form.tsx";
 import { ValidationModesForm } from "./validation-modes.tsx";
 
@@ -50,7 +54,7 @@ export const EXAMPLES: ExampleMeta[] = [
 	},
 	{
 		component: CustomComponentForm,
-		description: "Your own widget via meta.component.",
+		description: "Your own widget for a base kind.",
 		files: ["examples/custom-component.tsx"],
 		slug: "custom-component",
 		title: "Custom Component",
@@ -64,14 +68,14 @@ export const EXAMPLES: ExampleMeta[] = [
 	},
 	{
 		component: DefaultsOptionalForm,
-		description: "Optional + defaultValues merge.",
+		description: "Optional + explicit defaultValues.",
 		files: ["examples/defaults-optional.tsx", "components/form-zod.tsx"],
 		slug: "defaults-optional",
 		title: "Defaults & Optional",
 	},
 	{
 		component: FormContextForm,
-		description: "watch/reset, disabled, config.",
+		description: "watch/reset and disabled.",
 		files: ["examples/form-context.tsx", "components/form-zod.tsx"],
 		slug: "form-context",
 		title: "useFormContext",
@@ -89,5 +93,33 @@ export const EXAMPLES: ExampleMeta[] = [
 		files: ["examples/server-submit.tsx", "components/form-wrapper.tsx"],
 		slug: "server-submit",
 		title: "Server Submit",
+	},
+	{
+		component: SubmitErrorsForm,
+		description: "Throwing onSubmit → onSubmitError + root.serverError.",
+		files: ["examples/submit-errors.tsx"],
+		slug: "submit-errors",
+		title: "Submit Errors",
+	},
+	{
+		component: AlternativeWidgetsForm,
+		description: "Textarea/slider/switch/combobox via local systems.",
+		files: ["examples/alternative-widgets.tsx"],
+		slug: "alternative-widgets",
+		title: "Alternative Widgets",
+	},
+	{
+		component: PrimitiveArrayForm,
+		description: "z.array(z.string()) rows as tags.0, from empty.",
+		files: ["examples/primitive-array.tsx", "components/form-zod.tsx"],
+		slug: "primitive-array",
+		title: "Primitive Array",
+	},
+	{
+		component: MissingFieldForm,
+		description: "onMissingField warn: null + dev warning.",
+		files: ["examples/missing-field.tsx"],
+		slug: "missing-field",
+		title: "Missing Fields",
 	},
 ];

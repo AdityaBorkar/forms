@@ -20,17 +20,12 @@ const schema = v.object({
 		v.string(),
 		v.maxLength(200),
 		v.metadata({
-			component: "textarea",
 			placeholder: "Tell us about yourself",
 		}),
 		v.title("Bio"),
 	),
 	name: v.pipe(v.string(), v.minLength(1), v.title("Full name")),
-	notifications: v.pipe(
-		v.boolean(),
-		v.metadata({ component: "switch" }),
-		v.title("Email notifications"),
-	),
+	notifications: v.pipe(v.boolean(), v.title("Email notifications")),
 	role: v.pipe(
 		v.picklist(["admin", "member", "guest"]),
 		v.title("Role"),
@@ -41,8 +36,7 @@ const schema = v.object({
 /**
  * 9 · Valibot adapter — swap `zodAdapter` for `valibotAdapter` in
  * `createFormSystem` and everything else stays the same. Labels come from
- * `v.title()`, hints from `v.description()`, widget overrides from
- * `v.metadata({ component })`.
+ * `v.title()`, hints from `v.description()`.
  */
 export function ValibotFormExample() {
 	const [result, setResult] = useState<unknown>(null);

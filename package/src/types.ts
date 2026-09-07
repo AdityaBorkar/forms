@@ -11,8 +11,6 @@ export type FieldMeta = {
 	label?: string;
 	placeholder?: string;
 	description?: string;
-	/** Override the resolved kind to dispatch a custom component. */
-	component?: string;
 	[key: string]: unknown;
 };
 
@@ -20,20 +18,13 @@ export type KnownFieldKind =
 	| "string"
 	| "email"
 	| "url"
-	| "password"
-	| "textarea"
-	| "combobox"
 	| "number"
-	| "slider"
 	| "boolean"
-	| "checkbox"
-	| "switch"
 	| "enum"
 	| "array"
 	| "object"
 	| "date";
 
-/** Resolved field kind. Known kinds get autocomplete; custom kinds stay allowed. */
 export type FieldKind = KnownFieldKind | (string & {});
 
 export type KnownFieldCheckType =
@@ -53,24 +44,101 @@ export type FieldCheck = {
 	value?: unknown;
 };
 
-export type FieldDef = {
-	kind: FieldKind;
-	/** True when the value may be `undefined`. Single source of truth — derive "required" as `!optional`. */
+type BaseFieldDef = {
 	optional: boolean;
 	meta?: FieldMeta;
+};
+
+export type StringFieldDef = BaseFieldDef & {
+	kind: "string" | "email" | "url";
 	checks?: Array<FieldCheck>;
-	entries?: Record<string, string>;
-	/** Child fields for `object` kinds and for `array` kinds whose element is an object. */
-	elementFields?: SchemaTree;
-	/**
-	 * Element definition for `array` kinds.
-	 * Present whenever the array element type is known, including primitives
-	 * (e.g. `z.array(z.string())` yields an `elementDef` of kind `string`).
-	 */
-	elementDef?: FieldDef;
 	min?: number;
 	max?: number;
+	entries?: never;
+	elementFields?: never;
+	elementDef?: never;
 };
+
+export type NumberFieldDef = BaseFieldDef & {
+	kind: "number";
+	checks?: Array<FieldCheck>;
+	min?: number;
+	max?: number;
+	entries?: never;
+	elementFields?: never;
+	elementDef?: never;
+};
+
+export type BooleanFieldDef = BaseFieldDef & {
+	kind: "boolean";
+	checks?: never;
+	min?: never;
+	max?: never;
+	entries?: never;
+	elementFields?: never;
+	elementDef?: never;
+};
+
+export type EnumFieldDef = BaseFieldDef & {
+	kind: "enum";
+	entries?: Record<string, string>;
+	checks?: never;
+	min?: never;
+	max?: never;
+	elementFields?: never;
+	elementDef?: never;
+};
+
+export type ArrayFieldDef = BaseFieldDef & {
+	kind: "array";
+	elementDef?: FieldDef;
+	checks?: Array<FieldCheck>;
+	min?: number;
+	max?: number;
+	entries?: never;
+	elementFields?: never;
+};
+
+export type ObjectFieldDef = BaseFieldDef & {
+	kind: "object";
+	elementFields: SchemaTree;
+	entries?: never;
+	elementDef?: never;
+	checks?: never;
+	min?: never;
+	max?: never;
+};
+
+export type DateFieldDef = BaseFieldDef & {
+	kind: "date";
+	checks?: never;
+	min?: never;
+	max?: never;
+	entries?: never;
+	elementFields?: never;
+	elementDef?: never;
+};
+
+/** Custom kinds are leaf-or-container permissive so third-party adapters keep working. */
+export type CustomFieldDef = BaseFieldDef & {
+	kind: string;
+	checks?: Array<FieldCheck>;
+	min?: number;
+	max?: number;
+	entries?: Record<string, string>;
+	elementFields?: SchemaTree;
+	elementDef?: FieldDef;
+};
+
+export type FieldDef =
+	| StringFieldDef
+	| NumberFieldDef
+	| BooleanFieldDef
+	| EnumFieldDef
+	| ArrayFieldDef
+	| ObjectFieldDef
+	| DateFieldDef
+	| CustomFieldDef;
 
 export type SchemaTree = Record<string, FieldDef>;
 
@@ -89,36 +157,27 @@ export type FieldComponentProps<
 	config?: TConfig;
 };
 
-/**
- * Value type per known field kind. Used with `defineFieldComponent` so widgets
- * get a typed `value`/`onChange` instead of `unknown` casts.
- */
 export type FieldKindValueMap = {
 	string: string;
 	email: string;
 	url: string;
-	password: string;
-	textarea: string;
-	combobox: string;
 	number: number;
-	slider: number;
 	boolean: boolean;
-	checkbox: boolean;
-	switch: boolean;
 	enum: string;
-	date: Date | undefined;
+	date: Date;
 	array: unknown[];
 	object: Record<string, unknown>;
 };
 
-/** Config shape for the conventional `combobox` widget. */
 export type ComboboxConfig = {
 	options: string[];
 };
 
 /**
- * Identity helper that types a widget's `value`/`onChange`/`config` with zero
- * runtime cost. Returns the component unchanged.
+ * Identity helper that preserves `TValue`/`TConfig` inference for a field
+ * widget. Zero runtime behavior by design — the value is the type-level
+ * contract, so `defineFieldComponent<number>(MyInput)` stays checked while
+ * `FieldComponentMap` remains bivariant at registration.
  */
 export function defineFieldComponent<
 	TValue = unknown,
@@ -135,31 +194,16 @@ export type FieldComponentMap = Record<
 	React.ComponentType<FieldComponentProps<any, any>>
 >;
 
-/**
- * Identity helper that type-checks a `fieldComponents` map with zero runtime
- * cost. Presets live in examples or a UI-kit package, not the headless lib.
- */
 export function defineFieldComponents<T extends FieldComponentMap>(map: T): T {
 	return map;
 }
 
 export type SchemaAdapter<TSchema, TValues = unknown> = {
-	buildFieldMap(schema: TSchema): SchemaTree;
-	buildDefaults(
-		fieldMap: SchemaTree,
-		overrides?: Record<string, unknown>,
-	): DefaultValues<FieldValues>;
+	createFieldMap(schema: TSchema): SchemaTree;
 	createResolver(schema: TSchema): Resolver;
-	/** Phantom output type — never read at runtime. Enables `useForm` inference. */
 	readonly _infer?: TValues;
 };
 
-/**
- * Structural Standard Schema output inference (zero runtime, zero new deps).
- * Zod v4 (`z.infer`) and Valibot (`v.InferOutput`) both expose
- * `~standard.types.output`, so one conditional covers every adapter.
- * Falls back to `unknown` for non-conforming schemas.
- */
 export type InferFormValues<TSchema> = TSchema extends {
 	"~standard": { types?: { output?: infer TOut } };
 }
@@ -175,27 +219,22 @@ export type ValidationMode =
 
 export type ReValidateMode = "onChange" | "onBlur" | "onSubmit";
 
-export type FormContextValue = {
+type WithFieldMap = {
 	fieldMap: SchemaTree;
 };
 
+export type FormContextValue = WithFieldMap;
+
 export type FormContextInstance<TValues extends FieldValues = FieldValues> =
-	UseFormReturn<TValues> & {
-		fieldMap: SchemaTree;
-	};
+	UseFormReturn<TValues> & WithFieldMap;
 
 export type FormInstance<TValues extends FieldValues = FieldValues> =
-	UseFormReturn<TValues, unknown, TValues> & {
-		fieldMap: SchemaTree;
-		onSubmit: (values: TValues) => void | Promise<void>;
-		onInvalid?: (errors: FieldErrors<TValues>) => void;
-		/**
-		 * Called when `onSubmit` itself throws or rejects (e.g. a failed server
-		 * request). Validation failures still go to `onInvalid`. `<Form>` also
-		 * records the failure as a `root.serverError` field error.
-		 */
-		onSubmitError?: (error: unknown) => void;
-	};
+	UseFormReturn<TValues, unknown, TValues> &
+		WithFieldMap & {
+			onSubmit: (values: TValues) => void | Promise<void>;
+			onInvalid?: (errors: FieldErrors<TValues>) => void;
+			onSubmitError?: (error: unknown) => void;
+		};
 
 export type UseFormOptions<
 	TSchema,
@@ -204,7 +243,6 @@ export type UseFormOptions<
 	schema: TSchema;
 	onSubmit: (values: TValues) => void | Promise<void>;
 	onInvalid?: (errors: FieldErrors<TValues>) => void;
-	/** Called when `onSubmit` throws or rejects. Validation failures still go to `onInvalid`. */
 	onSubmitError?: (error: unknown) => void;
 	defaultValues?: DefaultValues<TValues>;
 	validationMode?: ValidationMode;

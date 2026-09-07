@@ -10,7 +10,7 @@ You will control when validation runs and where failures go.
 
 ## Modes
 
-`useForm` maps straight onto react-hook-form (`package/src/core/use-form.ts:189`):
+`useForm` maps straight onto react-hook-form (`package/src/core/use-form.ts:92-93,132-137`):
 
 | Option | Values | Default |
 |---|---|---|
@@ -21,7 +21,7 @@ You will control when validation runs and where failures go.
 const form = useForm({ schema, validationMode: "onBlur", reValidateMode: "onChange" });
 ```
 
-Invalid modes throw `createFormError`. Switching modes remounts the form (via `key`) so the new mode takes effect from a clean state (`examples/src/examples/validation-modes.tsx:25-77`).
+There is no runtime `validationMode`/`reValidateMode` check — invalid strings are a type error only. Switching modes remounts the form (via `key`) so the new mode takes effect from a clean state (`examples/src/examples/validation-modes.tsx:25-78`).
 
 ## Submit wiring
 
@@ -43,7 +43,7 @@ type UseFormOptions<TSchema, TValues> = {
 | `onInvalid` | Validation fails; receives `FieldErrors<TValues>` |
 | `onSubmitError` | `onSubmit` itself throws or rejects (e.g. failed fetch); validation failures still go to `onInvalid` |
 
-`<Form form>` renders `<form onSubmit={preventDefault + handleSubmit(onSubmit, onInvalid)}>` (`package/src/core/form.tsx:46`). A throwing `onSubmit` is caught and routed to `onSubmitError` plus a `root.serverError` field error — read it via `useFormState().errors.root?.serverError`. Missing `schema`/`onSubmit` throws `createFormError`; raw Adapter failures gain context while `createFormError` messages pass through (`package/src/core/use-form.ts:45`).
+`<Form form>` renders `<form onSubmit={preventDefault + handleSubmit(onSubmit, onInvalid)}>` (`package/src/core/form.tsx:55-65`). A throwing `onSubmit` is caught and routed to `onSubmitError` plus a `root.serverError` field error — read it via `useFormState().errors.root?.serverError`. Missing `schema`/`onSubmit` throws `createFormError`; raw Adapter failures gain context while `createFormError` messages pass through (`package/src/core/use-form.ts:22-37`).
 
 ## Deep components
 
@@ -55,7 +55,7 @@ const { reset } = useFormContext();
 <SmartField name="name" disabled={disabled} />
 ```
 
-`useFormContext` merges RHF context with `{ fieldMap }` and throws outside `<Form>`. `disabled` forwards to `useController` and the widget; `reset()` restores Adapter defaults. Full example in `examples/src/examples/form-context.tsx:23-45`.
+`useFormContext` merges RHF context with `{ fieldMap }` and throws outside `<Form>`. `disabled` forwards to `useController` and the widget; `reset()` restores your `defaultValues`. Full example in `examples/src/examples/form-context.tsx:23-45`.
 
 ## Troubleshooting
 
@@ -63,7 +63,7 @@ const { reset } = useFormContext();
 |---|---|---|
 | `useForm requires a schema` | `schema` null/undefined | Pass the schema matching your Adapter |
 | `useForm requires an onSubmit handler` | `onSubmit` not a function | Pass `(values) => …` |
-| `Invalid validationMode "x"` | Typo | Use one of the five `ValidationMode` values above |
+| Wrong validation timing | `validationMode` typo (type error only, no runtime throw) | Use one of the five `ValidationMode` values above |
 | Silent server failure | Throwing `onSubmit` without `onSubmitError` | Add `onSubmitError` and check `root.serverError` |
 
-Agent hint: inline `onSubmit`/`onInvalid`/`onSubmitError` are latest-ref stabilized so `form` identity does not churn (`package/src/core/use-form.ts:199`).
+Agent hint: inline `onSubmit`/`onInvalid`/`onSubmitError` are latest-ref stabilized so `form` identity does not churn (`package/src/core/use-form.ts:139-147`).
