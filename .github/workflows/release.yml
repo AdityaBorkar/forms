@@ -29,6 +29,12 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Setup Node (npm publish + provenance)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
