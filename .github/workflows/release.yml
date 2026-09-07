@@ -29,12 +29,6 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Setup Node (npm publish + provenance)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          registry-url: https://registry.npmjs.org
-
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -61,18 +55,29 @@ jobs:
             echo "Not in prerelease mode — publishing as latest."
           fi
 
-      - name: Version packages and publish
-        id: changesets
-        uses: changesets/action@v2.1.1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version-script: bunx changeset version
-          publish-script: bunx changeset publish
-          commit-message: "chore: release <VERSION>"
-          pr-title: "chore: release <VERSION>"
-          create-github-releases: true
+      - name: Version, publish, and push (no PR)
         env:
           NPM_CONFIG_PROVENANCE: "true"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          bunx changeset version
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit --amend --no-edit
+            AMENDED=1
+          else
+            echo "No version changes."
+            AMENDED=0
+          fi
+          bunx changeset publish
+          if [ "$AMENDED" = "1" ]; then
+            git push --force-with-lease --follow-tags origin HEAD:${{ github.ref_name }}
+          else
+            git push --follow-tags origin HEAD:${{ github.ref_name }}
+          fi
 
   sync-docs:
     name: Refresh docs content
