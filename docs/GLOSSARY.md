@@ -44,21 +44,39 @@ is never touched again downstream.
 
 ## FieldDef
 
-**Type:** `FieldDef`
+**Type:** `FieldDef = StringFieldDef | NumberFieldDef | BooleanFieldDef | EnumFieldDef | ArrayFieldDef | ObjectFieldDef | DateFieldDef | CustomFieldDef`
 
-One node's resolved metadata:
+One node's resolved metadata. Discriminated by `kind` — each variant only
+allows the props that make sense for it (e.g. `BooleanFieldDef` has
+`checks?: never`, `ObjectFieldDef` requires `elementFields`):
 
 | Property | Type | Meaning |
 |---|---|---|
 | `kind` | [FieldKind](#fieldkind) | Dispatch key into [FieldComponentMap](#fieldcomponentmap) |
 | `optional` | `boolean` | Whether the value may be `undefined`. Single source of truth — derive "required" in UI as `!optional`. There is no stored `required` field. |
 | `meta` | [FieldMeta](#fieldmeta)? | User annotations (label, placeholder, description, plus custom keys) |
-| `checks` | [FieldCheck](#fieldcheck)[]? | Normalized validation constraints |
-| `entries` | `Record<string, string>?` | Enum value-label pairs |
+| `checks` | [FieldCheck](#fieldcheck)[]? | Normalized validation constraints (string/number/array only) |
+| `entries` | `Record<string, string>?` | Enum value-label pairs (`enum` only) |
 | `elementFields` | [SchemaTree](#schematree)? | Child fields for `object` kinds (array-element children live on `elementDef.elementFields`) |
 | `elementDef` | `FieldDef?` | Array element definition — present whenever the element type is known, including primitives (`z.array(z.string())` yields a `string` elementDef) |
 | `min` | `number?` | Derived minimum (length for strings/arrays, value for numbers) |
 | `max` | `number?` | Derived maximum |
+
+Variant rules (`src/types.ts`):
+
+| Variant | `kind` | Allowed extras |
+|---|---|---|
+| `StringFieldDef` | `"string" \| "email" \| "url"` | `checks`, `min`, `max` |
+| `NumberFieldDef` | `"number"` | `checks`, `min`, `max` |
+| `BooleanFieldDef` | `"boolean"` | — (leaf, no constraints) |
+| `EnumFieldDef` | `"enum"` | `entries` |
+| `ArrayFieldDef` | `"array"` | `elementDef`, `checks`, `min`, `max` |
+| `ObjectFieldDef` | `"object"` | `elementFields` (required) |
+| `DateFieldDef` | `"date"` | — (leaf) |
+| `CustomFieldDef` | `string` | Leaf-or-container permissive (`checks`/`min`/`max`/`entries`/`elementFields`/`elementDef` all allowed) so third-party adapters keep working |
+
+`CustomFieldDef` is why `resolveFieldDef` only branches on `"array"` vs
+`"object"` — every other kind (including custom leaves) is terminal.
 
 ---
 
@@ -77,8 +95,9 @@ The runtime value of `FieldDef.kind`. Base kinds per adapter:
 - Valibot emits: `string|number|boolean|date|email|url|object|array|enum`
   (`picklist`/`enum` both normalize to `enum`)
 
-The adapter never emits `"unknown"`; unknown kinds
-resolve at render time (missing component → `devWarn` + `null`).
+The adapter never emits `"unknown"`; unregistered kinds
+resolve at render time via [OnMissingField](#onmissingfield)
+(dev throw by default, prod `devWarn` + `null`).
 
 ## KnownFieldKind
 
@@ -118,10 +137,13 @@ and `v.description()`.
 
 ## FieldComponentMap
 
-**Type:** `Record<string, React.ComponentType<FieldComponentProps>>`
+**Type:** `Record<string, React.ComponentType<FieldComponentProps<any, any>>>`
 
 Kind-to-component dispatch table, supplied once to `createFormSystem` and
-closed over (not in React context, not swappable at runtime).
+closed over (not in React context, not swappable at runtime). `any` is
+intentional bivariance — safety comes from
+[`defineFieldComponent`](#definefieldcomponent--definefieldcomponents) at
+registration time.
 
 ---
 
@@ -135,10 +157,10 @@ Input contract for [FieldComponentMap](#fieldcomponentmap) components:
 |---|---|
 | `def` | Resolved [FieldDef](#fielddef) (read `def.kind`, `def.meta`, `def.min`/`max`, `def.entries`, `def.optional`) |
 | `name` | RHF dotted path |
-| `value` | `TValue` — current value via `useController` (omitted when `undefined`; components must handle `undefined`) |
+| `value` | `TValue` — current value via `useController` (`undefined` until set; components must handle `undefined`) |
 | `onChange` | `(value: TValue) => void` — takes the value directly, not an event |
 | `onBlur` | `() => void` |
-| `ref` | Focus ref |
+| `ref` | Focus ref (`React.RefCallback<HTMLElement>`) |
 | `error` | `fieldState.error?.message` |
 | `disabled` | From [SmartFieldProps](#smartfieldprops) |
 | `config` | `TConfig` — from [SmartFieldProps](#smartfieldprops), arbitrary pass-through |
@@ -424,13 +446,14 @@ passes straight through to RHF; array rows use explicit `append(value)`.
 
 ---
 
-## makeFieldDef
+## makeFieldDef / createFieldMapEngine
 
-Internal adapter helper (`adapters/shared/index.ts`, not from public entrypoints):
+Internal adapter helpers (`adapters/shared/index.ts`, not from public entrypoints):
 
-- **`makeFieldDef(base, optional, meta?)`** — attaches `meta` and `optional` to the base def.
+- **`makeFieldDef(base, optional, meta?)`** — attaches `meta` and `optional` to the base def (drops empty `checks`).
 - **`isFieldMeta(value)`** — `FieldMeta` type guard.
-- `ConstraintAcc` type (accumulators start inline as `{ checks: [] }`).
+- **`createFieldMapEngine(primitives)`** — shared `createFieldMap`/`createFieldDefInner` loop behind an `AdapterPrimitives<TSchema>` boundary (`getType`/`getMeta`/`getLengthConstraints`/`getNumberConstraints`/`getStringKind`/`getEnumEntries`/`getArrayItem`/`getObjectEntries`/`unwrapOptional`/`getUnionOptions`/`isLiteral`). Handles optional-unwrap (outer `meta` wins), single-non-`literal` union pick, `record`/unknown throw. Both bundled adapters are thin primitive sets over this engine.
+- `ConstraintAcc` / `Constraints` types (accumulators start inline as `{ checks: [] }`).
 
 ---
 
@@ -439,18 +462,18 @@ Internal adapter helper (`adapters/shared/index.ts`, not from public entrypoints
 **Type:** `(message: string, details?: string[]) => Error`
 
 `[@adistack/forms]`-prefixed error with `→ detail` bullet lines. Internal
-(`errors.ts`, not exported).
+(`core/errors.ts`, not exported).
 
 ---
 
-## devWarn
+## devWarn / missing-field helpers
 
-**Type:** `(message: string, details?: string[]) => void`
+**Types:** `devWarn(message, details?)`, `isProduction()`, `shouldWarnOnMissing(onMissingField)`, `missingField(message, details, onMissingField)`
 
 Dev-only `console.warn` (`[@adistack/forms]` prefix, skipped when
 `NODE_ENV === "production"`), deduplicated per message. Used for recoverable
 `SmartField`/`SmartFieldArray` misses under `onMissingField: "warn"` (or always
-in production, where both render `null`). Internal (`errors.ts`, not exported).
+in production, where both render `null`). Internal (`core/errors.ts`, not exported).
 There is no `resetDevWarnings` helper.
 
 ---
@@ -461,8 +484,8 @@ There is no `resetDevWarnings` helper.
 
 - **`zodAdapter`** — `SchemaAdapter<ZodType<FieldValues, FieldValues>, FieldValues>` wiring the two below.
 - **`createFieldMap(schema)`** — Zod → [SchemaTree](#schematree) via
-  `schema._zod.def.shape`; `{}` for non-object/`undefined`. See
-  [ARCHITECTURE.md](./ARCHITECTURE.md#zod-adapter-internals).
+  a `getZodDef` (`schema._zod.def`) choke point; `{}` for non-object/`undefined`. See
+  [ARCHITECTURE.md](./ARCHITECTURE.md#adapter-internals).
 - **`createResolver(schema)`** — `zodResolver(schema)` typed as `Resolver`.
 
 ---

@@ -32,7 +32,7 @@ import type {
 import type { ConstraintAcc, Constraints } from "#/adapters/shared";
 import { createFieldMapEngine, isFieldMeta } from "#/adapters/shared";
 import { createFormError } from "#/core/errors.ts";
-import type { FieldMeta } from "#/types";
+import type { FieldMeta, SchemaTree } from "#/types";
 
 const SUPPORTED_TYPES = [
 	"string",
@@ -44,9 +44,6 @@ const SUPPORTED_TYPES = [
 	"object",
 	"date",
 ] as const;
-
-/** Only these wrappers allow `undefined`. `nullable` alone does not. */
-const OPTIONAL_WRAPPERS = ["optional", "nullish", "exact_optional"] as const;
 
 function getPipe(schema: GenericSchema): readonly GenericPipeItem[] {
 	if (!("pipe" in schema)) return [];
@@ -249,9 +246,9 @@ const engine = createFieldMapEngine<GenericSchema>({
 	supportedTypes: SUPPORTED_TYPES,
 	unwrapOptional: (schema, fieldPath) => {
 		const type = schema.type;
-		const forcesOptional = (OPTIONAL_WRAPPERS as readonly string[]).includes(
-			type,
-		);
+		// Only these wrappers allow `undefined`. `nullable` alone does not.
+		const forcesOptional =
+			type === "optional" || type === "nullish" || type === "exact_optional";
 		if (!forcesOptional && type !== "nullable") return null;
 		const wrapped =
 			"wrapped" in schema
@@ -276,6 +273,6 @@ const engine = createFieldMapEngine<GenericSchema>({
 	},
 });
 
-export function createFieldMap(schema: GenericSchema | undefined) {
+export function createFieldMap(schema: GenericSchema | undefined): SchemaTree {
 	return engine.createFieldMap(schema);
 }

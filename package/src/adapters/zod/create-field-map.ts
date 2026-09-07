@@ -16,7 +16,7 @@ import type {
 import type { ConstraintAcc, Constraints } from "#/adapters/shared";
 import { createFieldMapEngine, isFieldMeta } from "#/adapters/shared";
 import { createFormError } from "#/core/errors.ts";
-import type { FieldMeta } from "#/types";
+import type { FieldMeta, SchemaTree } from "#/types";
 
 const SUPPORTED_TYPES = [
 	"string",
@@ -176,6 +176,6 @@ const engine = createFieldMapEngine<ZodType>({
 	},
 });
 
-export function createFieldMap(schema: ZodType | undefined) {
+export function createFieldMap(schema: ZodType | undefined): SchemaTree {
 	return engine.createFieldMap(schema);
 }

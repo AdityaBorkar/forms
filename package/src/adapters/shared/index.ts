@@ -24,7 +24,7 @@ export function makeFieldDef<T extends { kind: string }>(
 ): FieldDef {
 	const { checks, ...rest } = base as T & { checks?: FieldCheck[] };
 	const out: Record<string, unknown> = { ...rest, optional };
-	if (checks && checks.length > 0) out.checks = checks;
+	if (checks?.length) out.checks = checks;
 	if (meta !== undefined) out.meta = meta;
 	return out as FieldDef;
 }
@@ -34,7 +34,7 @@ function mergeMeta(
 	outer?: FieldMeta,
 ): FieldMeta | undefined {
 	if (!inner && !outer) return undefined;
-	const merged = { ...(inner ?? {}), ...(outer ?? {}) };
+	const merged = { ...inner, ...outer };
 	return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
@@ -98,8 +98,8 @@ export function createFieldMapEngine<TSchema>(
 		isLiteral,
 	} = primitives;
 
-	const prefix =
-		adapterName === "Zod" ? "z." : adapterName === "Valibot" ? "v." : "";
+	const PREFIXES: Record<string, string> = { Valibot: "v.", Zod: "z." };
+	const prefix = PREFIXES[adapterName] ?? "";
 
 	function unsupportedType(type: string, fieldPath: string): never {
 		if (type === "record") {

@@ -2,7 +2,6 @@
 
 ## Phase 1
 
-- update docs
 - `examples` review
 - GitHub Workflows Review and Actual Publishing
   - changeset verififcaton

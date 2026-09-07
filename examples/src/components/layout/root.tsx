@@ -23,10 +23,11 @@ export function RootLayout({
 				<nav className="grid gap-1 mt-6">
 					{EXAMPLES.map((ex) => (
 						<a
-							className={cn("rounded-md px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+							className={cn(
+								"rounded-md px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
 								ex.slug === activeSlug
 									? "bg-sidebar-accent text-sidebar-accent-foreground"
-									: ""
+									: "",
 							)}
 							href={`/${ex.slug}`}
 							key={ex.slug}

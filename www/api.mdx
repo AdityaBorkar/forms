@@ -15,8 +15,8 @@ You will import from the right entrypoint and type against the right shape.
 | Entrypoint | Path | Purpose |
 |---|---|---|
 | `@adistack/forms` | `src/index.ts` | Core: `createFormSystem`, `resolveFieldDef`, types |
-| `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | `zodAdapter`, `createFieldMap(schema)`, `createResolver(schema)` |
-| `@adistack/forms/adapters/valibot` | `src/adapters/valibot/index.ts` | `valibotAdapter`, `createFieldMap(schema)`, `createResolver(schema)` (`picklist`/`enum` → `enum`) |
+| `@adistack/forms/adapters/zod` | `src/adapters/zod/index.ts` | `zodAdapter` (with `createFieldMap`/`createResolver` methods), standalone `createResolver(schema)` |
+| `@adistack/forms/adapters/valibot` | `src/adapters/valibot/index.ts` | `valibotAdapter` (with `createFieldMap`/`createResolver` methods), standalone `createResolver(schema)` (`picklist`/`enum` → `enum`) |
 | `@adistack/forms/ui` | `src/ui/index.ts` | Types only: `SmartFieldProps`, `SmartFieldArrayProps`, `SmartFieldArrayRenderProps`, `FieldArrayRow` |
 
 `SmartField`/`useForm`/`useFormContext`/`SmartFieldArray` are factory-returned, not direct imports.

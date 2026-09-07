@@ -51,6 +51,7 @@ Register the widget under the base kind it handles — validation stays a plain 
 
 ```ts title="examples/custom-component.tsx"
 const schema = z.object({
+  feedback: z.string().max(200).meta({ label: "Feedback" }),
   score: z.number().min(1).max(5).meta({ label: "Score" }),
   title: z.string().min(1).meta({ label: "Title" }),
 });
@@ -64,4 +65,4 @@ Need per-instance options? Use `config` — it passes through untouched (`<Smart
 |---|---|---|
 | `No component registered for field kind "number"` | Kind missing from map | Add `number: StarsField` to the `fieldComponents` passed to `createFormSystem()` |
 
-Agent hint: `makeFieldDef` attaches `meta` and `optional` to the base def (`package/src/adapters/shared/index.ts`).
+Agent hint: `makeFieldDef` attaches `meta` and `optional` to the base def and drops empty `checks` (`package/src/adapters/shared/index.ts:20-30`).

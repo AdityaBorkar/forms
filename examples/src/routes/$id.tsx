@@ -24,9 +24,9 @@ export default function Page({ params }: { params: { id: string } }) {
 		);
 	}
 	return (
-		<RootLayout className="w-full max-w-2xl p-8">
+		<RootLayout className="w-full grid grid-cols-3 h-screen *:overflow-auto divide-x divide-border">
+			<SourcePanel exampleId={Example.slug} className="col-span-2 " />
 			<Example.component />
-			<SourcePanel exampleId={Example.slug} />
 		</RootLayout>
 	);
 }

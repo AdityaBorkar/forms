@@ -11,17 +11,18 @@ You will trace any SchemaTree claim back to the Adapter that produced it.
 ## Contract
 
 ```ts title="package/src/types.ts"
-type SchemaAdapter<TSchema> = {
+type SchemaAdapter<TSchema, TValues = unknown> = {
   createFieldMap(schema: TSchema): SchemaTree;
   createResolver(schema: TSchema): Resolver;
+  readonly _infer?: TValues;
 };
 ```
 
-The Adapter is the only place that knows a validation library's internals (`package/src/adapters/zod/create-field-map.ts`, `package/src/adapters/valibot/create-field-map.ts`). Everything downstream operates on normalized output. Full internals live in `package/src/adapters/*/create-field-map.ts`.
+The Adapter is the only place that knows a validation library's internals. Both bundled Adapters are thin primitive sets over the shared `createFieldMapEngine` (`package/src/adapters/shared/index.ts:82-228`) behind an `AdapterPrimitives` boundary (`package/src/adapters/shared/index.ts:41-70`). Everything downstream operates on normalized output. Full internals live in `package/src/adapters/*/create-field-map.ts`.
 
 ## Zod
 
-Walks private `schema._zod.def` — intentionally fragile (`package/src/adapters/zod/create-field-map.ts`). 7 supported types:
+Walks private `schema._zod.def` via a `getZodDef` choke point (`package/src/adapters/zod/create-field-map.ts:32-34`) — intentionally fragile. 7 supported types (`package/src/adapters/zod/create-field-map.ts:21-29`):
 
 `string`, `number`, `boolean`, `enum`, `array`, `object`, `date`.
 
@@ -37,14 +38,14 @@ Walks private `schema._zod.def` — intentionally fragile (`package/src/adapters
 | `record`, bare `literal`, unknown | Throws `Unsupported Zod type: …`; never emits `kind: "unknown"` |
 
 ```ts title="app.ts"
-import { createFieldMap, zodAdapter } from "@adistack/forms/adapters/zod";
+import { zodAdapter } from "@adistack/forms/adapters/zod";
 ```
 
-`createResolver` is `zodResolver(schema)` from `@hookform/resolvers/zod`.
+`createFieldMap`/`createResolver` are methods on `zodAdapter` (`package/src/adapters/zod/index.ts:14-20`); `createResolver` is also a standalone named export. `createResolver` is `zodResolver(schema)` from `@hookform/resolvers/zod`.
 
 ## Valibot
 
-Walks public-ish `type`/`entries`/`item`/`wrapped`/`pipe`. 8 supported types:
+Walks public-ish `type`/`entries`/`item`/`wrapped`/`pipe` (`package/src/adapters/valibot/create-field-map.ts`). 8 supported types (`package/src/adapters/valibot/create-field-map.ts:37-46`):
 
 `string`, `number`, `boolean`, `picklist`, `enum`, `array`, `object`, `date` (`picklist`/`enum` both normalize to `enum`).
 
@@ -70,4 +71,4 @@ Full schema in `examples/src/examples/valibot-form.tsx`. `createResolver` is `va
 
 No auto-defaults are derived. `useForm({ defaultValues })` passes straight through to RHF; array rows use explicit `append(value)`.
 
-Agent hint: Zod `SUPPORTED_TYPES` lives in `package/src/adapters/zod/create-field-map.ts`; Valibot adds `picklist` and `OPTIONAL_WRAPPERS` in `package/src/adapters/valibot/create-field-map.ts`.
+Agent hint: Zod `SUPPORTED_TYPES` lives in `package/src/adapters/zod/create-field-map.ts:21-29`; Valibot adds `picklist` in `package/src/adapters/valibot/create-field-map.ts:37-46`, with `optional`/`nullish`/`exact_optional` forcing optional inline (`package/src/adapters/valibot/create-field-map.ts:247-273`).

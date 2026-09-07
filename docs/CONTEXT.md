@@ -13,11 +13,13 @@ The metadata tree an adapter derives from a schema.
 _Avoid_: field map (as a generic phrase), schema tree (lowercase)
 
 **FieldDef**:
-One field's resolved metadata (kind, optionality, constraints, nesting).
+One field's resolved metadata (kind, optionality, constraints, nesting),
+discriminated by kind.
 _Avoid_: field definition (verbose), field config
 
 **Kind**:
 The single dispatch string on a FieldDef that selects a UI component.
+Base kinds are fixed (`string|email|url|number|boolean|enum|array|object|date`); custom strings stay allowed for forward-compat.
 _Avoid_: type, variant, widget
 
 **Adapter**:

@@ -82,7 +82,7 @@ export function createSmartFieldArray(
 ): ComponentType<SmartFieldArrayProps> {
 	const onMissingField = options?.onMissingField ?? "throw";
 
-	function BoundSmartFieldArray({
+	function SmartFieldArray({
 		name,
 		children,
 	}: SmartFieldArrayProps): ReactElement {
@@ -91,7 +91,7 @@ export function createSmartFieldArray(
 		return <ArrayFieldInner name={name}>{children}</ArrayFieldInner>;
 	}
 
-	return Object.assign(BoundSmartFieldArray, {
+	return Object.assign(SmartFieldArray, {
 		displayName: "SmartFieldArray",
 	});
 }
