@@ -11,29 +11,13 @@ import { createFormError } from "#/core/errors.ts";
 import type {
 	FormInstance,
 	InferFormValues,
-	ReValidateMode,
 	SchemaAdapter,
 	SchemaTree,
 	UseFormOptions,
-	ValidationMode,
 } from "#/types";
 
 export type InferredValues<S> =
 	InferFormValues<S> extends FieldValues ? InferFormValues<S> : FieldValues;
-
-const VALIDATION_MODES: readonly ValidationMode[] = [
-	"onBlur",
-	"onChange",
-	"onSubmit",
-	"onTouched",
-	"all",
-];
-
-const RE_VALIDATE_MODES: readonly ReValidateMode[] = [
-	"onChange",
-	"onBlur",
-	"onSubmit",
-];
 
 const FORM_ERROR_PREFIX = "[@adistack/forms]";
 
@@ -80,7 +64,7 @@ function getCachedFieldMap<TSchema>(
 		runAdapterStep(
 			"useForm could not build the field map from your schema",
 			"Check that the schema matches the adapter (e.g. a Zod object for zodAdapter).",
-			() => schemaResolver.buildFieldMap(schema),
+			() => schemaResolver.createFieldMap(schema),
 		),
 	);
 }
@@ -144,24 +128,6 @@ export function createUseForm<TSchema>(
 				"Pass a submit handler, e.g. useForm({ schema, onSubmit: (values) => ... }).",
 				`Received ${typeof onSubmit}.`,
 			]);
-		}
-		if (!VALIDATION_MODES.includes(validationMode)) {
-			throw createFormError(
-				`Invalid validationMode "${validationMode as string}"`,
-				[
-					`Expected one of: ${VALIDATION_MODES.join(", ")}.`,
-					"Pass it as useForm({ validationMode: ... }).",
-				],
-			);
-		}
-		if (!RE_VALIDATE_MODES.includes(reValidateMode)) {
-			throw createFormError(
-				`Invalid reValidateMode "${reValidateMode as string}"`,
-				[
-					`Expected one of: ${RE_VALIDATE_MODES.join(", ")}.`,
-					"Pass it as useForm({ reValidateMode: ... }).",
-				],
-			);
 		}
 
 		const fieldMap = useMemo(

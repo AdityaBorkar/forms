@@ -2,7 +2,6 @@ import type { ComponentType, ReactElement } from "react";
 import { createContext } from "react";
 import type { FieldValues } from "react-hook-form";
 
-import { createFormError } from "#/errors";
 import type {
 	FieldComponentMap,
 	FormContextInstance,
@@ -17,6 +16,7 @@ import type { SmartFieldProps } from "#/ui/smart-field";
 import { createSmartField } from "#/ui/smart-field";
 import type { SmartFieldArrayProps } from "#/ui/smart-field-array";
 import { createSmartFieldArray } from "#/ui/smart-field-array";
+import { createFormError } from "./errors";
 import type { FormProps } from "./form";
 import { createForm } from "./form";
 import { createUseForm } from "./use-form";
@@ -25,11 +25,6 @@ import { createUseFormContext } from "./use-form-context";
 export type CreateFormSystemOptions<TSchema> = {
 	fieldComponents: FieldComponentMap;
 	schemaResolver: SchemaAdapter<TSchema>;
-	/**
-	 * Missing field/kind policy. `"throw"` (default) throws in dev for fast
-	 * debugging; `"warn"` renders `null` with a dev warning. Production always
-	 * warns + renders `null` for the same safety as before.
-	 */
 	onMissingField?: OnMissingField;
 };
 

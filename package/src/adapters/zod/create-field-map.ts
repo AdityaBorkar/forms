@@ -14,13 +14,7 @@ import type {
 } from "zod/v4/core";
 
 import type { ConstraintAcc } from "#/adapters/shared";
-import {
-	createConstraintAcc,
-	finalizeConstraints,
-	isFieldMeta,
-	makeFieldDef,
-	mergeMeta,
-} from "#/adapters/shared";
+import { isFieldMeta, makeFieldDef } from "#/adapters/shared";
 import { createFormError } from "#/core/errors.ts";
 import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "#/types";
 
@@ -66,12 +60,12 @@ function collectConstraints(
 	def: $ZodTypeDef | undefined,
 	process: (cd: $ZodCheckDef, acc: ConstraintAcc) => void,
 ): Constraints {
-	const acc = createConstraintAcc();
+	const acc = { checks: [] };
 	for (const check of def?.checks ?? []) {
 		const cd = check._zod.def;
 		if (cd) process(cd, acc);
 	}
-	return finalizeConstraints(acc);
+	return acc;
 }
 
 function deriveLengthConstraints(def: $ZodTypeDef | undefined): Constraints {
@@ -151,7 +145,7 @@ function resolveType(
 					? (((def as $ZodArrayDef).element as unknown as ZodType) ?? undefined)
 					: undefined;
 			if (!element) return { kind: "array" };
-			const elementDef = buildFieldDefInner(element, false, `${fieldPath}[]`);
+			const elementDef = createFieldDefInner(element, false, `${fieldPath}[]`);
 			return {
 				...deriveLengthConstraints(def),
 				elementDef,
@@ -160,7 +154,7 @@ function resolveType(
 		}
 		case "object":
 			return {
-				elementFields: buildFieldMapInner(schema, fieldPath),
+				elementFields: createFieldMapInner(schema, fieldPath),
 				kind: "object",
 			};
 		case "date":
@@ -200,7 +194,7 @@ function pickUnionOption(
 	]);
 }
 
-function buildFieldDefInner(
+function createFieldDefInner(
 	schema: ZodType,
 	optional = false,
 	fieldPath = "<root>",
@@ -225,8 +219,8 @@ function buildFieldDefInner(
 				],
 			);
 		}
-		const inner = buildFieldDefInner(innerType, true, fieldPath);
-		result = makeFieldDef(inner, true, mergeMeta(inner.meta, meta));
+		const inner = createFieldDefInner(innerType, true, fieldPath);
+		result = makeFieldDef(inner, true, { ...inner.meta, ...meta });
 	} else if (type === "union") {
 		const options =
 			def && "options" in def
@@ -243,11 +237,11 @@ function buildFieldDefInner(
 			);
 		}
 		const picked = pickUnionOption(options, fieldPath);
-		const inner = buildFieldDefInner(picked, optional, fieldPath);
+		const inner = createFieldDefInner(picked, optional, fieldPath);
 		// Preserve outer optionality: an optional union stays optional even if
 		// the picked branch is required.
 		const mergedOptional = optional || inner.optional;
-		result = makeFieldDef(inner, mergedOptional, mergeMeta(inner.meta, meta));
+		result = makeFieldDef(inner, mergedOptional, { ...inner.meta, ...meta });
 	} else {
 		result = makeFieldDef(
 			resolveType(schema, type, def, fieldPath),
@@ -259,7 +253,7 @@ function buildFieldDefInner(
 	return result;
 }
 
-function buildFieldMapInner(
+function createFieldMapInner(
 	schema: ZodType | undefined,
 	parentPath: string,
 ): SchemaTree {
@@ -272,11 +266,11 @@ function buildFieldMapInner(
 	const map: SchemaTree = {};
 	for (const [key, fieldSchema] of Object.entries(shape)) {
 		const fieldPath = parentPath ? `${parentPath}.${key}` : key;
-		map[key] = buildFieldDefInner(fieldSchema, false, fieldPath);
+		map[key] = createFieldDefInner(fieldSchema, false, fieldPath);
 	}
 	return map;
 }
 
-export function buildFieldMap(schema: ZodType | undefined): SchemaTree {
-	return buildFieldMapInner(schema, "");
+export function createFieldMap(schema: ZodType | undefined): SchemaTree {
+	return createFieldMapInner(schema, "");
 }

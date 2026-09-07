@@ -417,44 +417,10 @@ describe("useForm — input validation", () => {
 		);
 	});
 
-	it("throws for an invalid validationMode", () => {
-		const schema = z.object({ name: z.string() });
-		function Bad() {
-			const form = useForm({
-				onSubmit: vi.fn(),
-				schema,
-				validationMode: "sometimes" as never,
-			});
-			return (
-				<Form form={form}>
-					<SmartField name="name" />
-				</Form>
-			);
-		}
-		expect(() => render(<Bad />)).toThrow('Invalid validationMode "sometimes"');
-	});
-
-	it("throws for an invalid reValidateMode", () => {
-		const schema = z.object({ name: z.string() });
-		function Bad() {
-			const form = useForm({
-				onSubmit: vi.fn(),
-				reValidateMode: "sometimes" as never,
-				schema,
-			});
-			return (
-				<Form form={form}>
-					<SmartField name="name" />
-				</Form>
-			);
-		}
-		expect(() => render(<Bad />)).toThrow('Invalid reValidateMode "sometimes"');
-	});
-
 	it("wraps raw adapter failures with actionable context", () => {
 		const failingAdapter = {
 			...zodAdapter,
-			buildFieldMap: () => {
+			createFieldMap: () => {
 				throw new Error("boom");
 			},
 		};

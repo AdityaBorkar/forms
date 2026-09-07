@@ -2,8 +2,8 @@
 
 ## Phase 1
 
-- GitHub Workflows Review and Actual Publishing
 - Manual Code Review
+- GitHub Workflows Review and Actual Publishing
 - Component Support with useFormField() to register it
   - along with Custom Component
 

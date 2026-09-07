@@ -2,9 +2,9 @@
 
 ## Project
 
-`@adistack/forms` — schema-driven React forms via `react-hook-form`. Factory `createFormSystem({ fieldComponents, schemaResolver })`; caller supplies `SchemaAdapter` + `FieldComponentMap`.
+`@adistack/forms` — schema-driven React forms via `react-hook-form`. Factory `createFormSystem({ fieldComponents, schemaResolver, onMissingField? })`; caller supplies `SchemaAdapter` + `FieldComponentMap`.
 
-Bun workspace: `package/` is the library (`src/`), `examples/` is the demo (`Bun.serve` in `server.ts`, port 4000). `www/` and `.github/workflows/` are empty — no CI.
+Bun workspace: `package/` is the library (`src/`), `examples/` is the demo (`Bun.serve` in `server.ts`, port 4000). `www/` holds Fumadocs mdx docs; `.github/workflows/` holds Changesets CI (`changeset-check`, `release-beta`, `release-stable`).
 
 ## Commands
 
@@ -32,14 +32,16 @@ Run `check:lint` → `check:types` after changes. Pre-commit runs `bun format` (
 
 4 exports in `package/package.json`: `@adistack/forms` → `src/index.ts`, `.../adapters/zod`, `.../adapters/valibot`, `.../ui`.
 
-- `SmartField` / `useForm` / `useFormContext` are **factory-returned**, not direct imports. Factory-bound `SmartFieldArray` (requires `<Form>` context) is canonical; a static unbound one is also exported from core + `ui`.
-- Flow: `useForm({ schema })` → `buildFieldMap` + `createResolver` (plus your `defaultValues` straight to RHF) → `<Form form>` (`FormProvider` + `{ fieldMap }` context) → `<SmartField name="a.b">` → `resolveFieldDef` → `fieldComponents[def.kind]` via `useController`. `validationMode` defaults `onBlur`, `reValidateMode` defaults `onChange`.
+- `SmartField` / `useForm` / `useFormContext` are **factory-returned**, not direct imports. `SmartFieldArray` is factory-bound only (requires `<Form>` context); `core` + `ui` entrypoints export only its prop/row types, no static component.
+- Flow: `useForm({ schema })` → `buildFieldMap` + `createResolver` (WeakMap-cached per schema object, plus your `defaultValues` straight to RHF) → `<Form form>` (`FormProvider` + `{ fieldMap }` context) → `<SmartField name="a.b">` → `resolveFieldDef` → `fieldComponents[def.kind]` via `useController`. `validationMode` defaults `onBlur`, `reValidateMode` defaults `onChange` (type-checked only — no runtime mode validation). `useForm` infers `TValues` from the schema via `InferFormValues` (Standard Schema `~standard.types.output`); callbacks are latest-ref stabilized so `form` identity is stable.
 - `meta.component` (non-empty string) replaces the dispatch kind **at adapter time** (`adapters/shared/field-def.ts`, outer `meta` wins) — `def.kind` already carries the override.
 - `resolveFieldDef`: numeric segment into an `array` steps into `elementDef` (object children live on `elementDef.elementFields`); index-less `arr.city` throws (ambiguous — use `arr.0.city`); empty names/segments throw; numeric keys on non-arrays look up literally.
 - No stored `required` — `FieldDef.optional` is the source of truth (`!optional` = required).
 - No auto-defaults — `defaultValues` pass straight through to RHF (no `buildDefaults`/`deriveDefault`/`mergeDefaults`/`appendDefault`; array rows use explicit `append(value)`). Field components must handle `undefined`.
 - Zod adapter walks private `schema._zod.def` (fragile). Both adapters: `union` keeps the single non-`literal` branch else throws; `record`/unknown throws; never emits `kind: "unknown"`. Valibot: `optional`/`nullish`/`exact_optional` force optional but `nullable` alone does not; `picklist`/`enum` → `enum` kind.
-- Missing def/component renders `null` + deduped dev-only `devWarn` (`resetDevWarnings` is tests-only). Peers: `react@>=18` + `react-hook-form@^7.86.0` required; `zod@>=4`, `valibot@>=1`, `@hookform/resolvers@>=5` optional.
+- `useForm` throws `createFormError` on missing options/`schema`/`onSubmit`; raw adapter failures are wrapped with context, adapter `createFormError`s pass through. No runtime `validationMode`/`reValidateMode` check — invalid strings are a type error only.
+- Missing def/component policy is `onMissingField` (`createFormSystem({ onMissingField })`, default `"throw"`): dev throws, prod always `devWarn` + `null`; `"warn"` opts into `devWarn` + `null` in dev too. `devWarn` is deduped dev-only (`NODE_ENV !== "production"`); no `resetDevWarnings` exists. Peers: `react@>=18` + `react-hook-form@^7.86.0` required; `zod@>=4`, `valibot@>=1`, `@hookform/resolvers@>=5` optional.
+- Typed helpers: `defineFieldComponent<TValue, TConfig>` / `defineFieldComponents(map)` (zero runtime), `FieldKindValueMap` (kind → value type), `ComboboxConfig` (`{ options: string[] }`), `InferFormValues<TSchema>` (Standard Schema output), `SchemaAdapter<TSchema, TValues>` carries phantom `_infer?: TValues`. `OnMissingField = "throw" | "warn"`.
 
 ## Testing
 
@@ -47,7 +49,7 @@ Colocated `*.test.ts(x)` next to source — never create `package/tests/`.
 
 ## Git & Release
 
-Conventional Commits via Husky `commit-msg` (`build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|wip`). Changesets: `baseBranch: main`, `ignore: ["examples","www"]`, only `package/` publishes.
+Conventional Commits via Husky `commit-msg` (`build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test|wip`). Changesets: `baseBranch: main`, `ignore: ["examples","www"]`, only `package/` publishes. CI: `changeset-check` on PRs, `release-beta`/`release-stable` publishing.
 
 ## Docs
 

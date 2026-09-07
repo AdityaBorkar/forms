@@ -29,6 +29,10 @@ The boundary that translates one validation library into a SchemaTree
 and a resolver.
 _Avoid_: resolver (too narrow), parser, bridge
 
+**Inferred values**:
+The form value type derived from a schema.
+_Avoid_: form data (vague), output type (too broad)
+
 ### UI dispatch
 
 **FieldComponentMap**:
@@ -57,3 +61,7 @@ _Avoid_: form factory, form instance (singular form), form kit
 **FieldMap**:
 The SchemaTree carried in React context (`FormContextValue.fieldMap`).
 _Avoid_: schema tree (when meaning the context value), field components
+
+**Missing-field policy**:
+The rule for unknown field names or unregistered kinds.
+_Avoid_: error handling (too broad), fallback (vague)

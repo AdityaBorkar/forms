@@ -122,7 +122,7 @@ export function defineFieldComponents<T extends FieldComponentMap>(map: T): T {
 }
 
 export type SchemaAdapter<TSchema, TValues = unknown> = {
-	buildFieldMap(schema: TSchema): SchemaTree;
+	createFieldMap(schema: TSchema): SchemaTree;
 	createResolver(schema: TSchema): Resolver;
 	/** Phantom output type — never read at runtime. Enables `useForm` inference. */
 	readonly _infer?: TValues;

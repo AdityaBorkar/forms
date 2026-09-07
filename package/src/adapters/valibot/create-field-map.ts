@@ -30,13 +30,7 @@ import type {
 } from "valibot";
 
 import type { ConstraintAcc } from "#/adapters/shared";
-import {
-	createConstraintAcc,
-	finalizeConstraints,
-	isFieldMeta,
-	makeFieldDef,
-	mergeMeta,
-} from "#/adapters/shared";
+import { isFieldMeta, makeFieldDef } from "#/adapters/shared";
 import { createFormError } from "#/core/errors.ts";
 import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "#/types";
 
@@ -95,12 +89,12 @@ function collectConstraints(
 	pipe: readonly GenericPipeItem[],
 	process: (action: GenericPipeItem, acc: ConstraintAcc) => void,
 ): Constraints {
-	const acc = createConstraintAcc();
+	const acc = { checks: [] };
 	for (const action of pipe) {
 		if (action.kind !== "validation") continue;
 		process(action, acc);
 	}
-	return finalizeConstraints(acc);
+	return acc;
 }
 
 function deriveLengthConstraints(
@@ -246,7 +240,7 @@ function resolveType(
 					? (schema as ArraySchema<GenericSchema, undefined>).item
 					: undefined;
 			if (!item) return { kind: "array" };
-			const elementDef = buildFieldDefInner(item, false, `${fieldPath}[]`);
+			const elementDef = createFieldDefInner(item, false, `${fieldPath}[]`);
 			return {
 				...deriveLengthConstraints(pipe),
 				elementDef,
@@ -255,7 +249,7 @@ function resolveType(
 		}
 		case "object":
 			return {
-				elementFields: buildFieldMapInner(schema, fieldPath),
+				elementFields: createFieldMapInner(schema, fieldPath),
 				kind: "object",
 			};
 		case "date":
@@ -299,7 +293,7 @@ function pickUnionOption(
 	]);
 }
 
-function buildFieldDefInner(
+function createFieldDefInner(
 	schema: GenericSchema,
 	optional = false,
 	fieldPath = "<root>",
@@ -331,7 +325,7 @@ function buildFieldDefInner(
 				],
 			);
 		}
-		const inner = buildFieldDefInner(
+		const inner = createFieldDefInner(
 			wrapped,
 			forcesOptional || optional,
 			fieldPath,
@@ -339,7 +333,7 @@ function buildFieldDefInner(
 		// `nullable` alone preserves outer optionality (`null` is a value, not
 		// absence); optional wrappers force `optional: true`.
 		const mergedOptional = forcesOptional || optional || inner.optional;
-		result = makeFieldDef(inner, mergedOptional, mergeMeta(inner.meta, meta));
+		result = makeFieldDef(inner, mergedOptional, { ...inner.meta, ...meta });
 	} else if (type === "union") {
 		const options =
 			"options" in schema
@@ -356,9 +350,9 @@ function buildFieldDefInner(
 			);
 		}
 		const picked = pickUnionOption(schemas, fieldPath);
-		const inner = buildFieldDefInner(picked, optional, fieldPath);
+		const inner = createFieldDefInner(picked, optional, fieldPath);
 		const mergedOptional = optional || inner.optional;
-		result = makeFieldDef(inner, mergedOptional, mergeMeta(inner.meta, meta));
+		result = makeFieldDef(inner, mergedOptional, { ...inner.meta, ...meta });
 	} else {
 		result = makeFieldDef(
 			resolveType(schema, type, getPipe(schema), fieldPath),
@@ -370,7 +364,7 @@ function buildFieldDefInner(
 	return result;
 }
 
-function buildFieldMapInner(
+function createFieldMapInner(
 	schema: GenericSchema | undefined,
 	parentPath: string,
 ): SchemaTree {
@@ -380,7 +374,7 @@ function buildFieldMapInner(
 	const map: SchemaTree = {};
 	for (const [key, fieldSchema] of Object.entries(entries)) {
 		const fieldPath = parentPath ? `${parentPath}.${key}` : key;
-		map[key] = buildFieldDefInner(
+		map[key] = createFieldDefInner(
 			fieldSchema as GenericSchema,
 			false,
 			fieldPath,
@@ -389,6 +383,6 @@ function buildFieldMapInner(
 	return map;
 }
 
-export function buildFieldMap(schema: GenericSchema | undefined): SchemaTree {
-	return buildFieldMapInner(schema, "");
+export function createFieldMap(schema: GenericSchema | undefined): SchemaTree {
+	return createFieldMapInner(schema, "");
 }

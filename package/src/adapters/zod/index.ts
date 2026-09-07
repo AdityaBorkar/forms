@@ -3,7 +3,7 @@ import type { FieldValues, Resolver } from "react-hook-form";
 import type { ZodType } from "zod";
 
 import type { SchemaAdapter } from "#/types";
-import { buildFieldMap } from "./build-field-map";
+import { createFieldMap } from "./create-field-map";
 
 export function createResolver(
 	schema: ZodType<FieldValues, FieldValues>,
@@ -15,6 +15,6 @@ export const zodAdapter: SchemaAdapter<
 	ZodType<FieldValues, FieldValues>,
 	FieldValues
 > = {
-	buildFieldMap,
+	createFieldMap,
 	createResolver,
 };
