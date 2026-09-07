@@ -13,10 +13,10 @@ import type {
 	$ZodUnionDef,
 } from "zod/v4/core";
 
-import type { ConstraintAcc } from "#/adapters/shared";
-import { isFieldMeta, makeFieldDef } from "#/adapters/shared";
+import type { ConstraintAcc, Constraints } from "#/adapters/shared";
+import { createFieldMapEngine, isFieldMeta } from "#/adapters/shared";
 import { createFormError } from "#/core/errors.ts";
-import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "#/types";
+import type { FieldMeta } from "#/types";
 
 const SUPPORTED_TYPES = [
 	"string",
@@ -50,17 +50,11 @@ function getFormat(
 	return typeof format === "string" ? format : undefined;
 }
 
-type Constraints = {
-	checks?: FieldCheck[];
-	max?: number;
-	min?: number;
-};
-
 function collectConstraints(
 	def: $ZodTypeDef | undefined,
 	process: (cd: $ZodCheckDef, acc: ConstraintAcc) => void,
 ): Constraints {
-	const acc = { checks: [] };
+	const acc: ConstraintAcc = { checks: [] };
 	for (const check of def?.checks ?? []) {
 		const cd = check._zod.def;
 		if (cd) process(cd, acc);
@@ -117,115 +111,37 @@ function resolveStringKind(def: $ZodTypeDef | undefined): string {
 	return "string";
 }
 
-type Resolved = Omit<FieldDef, "optional" | "meta">;
-
-function resolveType(
-	schema: ZodType,
-	type: string,
-	def: $ZodTypeDef | undefined,
-	fieldPath: string,
-): Resolved {
-	switch (type) {
-		case "string":
-			return { ...deriveLengthConstraints(def), kind: resolveStringKind(def) };
-		case "number":
-			return { ...deriveNumberConstraints(def), kind: "number" };
-		case "boolean":
-			return { kind: "boolean" };
-		case "enum": {
-			const entries =
-				def && "entries" in def
-					? ((def as $ZodEnumDef).entries as unknown as Record<string, string>)
-					: undefined;
-			return { kind: "enum", ...(entries && { entries }) };
-		}
-		case "array": {
-			const element =
-				def && "element" in def
-					? (((def as $ZodArrayDef).element as unknown as ZodType) ?? undefined)
-					: undefined;
-			if (!element) return { kind: "array" };
-			const elementDef = createFieldDefInner(element, false, `${fieldPath}[]`);
-			return {
-				...deriveLengthConstraints(def),
-				elementDef,
-				kind: "array",
-			};
-		}
-		case "object":
-			return {
-				elementFields: createFieldMapInner(schema, fieldPath),
-				kind: "object",
-			};
-		case "date":
-			return { kind: "date" };
-		case "record":
-			throw createFormError(
-				`Unsupported Zod type: record (field "${fieldPath}")`,
-				[
-					`The "record" type is not supported by the form builder.`,
-					`Supported Zod types: ${SUPPORTED_TYPES.join(", ")}.`,
-					`Consider using z.array() or z.object() instead, or remove this field from the schema.`,
-				],
-			);
-		default:
-			throw createFormError(
-				`Unsupported Zod type: ${type || "(unknown)"} (field "${fieldPath}")`,
-				[`Supported Zod types: ${SUPPORTED_TYPES.join(", ")}.`],
-			);
-	}
-}
-
-function pickUnionOption(
-	options: readonly ZodType[],
-	fieldPath: string,
-): ZodType {
-	const nonLiteral = options.filter((o) => getType(o) !== "literal");
-	if (nonLiteral.length === 1) return nonLiteral[0] as ZodType;
-	if (nonLiteral.length === 0) {
-		throw createFormError(`Unsupported union in field "${fieldPath}"`, [
-			`The union has no non-literal option to render as a field.`,
-			`Use a single field type with an optional literal (e.g. z.string().optional().or(z.literal(""))), or pick one branch.`,
-		]);
-	}
-	throw createFormError(`Ambiguous union in field "${fieldPath}"`, [
-		`The union has ${nonLiteral.length} non-literal options; the form builder cannot guess which one to render.`,
-		`Narrow the schema to a single branch for this field.`,
-	]);
-}
-
-function createFieldDefInner(
-	schema: ZodType,
-	optional = false,
-	fieldPath = "<root>",
-): FieldDef {
-	const def = getZodDef(schema);
-	const type = def?.type ?? "";
-	const meta = getMeta(schema);
-
-	let result: FieldDef;
-	if (type === "optional") {
-		const innerType =
-			def && "innerType" in def
-				? (((def as $ZodOptionalDef).innerType as unknown as ZodType) ??
-					undefined)
-				: undefined;
-		if (!innerType) {
-			throw createFormError(
-				`Optional type has no inner type (field "${fieldPath}")`,
-				[
-					`This usually indicates a malformed Zod schema.`,
-					`Ensure the field is defined as z.someType().optional().`,
-				],
-			);
-		}
-		const inner = createFieldDefInner(innerType, true, fieldPath);
-		result = makeFieldDef(inner, true, { ...inner.meta, ...meta });
-	} else if (type === "union") {
+const engine = createFieldMapEngine<ZodType>({
+	adapterName: "Zod",
+	getArrayItem: (schema) => {
+		const def = getZodDef(schema);
+		return def && "element" in def
+			? ((def as $ZodArrayDef).element as unknown as ZodType)
+			: undefined;
+	},
+	getEnumEntries: (schema) => {
+		const def = getZodDef(schema);
+		return def && "entries" in def
+			? ((def as $ZodEnumDef).entries as unknown as Record<string, string>)
+			: undefined;
+	},
+	getLengthConstraints: (schema) => deriveLengthConstraints(getZodDef(schema)),
+	getMeta,
+	getNumberConstraints: (schema) => deriveNumberConstraints(getZodDef(schema)),
+	getObjectEntries: (schema) => {
+		const def = getZodDef(schema);
+		return def && "shape" in def
+			? ((def as $ZodObjectDef).shape as unknown as Record<string, ZodType>)
+			: undefined;
+	},
+	getStringKind: (schema) => resolveStringKind(getZodDef(schema)),
+	getType,
+	getUnionOptions: (schema, fieldPath) => {
+		if (getType(schema) !== "union") return null;
+		const def = getZodDef(schema);
 		const options =
 			def && "options" in def
-				? (((def as $ZodUnionDef).options as unknown as readonly ZodType[]) ??
-					[])
+				? ((def as $ZodUnionDef).options as unknown as readonly ZodType[])
 				: [];
 		if (options.length === 0) {
 			throw createFormError(
@@ -236,41 +152,30 @@ function createFieldDefInner(
 				],
 			);
 		}
-		const picked = pickUnionOption(options, fieldPath);
-		const inner = createFieldDefInner(picked, optional, fieldPath);
-		// Preserve outer optionality: an optional union stays optional even if
-		// the picked branch is required.
-		const mergedOptional = optional || inner.optional;
-		result = makeFieldDef(inner, mergedOptional, { ...inner.meta, ...meta });
-	} else {
-		result = makeFieldDef(
-			resolveType(schema, type, def, fieldPath),
-			optional,
-			meta,
-		);
-	}
+		return [...options];
+	},
+	isLiteral: (schema) => getType(schema) === "literal",
+	supportedTypes: SUPPORTED_TYPES,
+	unwrapOptional: (schema, fieldPath) => {
+		if (getType(schema) !== "optional") return null;
+		const def = getZodDef(schema);
+		const innerType =
+			def && "innerType" in def
+				? ((def as $ZodOptionalDef).innerType as unknown as ZodType)
+				: undefined;
+		if (!innerType) {
+			throw createFormError(
+				`Optional type has no inner type (field "${fieldPath}")`,
+				[
+					`This usually indicates a malformed Zod schema.`,
+					`Ensure the field is defined as z.someType().optional().`,
+				],
+			);
+		}
+		return { forcesOptional: true, inner: innerType };
+	},
+});
 
-	return result;
-}
-
-function createFieldMapInner(
-	schema: ZodType | undefined,
-	parentPath: string,
-): SchemaTree {
-	const def = schema ? getZodDef(schema) : undefined;
-	const shape =
-		def && "shape" in def
-			? ((def as $ZodObjectDef).shape as unknown as Record<string, ZodType>)
-			: undefined;
-	if (!shape) return {};
-	const map: SchemaTree = {};
-	for (const [key, fieldSchema] of Object.entries(shape)) {
-		const fieldPath = parentPath ? `${parentPath}.${key}` : key;
-		map[key] = createFieldDefInner(fieldSchema, false, fieldPath);
-	}
-	return map;
-}
-
-export function createFieldMap(schema: ZodType | undefined): SchemaTree {
-	return createFieldMapInner(schema, "");
+export function createFieldMap(schema: ZodType | undefined) {
+	return engine.createFieldMap(schema);
 }

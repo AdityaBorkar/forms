@@ -2,7 +2,12 @@ import type { ComponentType, Context, ReactElement } from "react";
 import { useMemo } from "react";
 import { useController } from "react-hook-form";
 
-import { createFormError, devWarn, isProduction } from "#/core/errors.ts";
+import {
+	createFormError,
+	devWarn,
+	missingField,
+	shouldWarnOnMissing,
+} from "#/core/errors.ts";
 import { useFormContextValue } from "#/core/form-context";
 import { resolveFieldDef } from "#/core/resolve-field-def";
 import type {
@@ -33,7 +38,7 @@ export function createSmartField(
 	}: SmartFieldProps): ReactElement | null {
 		const { fieldMap } = useFormContextValue(FormContext, "SmartField");
 
-		// Hot path: split + regex + tree walk once per (fieldMap, name).
+		// Hot path: split + tree walk once per (fieldMap, name).
 		const resolved = useMemo((): { def: FieldDef } | { error: Error } => {
 			try {
 				return { def: resolveFieldDef(fieldMap, name) };
@@ -48,7 +53,7 @@ export function createSmartField(
 		}, [fieldMap, name]);
 
 		if ("error" in resolved) {
-			if (onMissingField === "warn" || isProduction()) {
+			if (shouldWarnOnMissing(onMissingField)) {
 				devWarn(`SmartField: could not render field "${name}"`, [
 					"The field was not found in the schema or has an unsupported type.",
 					"SmartField will render nothing for this field.",
@@ -62,19 +67,17 @@ export function createSmartField(
 		const def = resolved.def;
 		const Component = fieldComponents[def.kind];
 		if (!Component) {
-			const message = `No component registered for field kind "${def.kind}" (field "${name}")`;
 			const availableKinds = Object.keys(fieldComponents);
-			const details = [
-				availableKinds.length
-					? `Available component kinds: ${availableKinds.join(", ")}`
-					: "No components have been registered.",
-				`Add a component for kind "${def.kind}" to the fieldComponents map passed to createFormSystem().`,
-			];
-			if (onMissingField === "warn" || isProduction()) {
-				devWarn(message, details);
-				return null;
-			}
-			throw createFormError(message, details);
+			return missingField(
+				`No component registered for field kind "${def.kind}" (field "${name}")`,
+				[
+					availableKinds.length
+						? `Available component kinds: ${availableKinds.join(", ")}`
+						: "No components have been registered.",
+					`Add a component for kind "${def.kind}" to the fieldComponents map passed to createFormSystem().`,
+				],
+				onMissingField,
+			);
 		}
 
 		return (
@@ -118,7 +121,7 @@ function ControlledField({
 		onBlur,
 		onChange,
 		ref,
-		...(value !== undefined && { value: value as unknown }),
+		value: value as unknown,
 	};
 
 	return <Component {...renderProps} />;

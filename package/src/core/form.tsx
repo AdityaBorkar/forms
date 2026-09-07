@@ -5,7 +5,7 @@ import type {
 	SubmitEventHandler,
 } from "react";
 import { useCallback, useMemo } from "react";
-import type { FieldPath, FieldValues } from "react-hook-form";
+import type { FieldPath, FieldValues, UseFormReturn } from "react-hook-form";
 import { FormProvider } from "react-hook-form";
 
 import { createFormError } from "#/core/errors.ts";
@@ -16,6 +16,19 @@ export type FormProps<TValues extends FieldValues = FieldValues> = {
 	className?: string;
 	children?: ReactNode;
 };
+
+function setRootServerError<TValues extends FieldValues>(
+	setError: UseFormReturn<TValues>["setError"],
+	message: string,
+): void {
+	// RHF reserves `root.*` for form-level errors; `root.serverError` is the
+	// conventional key for async submit failures. The cast is safe because
+	// `FieldValues` permits arbitrary keys and `root` is RHF-reserved.
+	setError("root.serverError" as FieldPath<TValues>, {
+		message,
+		type: "server",
+	});
+}
 
 export function createForm(
 	FormContext: Context<FormContextValue | null>,
@@ -33,6 +46,7 @@ export function createForm(
 				"Make sure <Form> and useForm come from the same createFormSystem() call.",
 			]);
 		}
+		// Strip library-owned fields; the rest is exactly RHF's UseFormReturn.
 		const { fieldMap, onSubmit, onInvalid, onSubmitError, ...rhfMethods } =
 			form;
 
@@ -42,13 +56,10 @@ export function createForm(
 			(event) => {
 				event.preventDefault();
 				const result = rhfMethods.handleSubmit(onSubmit, onInvalid)(event);
-				void Promise.resolve(result).catch((error: unknown) => {
+				void result.catch((error: unknown) => {
 					const message =
 						error instanceof Error ? error.message : String(error);
-					rhfMethods.setError("root.serverError" as FieldPath<TValues>, {
-						message,
-						type: "server",
-					});
+					setRootServerError(rhfMethods.setError, message);
 					onSubmitError?.(error);
 				});
 			},

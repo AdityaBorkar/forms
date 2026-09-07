@@ -29,10 +29,10 @@ import type {
 	ValueInput,
 } from "valibot";
 
-import type { ConstraintAcc } from "#/adapters/shared";
-import { isFieldMeta, makeFieldDef } from "#/adapters/shared";
+import type { ConstraintAcc, Constraints } from "#/adapters/shared";
+import { createFieldMapEngine, isFieldMeta } from "#/adapters/shared";
 import { createFormError } from "#/core/errors.ts";
-import type { FieldCheck, FieldDef, FieldMeta, SchemaTree } from "#/types";
+import type { FieldMeta } from "#/types";
 
 const SUPPORTED_TYPES = [
 	"string",
@@ -47,12 +47,6 @@ const SUPPORTED_TYPES = [
 
 /** Only these wrappers allow `undefined`. `nullable` alone does not. */
 const OPTIONAL_WRAPPERS = ["optional", "nullish", "exact_optional"] as const;
-
-type Constraints = {
-	checks?: FieldCheck[];
-	max?: number;
-	min?: number;
-};
 
 function getPipe(schema: GenericSchema): readonly GenericPipeItem[] {
 	if (!("pipe" in schema)) return [];
@@ -89,7 +83,7 @@ function collectConstraints(
 	pipe: readonly GenericPipeItem[],
 	process: (action: GenericPipeItem, acc: ConstraintAcc) => void,
 ): Constraints {
-	const acc = { checks: [] };
+	const acc: ConstraintAcc = { checks: [] };
 	for (const action of pipe) {
 		if (action.kind !== "validation") continue;
 		process(action, acc);
@@ -211,101 +205,54 @@ function resolveEnumEntries(
 	return undefined;
 }
 
-type Resolved = Omit<FieldDef, "optional" | "meta">;
-
-function resolveType(
-	schema: GenericSchema,
-	type: string,
-	pipe: readonly GenericPipeItem[],
-	fieldPath: string,
-): Resolved {
-	switch (type) {
-		case "string":
-			return {
-				...deriveLengthConstraints(pipe),
-				kind: resolveStringKind(pipe),
-			};
-		case "number":
-			return { ...deriveNumberConstraints(pipe), kind: "number" };
-		case "boolean":
-			return { kind: "boolean" };
-		case "picklist":
-		case "enum": {
-			const entries = resolveEnumEntries(schema);
-			return { kind: "enum", ...(entries && { entries }) };
-		}
-		case "array": {
-			const item =
-				"item" in schema
-					? (schema as ArraySchema<GenericSchema, undefined>).item
-					: undefined;
-			if (!item) return { kind: "array" };
-			const elementDef = createFieldDefInner(item, false, `${fieldPath}[]`);
-			return {
-				...deriveLengthConstraints(pipe),
-				elementDef,
-				kind: "array",
-			};
-		}
-		case "object":
-			return {
-				elementFields: createFieldMapInner(schema, fieldPath),
-				kind: "object",
-			};
-		case "date":
-			return { kind: "date" };
-		case "record":
-			throw createFormError(
-				`Unsupported Valibot type: record (field "${fieldPath}")`,
-				[
-					`The "record" type is not supported by the form builder.`,
-					`Supported Valibot types: ${SUPPORTED_TYPES.join(", ")}.`,
-					`Consider using v.array() or v.object() instead, or remove this field from the schema.`,
-				],
-			);
-		default:
-			throw createFormError(
-				`Unsupported Valibot type: ${type || "(unknown)"} (field "${fieldPath}")`,
-				[`Supported Valibot types: ${SUPPORTED_TYPES.join(", ")}.`],
-			);
-	}
-}
-
 function isSchema(value: unknown): value is GenericSchema {
 	return typeof value === "object" && value !== null;
 }
 
-function pickUnionOption(
-	schemas: GenericSchema[],
-	fieldPath: string,
-): GenericSchema {
-	const nonLiteral = schemas.filter((o) => o.type !== "literal");
-	if (nonLiteral.length === 1) return nonLiteral[0] as GenericSchema;
-	if (nonLiteral.length === 0) {
-		throw createFormError(`Unsupported union in field "${fieldPath}"`, [
-			`The union has no non-literal option to render as a field.`,
-			`Use a single field type with an optional literal, or pick one branch.`,
-		]);
-	}
-	throw createFormError(`Ambiguous union in field "${fieldPath}"`, [
-		`The union has ${nonLiteral.length} non-literal options; the form builder cannot guess which one to render.`,
-		`Narrow the schema to a single branch for this field.`,
-	]);
-}
-
-function createFieldDefInner(
-	schema: GenericSchema,
-	optional = false,
-	fieldPath = "<root>",
-): FieldDef {
-	const type = schema.type;
-	const meta = getMeta(schema);
-
-	let result: FieldDef;
-	const forcesOptional = (OPTIONAL_WRAPPERS as readonly string[]).includes(
-		type,
-	);
-	if (forcesOptional || type === "nullable") {
+const engine = createFieldMapEngine<GenericSchema>({
+	adapterName: "Valibot",
+	getArrayItem: (schema) =>
+		"item" in schema
+			? (schema as ArraySchema<GenericSchema, undefined>).item
+			: undefined,
+	getEnumEntries: resolveEnumEntries,
+	getLengthConstraints: (schema) => deriveLengthConstraints(getPipe(schema)),
+	getMeta,
+	getNumberConstraints: (schema) => deriveNumberConstraints(getPipe(schema)),
+	getObjectEntries: (schema) => {
+		if (!("entries" in schema)) return undefined;
+		const entries = (schema as ObjectSchema<ObjectEntries, undefined>).entries;
+		if (!entries || typeof entries !== "object") return undefined;
+		return entries as unknown as Record<string, GenericSchema>;
+	},
+	getStringKind: (schema) => resolveStringKind(getPipe(schema)),
+	getType: (schema) => schema.type,
+	getUnionOptions: (schema, fieldPath) => {
+		if (schema.type !== "union") return null;
+		const options =
+			"options" in schema
+				? (schema as UnionSchema<UnionOptions, undefined>).options
+				: [];
+		const schemas = (Array.isArray(options) ? options : []).filter(isSchema);
+		if (schemas.length === 0) {
+			throw createFormError(
+				`Union type has no options (field "${fieldPath}")`,
+				[
+					`The union type was defined with an empty options array.`,
+					`Ensure v.union() has at least one option, e.g. v.union([v.string(), v.number()]).`,
+				],
+			);
+		}
+		return schemas;
+	},
+	isLiteral: (schema) => schema.type === "literal",
+	supportedTypes: SUPPORTED_TYPES,
+	unwrapOptional: (schema, fieldPath) => {
+		const type = schema.type;
+		const forcesOptional = (OPTIONAL_WRAPPERS as readonly string[]).includes(
+			type,
+		);
+		if (!forcesOptional && type !== "nullable") return null;
 		const wrapped =
 			"wrapped" in schema
 				? (
@@ -325,64 +272,10 @@ function createFieldDefInner(
 				],
 			);
 		}
-		const inner = createFieldDefInner(
-			wrapped,
-			forcesOptional || optional,
-			fieldPath,
-		);
-		// `nullable` alone preserves outer optionality (`null` is a value, not
-		// absence); optional wrappers force `optional: true`.
-		const mergedOptional = forcesOptional || optional || inner.optional;
-		result = makeFieldDef(inner, mergedOptional, { ...inner.meta, ...meta });
-	} else if (type === "union") {
-		const options =
-			"options" in schema
-				? (schema as UnionSchema<UnionOptions, undefined>).options
-				: [];
-		const schemas = (Array.isArray(options) ? options : []).filter(isSchema);
-		if (schemas.length === 0) {
-			throw createFormError(
-				`Union type has no options (field "${fieldPath}")`,
-				[
-					`The union type was defined with an empty options array.`,
-					`Ensure v.union() has at least one option, e.g. v.union([v.string(), v.number()]).`,
-				],
-			);
-		}
-		const picked = pickUnionOption(schemas, fieldPath);
-		const inner = createFieldDefInner(picked, optional, fieldPath);
-		const mergedOptional = optional || inner.optional;
-		result = makeFieldDef(inner, mergedOptional, { ...inner.meta, ...meta });
-	} else {
-		result = makeFieldDef(
-			resolveType(schema, type, getPipe(schema), fieldPath),
-			optional,
-			meta,
-		);
-	}
+		return { forcesOptional, inner: wrapped };
+	},
+});
 
-	return result;
-}
-
-function createFieldMapInner(
-	schema: GenericSchema | undefined,
-	parentPath: string,
-): SchemaTree {
-	if (!schema || !("entries" in schema)) return {};
-	const entries = (schema as ObjectSchema<ObjectEntries, undefined>).entries;
-	if (!entries || typeof entries !== "object") return {};
-	const map: SchemaTree = {};
-	for (const [key, fieldSchema] of Object.entries(entries)) {
-		const fieldPath = parentPath ? `${parentPath}.${key}` : key;
-		map[key] = createFieldDefInner(
-			fieldSchema as GenericSchema,
-			false,
-			fieldPath,
-		);
-	}
-	return map;
-}
-
-export function createFieldMap(schema: GenericSchema | undefined): SchemaTree {
-	return createFieldMapInner(schema, "");
+export function createFieldMap(schema: GenericSchema | undefined) {
+	return engine.createFieldMap(schema);
 }

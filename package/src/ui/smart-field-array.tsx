@@ -4,7 +4,7 @@ import {
 	useFormContext as useRhfContext,
 } from "react-hook-form";
 
-import { createFormError, devWarn, isProduction } from "#/core/errors.ts";
+import { devWarn, missingField, shouldWarnOnMissing } from "#/core/errors.ts";
 import { useFormContextValue } from "#/core/form-context";
 import { resolveFieldDef } from "#/core/resolve-field-def";
 import type { FormContextValue, OnMissingField, SchemaTree } from "#/types";
@@ -26,20 +26,20 @@ export type SmartFieldArrayProps = {
 
 /**
  * Validate that `name` resolves to an array field. Dev throws fast (matching
- * `SmartField`'s default policy); production warns and lets `useFieldArray`
- * carry on so a misnamed array never takes down a live form.
+ * `SmartField`'s default policy); warn mode (or production) warns and lets
+ * `useFieldArray` carry on so a misnamed array never takes down a live form.
+ * Called in the outer component so invalid names fail before subscribing.
  */
 function assertArrayField(
 	fieldMap: SchemaTree,
 	name: string,
 	onMissingField: OnMissingField,
 ): void {
-	const shouldWarn = onMissingField === "warn" || isProduction();
 	let kind: string;
 	try {
 		kind = resolveFieldDef(fieldMap, name).kind;
 	} catch (error) {
-		if (shouldWarn) {
+		if (shouldWarnOnMissing(onMissingField)) {
 			devWarn(`SmartFieldArray: could not find array field "${name}"`, [
 				"The field was not found in the schema or has an unsupported type.",
 				"Check that the name prop matches an array key in your object schema.",
@@ -49,35 +49,23 @@ function assertArrayField(
 		throw error;
 	}
 	if (kind !== "array") {
-		const message = `SmartFieldArray can only be used with array fields (field "${name}" is kind "${kind}")`;
-		const details = [
-			`Check that "${name}" is an array in your schema.`,
-			"For non-array fields, render a <SmartField> instead.",
-		];
-		if (shouldWarn) {
-			devWarn(message, details);
-			return;
-		}
-		throw createFormError(message, details);
+		missingField(
+			`SmartFieldArray can only be used with array fields (field "${name}" is kind "${kind}")`,
+			[
+				`Check that "${name}" is an array in your schema.`,
+				"For non-array fields, render a <SmartField> instead.",
+			],
+			onMissingField,
+		);
 	}
 }
 
-function ArrayFieldInner({
-	name,
-	children,
-	fieldMap,
-	onMissingField,
-}: SmartFieldArrayProps & {
-	fieldMap: SchemaTree;
-	onMissingField: OnMissingField;
-}): ReactNode {
+function ArrayFieldInner({ name, children }: SmartFieldArrayProps): ReactNode {
 	const rhf = useRhfContext();
 	const { fields, append, remove, update, move } = useFieldArray({
 		control: rhf.control,
 		name,
 	});
-
-	assertArrayField(fieldMap, name, onMissingField);
 
 	return children({
 		append,
@@ -99,15 +87,8 @@ export function createSmartFieldArray(
 		children,
 	}: SmartFieldArrayProps): ReactElement {
 		const { fieldMap } = useFormContextValue(FormContext, "SmartFieldArray");
-		return (
-			<ArrayFieldInner
-				fieldMap={fieldMap}
-				name={name}
-				onMissingField={onMissingField}
-			>
-				{children}
-			</ArrayFieldInner>
-		);
+		assertArrayField(fieldMap, name, onMissingField);
+		return <ArrayFieldInner name={name}>{children}</ArrayFieldInner>;
 	}
 
 	return Object.assign(BoundSmartFieldArray, {

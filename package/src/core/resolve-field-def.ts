@@ -5,15 +5,19 @@ function isNumeric(segment: string): boolean {
 	return /^\d+$/.test(segment);
 }
 
-function failRoot(name: string, rootKey: string, fieldMap: SchemaTree): never {
-	const available = Object.keys(fieldMap);
-	throw createFormError(`No field definition found for "${name}"`, [
-		`Root field "${rootKey}" does not exist in the schema.`,
-		available.length
-			? `Available fields: ${available.join(", ")}`
-			: "The field map is empty — check that your schema is an object with at least one key.",
-		"Check that the name prop matches a key in your schema.",
-	]);
+function nestedFieldNames(def: FieldDef): string[] {
+	const direct =
+		"elementFields" in def ? (def.elementFields ?? undefined) : undefined;
+	if (direct) return Object.keys(direct);
+	if (def.kind === "array") {
+		const element = def.elementDef;
+		const nested =
+			element && "elementFields" in element
+				? (element.elementFields ?? undefined)
+				: undefined;
+		if (nested) return Object.keys(nested);
+	}
+	return [];
 }
 
 function failSegment(
@@ -22,9 +26,8 @@ function failSegment(
 	traversed: string,
 	def: FieldDef,
 ): never {
-	const fields = def.elementFields ?? def.elementDef?.elementFields;
-	const available = fields ? Object.keys(fields) : [];
-	const details = [
+	const available = nestedFieldNames(def);
+	throw createFormError(`No field definition found for "${name}"`, [
 		`Could not resolve segment "${segment}" at path "${traversed}".`,
 		...(def.kind === "array"
 			? [
@@ -35,8 +38,7 @@ function failSegment(
 			? `Available nested fields at "${traversed}": ${available.join(", ")}`
 			: `"${traversed}" has no nested fields — it may not be an array or object type.`,
 		"Ensure the nested path matches your schema structure.",
-	];
-	throw createFormError(`No field definition found for "${name}"`, details);
+	]);
 }
 
 export function resolveFieldDef(fieldMap: SchemaTree, name: string): FieldDef {
@@ -54,26 +56,39 @@ export function resolveFieldDef(fieldMap: SchemaTree, name: string): FieldDef {
 		]);
 	}
 	const rootKey = segments[0] as string;
-	let def: FieldDef | undefined = fieldMap[rootKey];
-	if (!def) failRoot(name, rootKey, fieldMap);
+	const rootDef: FieldDef | undefined = fieldMap[rootKey];
+	if (!rootDef) {
+		const available = Object.keys(fieldMap);
+		throw createFormError(`No field definition found for "${name}"`, [
+			`Root field "${rootKey}" does not exist in the schema.`,
+			available.length
+				? `Available fields: ${available.join(", ")}`
+				: "The field map is empty — check that your schema is an object with at least one key.",
+			"Check that the name prop matches a key in your schema.",
+		]);
+	}
 
+	let def: FieldDef = rootDef;
+	let traversed = rootKey;
 	for (let i = 1; i < segments.length; i++) {
 		const segment = segments[i] as string;
-		const traversed = segments.slice(0, i).join(".");
 
-		if (isNumeric(segment)) {
-			if (def.kind === "array") {
-				if (!def.elementDef) failSegment(name, segment, traversed, def);
-				def = def.elementDef;
-				continue;
-			}
+		if (def.kind === "array") {
+			if (!isNumeric(segment)) failSegment(name, segment, traversed, def);
+			const element = def.elementDef;
+			if (!element) failSegment(name, segment, traversed, def);
+			def = element;
+			traversed += `.${segment}`;
+			continue;
 		}
 
-		if (def.kind === "array") failSegment(name, segment, traversed, def);
-
+		// Only objects carry named children; every other kind (including custom
+		// leaves) fails here. Numeric keys on objects still look up literally.
+		if (def.kind !== "object") failSegment(name, segment, traversed, def);
 		const next: FieldDef | undefined = def.elementFields?.[segment];
 		if (!next) failSegment(name, segment, traversed, def);
 		def = next;
+		traversed += `.${segment}`;
 	}
 	return def;
 }

@@ -36,14 +36,20 @@ function runAdapterStep<T>(stage: string, hint: string, fn: () => T): T {
 	}
 }
 
-function getCached<T>(
+/**
+ * Cross-instance cache: `useMemo([schema])` already avoids rebuilds within one
+ * hook instance, while this `WeakMap` shares the built field map / resolver
+ * across mounts that reuse the same schema object. Non-object schemas bypass
+ * the cache (adapters always receive objects in practice).
+ */
+function getOrBuild<T>(
 	cache: WeakMap<object, T>,
 	schema: unknown,
 	build: () => T,
 ): T {
 	if (typeof schema === "object" && schema !== null) {
 		const hit = cache.get(schema);
-		if (hit) return hit;
+		if (hit !== undefined) return hit;
 		const value = build();
 		cache.set(schema, value);
 		return value;
@@ -51,32 +57,12 @@ function getCached<T>(
 	return build();
 }
 
-function getCachedFieldMap<TSchema>(
-	schemaResolver: SchemaAdapter<TSchema>,
-	cache: WeakMap<object, SchemaTree>,
-	schema: TSchema,
-): SchemaTree {
-	return getCached(cache, schema, () =>
-		runAdapterStep(
-			"useForm could not build the field map from your schema",
-			"Check that the schema matches the adapter (e.g. a Zod object for zodAdapter).",
-			() => schemaResolver.createFieldMap(schema),
-		),
-	);
-}
-
-function getCachedResolver<TSchema>(
-	schemaResolver: SchemaAdapter<TSchema>,
-	cache: WeakMap<object, Resolver>,
-	schema: TSchema,
-): Resolver {
-	return getCached(cache, schema, () =>
-		runAdapterStep(
-			"useForm could not create the form resolver from your schema",
-			"Check that the schema is a valid schema for the adapter.",
-			() => schemaResolver.createResolver(schema),
-		),
-	);
+function useStableCallback<Args extends unknown[], R>(
+	fn: ((...args: Args) => R) | undefined,
+): (...args: Args) => R | undefined {
+	const ref = useRef(fn);
+	ref.current = fn;
+	return useCallback((...args: Args) => ref.current?.(...args), []);
 }
 
 export function createUseForm<TSchema>(
@@ -91,6 +77,7 @@ export function createUseForm<TSchema>(
 		const S extends TSchema,
 		TValues extends FieldValues = InferredValues<S>,
 	>(options: UseFormOptions<S, TValues>): FormInstance<TValues> {
+		// biome-ignore lint/suspicious/noUnnecessaryConditions: runtime guard for developer misuse
 		if (!options) {
 			throw createFormError("useForm requires an options object", [
 				"Call useForm({ schema, onSubmit, ... }).",
@@ -120,40 +107,44 @@ export function createUseForm<TSchema>(
 		}
 
 		const fieldMap = useMemo(
-			() => getCachedFieldMap(schemaResolver, fieldMapCache, schema),
+			() =>
+				getOrBuild(fieldMapCache, schema, () =>
+					runAdapterStep(
+						"useForm could not build the field map from your schema",
+						"Check that the schema matches the adapter (e.g. a Zod object for zodAdapter).",
+						() => schemaResolver.createFieldMap(schema),
+					),
+				),
 			[schema],
 		);
 		const resolver = useMemo(
-			() => getCachedResolver(schemaResolver, resolverCache, schema),
+			() =>
+				getOrBuild(resolverCache, schema, () =>
+					runAdapterStep(
+						"useForm could not create the form resolver from your schema",
+						"Check that the schema is a valid schema for the adapter.",
+						() => schemaResolver.createResolver(schema),
+					),
+				),
 			[schema],
 		);
 
 		const methods = useRhfForm<TValues, unknown, TValues>({
-			...(defaultValues !== undefined && {
-				defaultValues: defaultValues as DefaultValues<TValues>,
-			}),
+			defaultValues: defaultValues as DefaultValues<TValues> | undefined,
 			mode: validationMode,
 			resolver: resolver as Resolver<TValues, unknown, TValues>,
 			reValidateMode,
 		});
 
-		const onSubmitRef = useRef(onSubmit);
-		onSubmitRef.current = onSubmit;
-		const onInvalidRef = useRef(onInvalid);
-		onInvalidRef.current = onInvalid;
-		const onSubmitErrorRef = useRef(onSubmitError);
-		onSubmitErrorRef.current = onSubmitError;
-		const stableOnSubmit = useCallback(
-			(values: TValues) => onSubmitRef.current(values),
-			[],
+		const stableOnSubmit = useStableCallback<[TValues], void | Promise<void>>(
+			onSubmit,
 		);
-		const stableOnInvalid = useCallback(
-			(errors: FieldErrors<TValues>) => onInvalidRef.current?.(errors),
-			[],
+		const stableOnInvalid = useStableCallback<[FieldErrors<TValues>], void>(
+			onInvalid,
 		);
-		const stableOnSubmitError = useCallback((error: unknown) => {
-			onSubmitErrorRef.current?.(error);
-		}, []);
+		const stableOnSubmitError = useStableCallback<[unknown], void>(
+			onSubmitError,
+		);
 
 		return useMemo(
 			() =>

@@ -44,17 +44,101 @@ export type FieldCheck = {
 	value?: unknown;
 };
 
-export type FieldDef = {
-	kind: FieldKind;
+type BaseFieldDef = {
 	optional: boolean;
 	meta?: FieldMeta;
+};
+
+export type StringFieldDef = BaseFieldDef & {
+	kind: "string" | "email" | "url";
 	checks?: Array<FieldCheck>;
+	min?: number;
+	max?: number;
+	entries?: never;
+	elementFields?: never;
+	elementDef?: never;
+};
+
+export type NumberFieldDef = BaseFieldDef & {
+	kind: "number";
+	checks?: Array<FieldCheck>;
+	min?: number;
+	max?: number;
+	entries?: never;
+	elementFields?: never;
+	elementDef?: never;
+};
+
+export type BooleanFieldDef = BaseFieldDef & {
+	kind: "boolean";
+	checks?: never;
+	min?: never;
+	max?: never;
+	entries?: never;
+	elementFields?: never;
+	elementDef?: never;
+};
+
+export type EnumFieldDef = BaseFieldDef & {
+	kind: "enum";
+	entries?: Record<string, string>;
+	checks?: never;
+	min?: never;
+	max?: never;
+	elementFields?: never;
+	elementDef?: never;
+};
+
+export type ArrayFieldDef = BaseFieldDef & {
+	kind: "array";
+	elementDef?: FieldDef;
+	checks?: Array<FieldCheck>;
+	min?: number;
+	max?: number;
+	entries?: never;
+	elementFields?: never;
+};
+
+export type ObjectFieldDef = BaseFieldDef & {
+	kind: "object";
+	elementFields: SchemaTree;
+	entries?: never;
+	elementDef?: never;
+	checks?: never;
+	min?: never;
+	max?: never;
+};
+
+export type DateFieldDef = BaseFieldDef & {
+	kind: "date";
+	checks?: never;
+	min?: never;
+	max?: never;
+	entries?: never;
+	elementFields?: never;
+	elementDef?: never;
+};
+
+/** Custom kinds are leaf-or-container permissive so third-party adapters keep working. */
+export type CustomFieldDef = BaseFieldDef & {
+	kind: string;
+	checks?: Array<FieldCheck>;
+	min?: number;
+	max?: number;
 	entries?: Record<string, string>;
 	elementFields?: SchemaTree;
 	elementDef?: FieldDef;
-	min?: number;
-	max?: number;
 };
+
+export type FieldDef =
+	| StringFieldDef
+	| NumberFieldDef
+	| BooleanFieldDef
+	| EnumFieldDef
+	| ArrayFieldDef
+	| ObjectFieldDef
+	| DateFieldDef
+	| CustomFieldDef;
 
 export type SchemaTree = Record<string, FieldDef>;
 
@@ -80,7 +164,7 @@ export type FieldKindValueMap = {
 	number: number;
 	boolean: boolean;
 	enum: string;
-	date: Date | undefined;
+	date: Date;
 	array: unknown[];
 	object: Record<string, unknown>;
 };
@@ -89,6 +173,12 @@ export type ComboboxConfig = {
 	options: string[];
 };
 
+/**
+ * Identity helper that preserves `TValue`/`TConfig` inference for a field
+ * widget. Zero runtime behavior by design — the value is the type-level
+ * contract, so `defineFieldComponent<number>(MyInput)` stays checked while
+ * `FieldComponentMap` remains bivariant at registration.
+ */
 export function defineFieldComponent<
 	TValue = unknown,
 	TConfig = Record<string, unknown>,
@@ -129,22 +219,22 @@ export type ValidationMode =
 
 export type ReValidateMode = "onChange" | "onBlur" | "onSubmit";
 
-export type FormContextValue = {
+type WithFieldMap = {
 	fieldMap: SchemaTree;
 };
 
+export type FormContextValue = WithFieldMap;
+
 export type FormContextInstance<TValues extends FieldValues = FieldValues> =
-	UseFormReturn<TValues> & {
-		fieldMap: SchemaTree;
-	};
+	UseFormReturn<TValues> & WithFieldMap;
 
 export type FormInstance<TValues extends FieldValues = FieldValues> =
-	UseFormReturn<TValues, unknown, TValues> & {
-		fieldMap: SchemaTree;
-		onSubmit: (values: TValues) => void | Promise<void>;
-		onInvalid?: (errors: FieldErrors<TValues>) => void;
-		onSubmitError?: (error: unknown) => void;
-	};
+	UseFormReturn<TValues, unknown, TValues> &
+		WithFieldMap & {
+			onSubmit: (values: TValues) => void | Promise<void>;
+			onInvalid?: (errors: FieldErrors<TValues>) => void;
+			onSubmitError?: (error: unknown) => void;
+		};
 
 export type UseFormOptions<
 	TSchema,
